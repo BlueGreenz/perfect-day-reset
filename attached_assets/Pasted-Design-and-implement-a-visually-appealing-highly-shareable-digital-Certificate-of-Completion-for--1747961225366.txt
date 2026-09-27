@@ -1,0 +1,43 @@
+Design and implement a visually appealing, highly shareable digital "Certificate of Completion" for users who finish the 24-hour PerfectDayReset program.
+
+📌 Key Goals:
+- The certificate must be social media friendly.
+- It should look premium, personal, and motivational.
+- Encourage users to download and share it on platforms like Instagram, TikTok, and Facebook.
+
+🎨 Design Specifications:
+- Size: Generate two formats:
+  1. Square (1080x1080px) for social media feeds.
+  2. Vertical (1080x1920px) for stories.
+- Color scheme: Use gradient or glowing tones (e.g. sunrise orange, deep blue, soft gold) to symbolize transformation and energy.
+- Fonts:
+  - Name: Elegant script-style font (e.g., Playfair Display, Great Vibes).
+  - Body text: Clean, modern sans-serif (e.g., Inter, Poppins).
+- Background style: Subtle texture or soft abstract graphics (waves, energy lines, or sunrise).
+- Include a modern digital **badge/seal** with text: “RESET: 24H Achiever”.
+
+🧠 Dynamic Personalization (via user input):
+- User's full name.
+- Dynamic title earned (e.g. “Discipline Architect”, “Energy Alchemist”).
+- A quote randomly selected from a list of motivational one-liners:
+  - “In just 24 hours, I changed everything.”
+  - “Reset. Rebuild. Rise.”
+  - “I hit reset and found clarity.”
+
+🖼️ Optional:
+- Profile picture upload support: place user’s image in a clean circle frame on the top-right or bottom-left.
+
+📲 Social Sharing Add-ons:
+- A QR code linking to: `https://perfectdayreset.com`
+- Small footer text: “You can do it too. Start your reset at perfectdayreset.com”
+- A share button after generation with options to download in both sizes.
+
+✨ Bonus Visual Flair:
+- Optional subtle animation (pulse or glow effect).
+- Hidden “easter egg” message layered subtly (e.g., “You’re more capable than you think”).
+
+🛠️ Tools/Libraries Recommended:
+- HTML/CSS/JS with Canvas or SVG.
+- Use Google Fonts or embedded font files.
+- Optional: integrate with a headless CMS or database to pull dynamic reflection-based titles or names.
+

@@ -1,0 +1,53 @@
+You are tasked with redesigning and improving the homepage for PerfectDayReset.com to communicate trust, clarity, and professionalism. Follow these instructions:
+
+1. **Update the Hero Section**  
+   - Replace the existing headline with a clear, benefit-driven statement. For example:  
+     “Transform Your Energy, Clarity & Focus in Just 24 Hours”  
+   - Add a subheadline underneath that briefly explains the core promise:  
+     “A proven, guided 24-hour protocol to reset your mind and body—and give $1 to children’s programs with every purchase.”  
+   - Use a high-quality, full-width background image or subtle gradient that evokes sunrise or renewal. Ensure text overlays are easy to read (dark overlay or light overlay depending on the image).
+
+2. **Add a Prominent Call-to-Action**  
+   - Create a large, contrasting button below the headline that says:  
+     “Start Your 24-Hour Reset Now”  
+   - Link this button to the checkout or “Get Started” flow. Use padding and a bright accent color (e.g., deep teal or sunrise orange) so it stands out immediately.
+
+3. **Introduce Trust Elements**  
+   - Insert a testimonial section just below the hero. Add three customer quotes (use placeholder text for now) with small headshots and first names. Layout them horizontally on desktop, stacked on mobile.  
+   - Below testimonials, include a line: “Featured In” or “As Seen On” and grayscale logos of any press outlets or partner brands. If you don’t have real logos yet, leave placeholders.
+
+4. **Explain How It Works (3-Step Section)**  
+   - Create a three-column section titled “How the 24-Hour Reset Works.”  
+     1. **Step 1: Prepare Your Day:** Brief bullet points about receiving the schedule, gathering simple items.  
+     2. **Step 2: Follow the Protocol:** One sentence about morning movement, midday reset, evening reflection.  
+     3. **Step 3: Feel the Transformation:** Describe the outcome—better energy, clarity, mood, and $1 donated to children.  
+   - Use simple icons (e.g., checklist icon, clock icon, heart icon) above each step.
+
+5. **Highlight the Social Impact**  
+   - Add a small section or badge that says: “Every purchase donates $1 to children’s programs.”  
+   - Place this badge near the top right or near the main CTA so it’s visible on page load.
+
+6. **Feature a Program Snapshot**  
+   - Insert a responsive card or grid that briefly outlines key modules: Morning Activation, Midday Movement, Evening Reflection.  
+   - For each module, show a small icon, a one-sentence description, and a “Learn More” link (anchor to those sections).
+
+7. **Enhance Visual Consistency**  
+   - Standardize fonts: Use “Inter” or “Poppins” for body copy, and a bold serif or sans-serif for headings.  
+   - Create a consistent color palette: e.g., gradients of sunrise orange to deep purple for backgrounds, teal or navy accents for buttons and icons.  
+   - Ensure spacing and padding are balanced: at least 40px vertical padding between each main section on desktop, 20px on mobile.
+
+8. **Add Footer with Essential Links**  
+   - Include links: About Us, FAQs, Privacy Policy, Terms of Service, Contact.  
+   - Add social icons linking to your YouTube and TikTok channels.  
+   - Add a small copyright line: “© 2025 Perfect Day Reset.”
+
+9. **Mobile Responsiveness**  
+   - Test breakpoints at 320px, 768px, and 1024px widths.  
+   - Collapse horizontal sections into stacked vertical layouts on narrow screens.  
+   - Ensure the main CTA button remains visible “above the fold” on mobile view.
+
+10. **Final Touches**  
+    - Add subtle hover effects on buttons and icons (e.g., slight scale or color shift).  
+    - Use a sticky header nav bar with a transparent background that turns opaque on scroll. Include links: Home, How It Works, Testimonials, Start Now.  
+
+Please implement these changes in your HTML/CSS/JS (or React) code. Ensure the homepage loads quickly, uses optimized images, and provides a cohesive, trustworthy experience from first glance.  

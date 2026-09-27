@@ -1,0 +1,35 @@
+You are a senior conversion-focused front-end dev.
+
+CODEBASE: vanilla HTML/CSS/JS static site hosted on Replit.
+
+TASKS:
+1. Hero section
+   - Replace current H1 with "Change your day. Change your life." (Montserrat Heavy, 48 px mobile / 72 px desktop, white, centre).
+   - Sub-headline: "In the next 24 hours you’ll reset your mind, body and emotions—and prove it with a certificate."
+   - Add 15-sec silent autoplay hero video (1080×1920, sunrise → certificate) as background cover (muted, playsinline, lazy-load). Provide <video> tag with "/assets/hero.mp4" source.
+
+2. Trust & urgency bar (sticky, top, 0 px bottom margin)
+   - Live counters: "612 people reset today • €1,247 donated • 127 founding spots left" (use animated count-up, refresh every 60 s via JS fetch from /api/stats.json – stub the JSON for now).
+
+3. CTA row (sticky on mobile, bottom)
+   - Primary button: "Start My 24-Hour Reset – €67" (green #00C896, white text, full-width mobile, 56 px high).
+   - Secondary text: "Or 3× €25 (no interest)" (smaller, opens payment-plan accordion).
+
+4. Above-the-fold certificate mock-up
+   - PNG 600 px wide, drop-shadow, centre. Overlay small animated share-icon (2-sec loop) + caption "This is your proof by 8 PM".
+
+5. Exit-intent pop-up
+   - On mouse leave / back-button: modal with "Free Morning Protocol PDF" → email capture (name + email) → POST to /api/leads → stores in JSON file. Use localStorage to show only once per user.
+
+6. Speed & SEO
+   - Compress all new images ≤ 100 KB, convert to WebP, add width/height attributes to avoid CLS.
+   - Add <meta name="description" content="Transform your mind, body and habits in 24 hours. Get a shareable certificate and feed a child.">
+   - Inline critical CSS, defer non-critical JS.
+
+7. Pixels
+   - Inject Meta Pixel (stub ID "META_PIXEL_ID") and TikTok Pixel (stub ID "TT_PIXEL_ID") right before </head>.
+
+8. Accessibility
+   - All buttons aria-label, colour-contrast AA, video has aria-hidden="true".
+
+Return the changed index.html, style.css and main.js files only. Do not write prose.

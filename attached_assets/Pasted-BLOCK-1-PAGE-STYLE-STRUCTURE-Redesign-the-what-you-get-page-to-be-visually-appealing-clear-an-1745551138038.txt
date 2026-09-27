@@ -1,0 +1,91 @@
+BLOCK 1: PAGE STYLE & STRUCTURE
+
+Redesign the /what-you-get page to be visually appealing, clear, and persuasive.
+
+Use a clean layout with good spacing, soft neutral backgrounds, smooth sections with rounded corners, and icons where needed.
+Stick to one modern font (like Inter or Poppins), and make everything mobile-optimized and scroll-friendly.
+
+BLOCK 2: HERO SECTION (TOP OF PAGE)
+
+At the top of the page, add a big hero section with the headline:
+
+💥 “Your Fresh Start Begins Here”
+One powerful day to reset your body, mind, and momentum – no thinking needed.
+
+Include a motivational background image or gradient, and a button:
+[Yes, I Want the Reset – €9.90] (link to the Stripe checkout page)
+
+BLOCK 3: WHAT’S INSIDE THE PERFECT DAY RESET
+
+Add a section titled:
+🧘‍♂️ What’s Included in the Perfect Day Reset
+
+Use icons or checkmarks and list each point:
+
+✅ 15-page PDF Guide
+
+✅ 3 meals per eating time (incl. recipes + shopping list)
+
+✅ Supplement stack + where to buy them
+
+✅ Fully planned schedule: habits, mindset, movement
+
+✅ No-phone challenge structure
+
+✅ Printable Daily Tracker
+
+✅ Motivation-packed layout
+
+BLOCK 4: WHO THIS IS FOR
+
+Add a soft-colored section titled:
+🙋‍♀️ Who Is This For?
+With bullet points:
+
+Anyone feeling stuck, foggy, or low-energy
+
+People who’ve lost momentum and want a clean reset
+
+High performers who need to recharge
+
+Beginners in self-care or wellbeing
+
+You, if you’re ready to change how you feel – fast
+
+BLOCK 5: WHAT HAPPENS AFTER PURCHASE
+
+Add a section titled:
+📦 What Happens After You Buy?
+
+With 3 steps:
+
+📩 You’ll receive a confirmation email with the PDF download
+
+📁 You’ll access the full plan, tracker, supplement guide, and recipes
+
+💪 You’ll begin your reset whenever you’re ready
+
+Below this, a small line:
+Backed by our 30-day refund policy (with tracker use).
+
+BLOCK 6: CTA SECTION (BOTTOM OF PAGE)
+
+Create a final section with centered text and bold call-to-action:
+
+“Start Your Reset Now for Only €9.90”
+
+Add a big beautiful button:
+[Get the Perfect Day Reset – €9.90]
+→ Link to Stripe checkout
+
+Optional text under the button:
+“Your new momentum starts today.”
+
+✅ EXTRAS (if possible):
+Soft animations on scroll
+
+Use gradient buttons
+
+A testimonial box (we can add real ones later)
+
+Icons (from Font Awesome or similar) next to bullets

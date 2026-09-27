@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /admin/
+Disallow: /product/reset/
+
+# Sitemap
+Sitemap: https://perfectdayreset.com/sitemap.xml
+
+# Crawl-delay for all bots
+Crawl-delay: 1

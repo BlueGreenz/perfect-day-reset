@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perfect Day Reset - Daily Tracker</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .page-break {
+      page-break-after: always;
+    }
+    .tracker {
+      border: 1px solid #ddd;
+      padding: 20px;
+      margin-bottom: 30px;
+      border-radius: 8px;
+      background-color: #fff;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .header h1 {
+      color: #4A8B2C;
+      margin-bottom: 5px;
+    }
+    .header h2 {
+      color: #555;
+      margin-top: 0;
+    }
+    .date-section {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .date-section div {
+      margin: 0 15px;
+    }
+    .date-section span {
+      border-bottom: 1px solid #999;
+      padding: 0 10px;
+      min-width: 120px;
+      display: inline-block;
+    }
+    .section {
+      margin-bottom: 20px;
+      padding: 15px;
+      border-radius: 6px;
+    }
+    .morning {
+      background-color: #E8F5E9;
+      border: 1px solid #C8E6C9;
+    }
+    .midday {
+      background-color: #E3F2FD;
+      border: 1px solid #BBDEFB;
+    }
+    .evening {
+      background-color: #F3E5F5;
+      border: 1px solid #E1BEE7;
+    }
+    .notes {
+      background-color: #F5F5F5;
+      border: 1px solid #E0E0E0;
+    }
+    h3 {
+      margin-top: 0;
+      display: flex;
+      align-items: center;
+    }
+    .emoji {
+      margin-right: 10px;
+    }
+    .item {
+      margin: 10px 0;
+      display: flex;
+      align-items: flex-start;
+    }
+    .checkbox {
+      width: 18px;
+      height: 18px;
+      border: 1px solid #999;
+      margin-right: 10px;
+      flex-shrink: 0;
+      position: relative;
+      top: 3px;
+    }
+    .notes-lines {
+      margin-top: 15px;
+    }
+    .line {
+      border-bottom: 1px solid #ccc;
+      height: 25px;
+      margin-bottom: 5px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Day 1 -->
+  <div class="tracker">
+    <div class="header">
+      <h1>Perfect Day Reset</h1>
+      <h2>Daily Reset Tracker</h2>
+      <div class="date-section">
+        <div>
+          <strong>Date:</strong>
+          <span>&nbsp;</span>
+        </div>
+        <div>
+          <strong>Day:</strong>
+          <span>&nbsp;</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section morning">
+      <h3><span class="emoji">🌞</span> Morning</h3>
+      <div class="item">
+        <div class="checkbox"></div>
+        <div>Woke up at target time: _______</div>
+      </div>
+      <div class="item">
+        <div class="checkbox"></div>
+        <div>10-minute mindfulness completed</div>
+      </div>
+      <div class="item">
+        <div class="checkbox"></div>
+        <div>Morning supplements taken</div>
+      </div>
+      <div class="item">
+        <div class="checkbox"></div>
+        <div>First meal followed (circle one): Option 1 / Option 2 / Option 3</div>
+      </div>
+    </div>
+
+    <div class="section midday">
+      <h3><span class="emoji">💪</span> Midday</h3>
+      <div class="item">
+        <div class="checkbox"></div>
+        <div>Movement session completed (walk/gym/yoga)</div>
+      </div>
+      <div class="item">
+        <div class="checkbox"></div>
+        <div>Screen-free focus block completed</div>
+      </div>
+      <div class="item">
+        <div class="checkbox"></div>
+        <div>Second meal followed (circle one): Option 1 / Option 2 / Option 3</div>
+      </div>
+    </div>
+
+    <div class="section evening">
+      <h3><span class="emoji">🌇</span> Evening</h3>
+      <div class="item">
+        <div class="checkbox"></div>
+        <div>Digital detox after 8pm</div>
+      </div>
+      <div class="item">
+        <div class="checkbox"></div>
+        <div>Supplements taken (evening)</div>
+      </div>
+      <div class="item">
+        <div class="checkbox"></div>
+        <div>Final meal followed (circle one): Option 1 / Option 2 / Option 3</div>
+      </div>
+      <div class="item">
+        <div class="checkbox"></div>
+        <div>5-minute gratitude or reflection done</div>
+      </div>
+    </div>
+
+    <div class="section notes">
+      <h3><span class="emoji">🧠</span> Notes or Reflections:</h3>
+      <div class="notes-lines">
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Track your progress for 7 consecutive days for optimal results.</p>
+      <p>Your completed tracker may be requested as proof of participation if requesting a refund.</p>
+      <p>© Perfect Day Reset - www.perfectdayreset.com</p>
+    </div>
+  </div>
+
+  <!-- Each additional day includes a page break before it -->
+  <div class="page-break"></div>
+
+  <!-- Day 2 -->
+  <div class="tracker">
+    <!-- Copy of Day 1 content with Day 2 in the header -->
+    <!-- Similar structure for days 3-7 with page breaks between -->
+    <!-- ... Additional days would follow the same pattern ... -->
+  </div>
+
+  <!-- Add 5 more copies (for a total of 7 days) with page breaks in between -->
+</body>
+</html>

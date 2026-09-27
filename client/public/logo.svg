@@ -1,0 +1,20 @@
+<svg width="270" height="50" viewBox="0 0 270 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sun Icon - Simple and clear -->
+  <circle cx="25" cy="25" r="15" fill="#4A8B2C" />
+  
+  <!-- Simple Sun Rays -->
+  <path d="M25 5 L25 10" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M25 40 L25 45" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M5 25 L10 25" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M40 25 L45 25" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M11 11 L15 15" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M35 35 L39 39" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M11 39 L15 35" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M35 15 L39 11" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  
+  <!-- Company Name as text spans -->
+  <g fill="#4A8B2C" font-family="Arial, sans-serif" font-weight="bold">
+    <text x="55" y="29" font-size="22">Perfect Day</text>
+    <text x="175" y="29" font-size="22" fill="#333333">Reset</text>
+  </g>
+</svg>

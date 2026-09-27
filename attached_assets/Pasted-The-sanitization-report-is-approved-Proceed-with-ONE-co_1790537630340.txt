@@ -1,0 +1,97 @@
+The sanitization report is approved.
+
+Proceed with ONE controlled action only:
+
+CREATE A SANITIZED EXPORT COPY of the current application for our future GitHub baseline.
+
+Do NOT modify the current/live Perfect Day Reset workspace.
+
+Do NOT change the existing Git repository, branch, commits, remotes, Replit deployment, database, Secrets, or published application.
+
+Do NOT initialize Git in the new copy yet.
+Do NOT create or push a GitHub repository yet.
+
+STEPS
+
+1. Create a separate sibling directory named:
+
+perfect-day-reset-github
+
+2. Export ONLY the current tracked HEAD snapshot into that directory.
+
+Do not copy the existing .git directory or Git history.
+
+Use a safe snapshot/export method equivalent to:
+
+git archive HEAD
+
+3. In the NEW COPY ONLY:
+
+A. Edit `.replit`
+
+Remove ONLY the literal assignments for:
+
+TESTING_STRIPE_SECRET_KEY
+TESTING_VITE_STRIPE_PUBLIC_KEY
+
+Do not alter the existing workflows, deployment configuration, Node modules, PostgreSQL configuration, ports, commands, or other `.replit` settings.
+
+Leave `python-base-3.13` unchanged for now.
+
+B. Update `.gitignore`
+
+Ensure these rules exist:
+
+.env
+.env.*
+!.env.example
+.cache/
+.upm/
+.local/
+.agents/
+logs/
+*.log
+*.log.*
+
+Retain all existing ignore rules.
+
+Ensure the file ends with a newline.
+
+4. Do not remove or modify:
+
+- package-lock.json
+- attached_assets/
+- client/public/
+- .env.example
+- Replit deployment configuration
+- application source files
+
+5. Perform a final READ-ONLY safety check on the SANITIZED COPY.
+
+Check:
+
+- no `.git` directory exists
+- no `.env` or real environment file exists
+- TESTING_STRIPE_SECRET_KEY assignment is absent
+- TESTING_VITE_STRIPE_PUBLIC_KEY assignment is absent
+- no recognizable Stripe secret keys exist
+- no recognizable other API secret values exist in tracked/exported text files
+- runtime/generated directories are not part of the export
+- application source/assets appear complete
+
+Do not display any secret values if something is found.
+
+6. Return:
+
+- path of sanitized export
+- number of files exported
+- files intentionally modified during sanitization
+- credential scan result
+- confirmation that original Replit workspace remained unchanged
+- confirmation whether the sanitized copy is ready for Git initialization
+
+STOP THERE.
+
+Do not initialize Git.
+Do not create GitHub.
+Do not push anything.

@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Perfect Day Reset</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Open Sans', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f9f9f9;
+    }
+    
+    .page {
+      width: 8.5in;
+      height: 11in;
+      padding: 0.75in;
+      margin: 0 auto;
+      background-color: white;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .cover-page {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      height: 100%;
+      background-image: url('https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?q=80&w=1770&auto=format&fit=crop&ixlib=rb-4.0.3');
+      background-size: cover;
+      background-position: center;
+      color: white;
+      position: relative;
+    }
+    
+    .cover-page::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1;
+    }
+    
+    .cover-content {
+      position: relative;
+      z-index: 2;
+      padding: 2rem;
+      background-color: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 8px;
+      max-width: 80%;
+    }
+    
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      font-weight: 700;
+      color: inherit;
+    }
+    
+    h2 {
+      font-size: 1.8rem;
+      margin-bottom: 1.5rem;
+      font-weight: 600;
+      color: inherit;
+    }
+    
+    h3 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+      color: #3a5a78;
+    }
+    
+    p {
+      margin-bottom: 1rem;
+      font-size: 1rem;
+    }
+    
+    .author {
+      margin-top: 2rem;
+      font-style: italic;
+      font-size: 1.1rem;
+    }
+    
+    .content-page {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .page-header {
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #eaeaea;
+    }
+    
+    .quote-box {
+      background-color: #f5f5f5;
+      padding: 1.5rem;
+      border-left: 4px solid #3a5a78;
+      margin: 1.5rem 0;
+      font-style: italic;
+    }
+    
+    .quote-attribution {
+      text-align: right;
+      font-weight: 500;
+      margin-top: 0.5rem;
+    }
+    
+    .checklist {
+      list-style-type: none;
+      margin: 1.5rem 0;
+    }
+    
+    .checklist li {
+      margin-bottom: 1rem;
+      padding-left: 2rem;
+      position: relative;
+    }
+    
+    .checklist li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.3rem;
+      width: 1.2rem;
+      height: 1.2rem;
+      border: 2px solid #3a5a78;
+      border-radius: 3px;
+    }
+    
+    .meal-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    
+    .meal-column {
+      background-color: #f5f5f5;
+      padding: 1.5rem;
+      border-radius: 8px;
+    }
+    
+    .meal-column h4 {
+      color: #3a5a78;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    
+    .meal-item {
+      margin-bottom: 1.5rem;
+    }
+    
+    .meal-item h5 {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .ingredients {
+      list-style-type: disc;
+      padding-left: 1.5rem;
+      font-size: 0.9rem;
+    }
+    
+    .timeline {
+      margin-top: 1.5rem;
+    }
+    
+    .time-entry {
+      display: flex;
+      margin-bottom: 1.5rem;
+    }
+    
+    .time {
+      width: 100px;
+      font-weight: 600;
+      color: #3a5a78;
+    }
+    
+    .activity {
+      flex: 1;
+    }
+    
+    .activity-title {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    
+    .footer {
+      margin-top: 3rem;
+      text-align: center;
+      font-style: italic;
+      color: #666;
+    }
+    
+    @media print {
+      body {
+        background-color: white;
+      }
+      
+      .page {
+        width: 100%;
+        height: 100vh;
+        box-shadow: none;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Cover Page (Page 1) -->
+  <div class="page cover-page">
+    <div class="cover-content">
+      <h1>The Perfect Day Reset</h1>
+      <h2>One Day to Reboot Your Mind, Body, and Soul</h2>
+      <p class="author">by PerfectDayReset.com</p>
+    </div>
+  </div>
+  
+  <!-- Introduction (Page 2) -->
+  <div class="page content-page">
+    <div class="page-header">
+      <h3>Why Reset?</h3>
+    </div>
+    
+    <p>In our hyper-connected world, we rarely give ourselves permission to truly disconnect, reflect, and renew. The Perfect Day Reset is designed as a complete mental, physical, and spiritual reboot – all within a single day.</p>
+    
+    <p>This isn't about dramatic lifestyle changes that overwhelm. It's about creating one perfect day that shows you what's possible when you step away from notifications, junk food, and mental clutter.</p>
+    
+    <p>Many of us feel caught in a cycle of digital distraction, poor nutrition, and scattered attention. This reset breaks that cycle with a carefully structured day that balances movement, nutrition, focus, and rest.</p>
+    
+    <div class="quote-box">
+      <p>"The best way to predict the future is to create it."</p>
+      <p class="quote-attribution">— Abraham Lincoln</p>
+    </div>
+    
+    <p>The practices in this guide are backed by research on how to optimize mental clarity, physical energy, and emotional stability. Think of this as a template that you can personalize and repeat whenever you need to recalibrate.</p>
+    
+    <p>Let's begin the journey back to yourself.</p>
+  </div>
+  
+  <!-- Preparation Page (Page 3) -->
+  <div class="page content-page">
+    <div class="page-header">
+      <h3>What You'll Need Before You Start</h3>
+    </div>
+    
+    <p>Before your Perfect Day Reset, make sure you have the following items and conditions prepared. Proper preparation eliminates distractions and ensures a smooth experience.</p>
+    
+    <ul class="checklist">
+      <li>A full day with no commitments or interruptions</li>
+      <li>Your phone turned off or placed in another room</li>
+      <li>Selected supplements (see supplies page)</li>
+      <li>Pre-cooked or pre-prepared meals for the day</li>
+      <li>A quiet morning setup (comfortable chair, minimal noise)</li>
+      <li>This guide printed out (optional but recommended)</li>
+      <li>Journal and pen for reflection exercises</li>
+      <li>Comfortable clothes for light movement</li>
+      <li>Good quality water bottle</li>
+      <li>Natural herbal tea for evening</li>
+    </ul>
+    
+    <p>The day before your reset, try to get to bed early. A good night's sleep will significantly enhance your experience.</p>
+    
+    <p>Also, consider setting a clear intention for what you want to get out of this reset day. Whether it's clarity on a decision, reduced anxiety, or simply feeling more energized, having an intention helps focus your experience.</p>
+  </div>
+  
+  <!-- Supplies Page (Page 4) -->
+  <div class="page content-page">
+    <div class="page-header">
+      <h3>Supplements & Meals</h3>
+    </div>
+    
+    <p>Below is a recommended plan for supplements and meals throughout your reset day. Adjust according to your dietary preferences and health needs.</p>
+    
+    <div class="meal-grid">
+      <div class="meal-column">
+        <h4>Morning</h4>
+        
+        <div class="meal-item">
+          <h5>Breakfast Options</h5>
+          <ul class="ingredients">
+            <li>Oatmeal with berries and nuts</li>
+            <li>Scrambled eggs with avocado</li>
+            <li>Smoothie with greens and protein</li>
+          </ul>
+        </div>
+        
+        <div class="meal-item">
+          <h5>Morning Supplements</h5>
+          <ul class="ingredients">
+            <li>B-Complex or B12</li>
+            <li>Ashwagandha (for stress)</li>
+            <li>Omega-3</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="meal-column">
+        <h4>Midday</h4>
+        
+        <div class="meal-item">
+          <h5>Lunch Options</h5>
+          <ul class="ingredients">
+            <li>Quinoa bowl with vegetables</li>
+            <li>Grilled chicken or tofu salad</li>
+            <li>Lentil soup with leafy greens</li>
+          </ul>
+        </div>
+        
+        <div class="meal-item">
+          <h5>Midday Supplements</h5>
+          <ul class="ingredients">
+            <li>Magnesium (optional)</li>
+            <li>Vitamin D</li>
+            <li>Zinc (if needed)</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="meal-column">
+        <h4>Evening</h4>
+        
+        <div class="meal-item">
+          <h5>Dinner Options</h5>
+          <ul class="ingredients">
+            <li>Steamed vegetables with protein</li>
+            <li>Light fish or plant protein</li>
+            <li>Sweet potato with greens</li>
+          </ul>
+        </div>
+        
+        <div class="meal-item">
+          <h5>Evening Supplements</h5>
+          <ul class="ingredients">
+            <li>Magnesium Glycinate</li>
+            <li>GABA (optional)</li>
+            <li>Chamomile or herbal tea</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <p>Note: Always consult with a healthcare professional before beginning any supplement regimen, especially if you have existing health conditions or are taking medications.</p>
+  </div>
+  
+  <!-- Schedule Page (Page 5) -->
+  <div class="page content-page">
+    <div class="page-header">
+      <h3>Your Perfect Day Schedule</h3>
+    </div>
+    
+    <p>Follow this hour-by-hour breakdown to maximize the benefits of your reset day. The timing can be adjusted to fit your natural rhythms, but try to maintain the sequence of activities.</p>
+    
+    <div class="timeline">
+      <div class="time-entry">
+        <div class="time">6:30 AM</div>
+        <div class="activity">
+          <div class="activity-title">Wake Up</div>
+          <p>Open windows for fresh air. Take 3 deep breaths. Say "Today, I reset."</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">7:00 AM</div>
+        <div class="activity">
+          <div class="activity-title">Hydration</div>
+          <p>Large glass of warm water with lemon and pinch of salt.</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">7:30 AM</div>
+        <div class="activity">
+          <div class="activity-title">Light Movement</div>
+          <p>5-10 minutes of stretching or gentle yoga. Focus on breath.</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">8:00 AM</div>
+        <div class="activity">
+          <div class="activity-title">Journaling</div>
+          <p>Write 3 things you're grateful for and set an intention for the day.</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">8:30 AM</div>
+        <div class="activity">
+          <div class="activity-title">Breakfast + Supplements</div>
+          <p>Eat mindfully without digital distractions.</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">9:30 AM</div>
+        <div class="activity">
+          <div class="activity-title">Walking Reset</div>
+          <p>20-30 minute walk outdoors without phone or music.</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">10:30 AM</div>
+        <div class="activity">
+          <div class="activity-title">Deep Work Session</div>
+          <p>90 minutes of focused work or learning (no distractions).</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">12:00 PM</div>
+        <div class="activity">
+          <div class="activity-title">Midday Movement</div>
+          <p>20-30 minutes exercise (walking, bodyweight, or light weights).</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">1:00 PM</div>
+        <div class="activity">
+          <div class="activity-title">Lunch + Supplements</div>
+          <p>Eat mindfully, focusing on flavors and textures.</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">2:00 PM</div>
+        <div class="activity">
+          <div class="activity-title">Reflection Time</div>
+          <p>10 minutes of quiet sitting, eyes closed, no agenda.</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">2:30 PM</div>
+        <div class="activity">
+          <div class="activity-title">Afternoon Focus</div>
+          <p>Reading, creative project, or meaningful work.</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">4:00 PM</div>
+        <div class="activity">
+          <div class="activity-title">Nature Break</div>
+          <p>Outdoor time or breathwork exercises.</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">6:00 PM</div>
+        <div class="activity">
+          <div class="activity-title">Light Dinner + Supplements</div>
+          <p>Last meal of the day, keeping it light and nutritious.</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">7:00 PM</div>
+        <div class="activity">
+          <div class="activity-title">Digital Detox</div>
+          <p>Reading, journaling, or creative time (no screens).</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">9:00 PM</div>
+        <div class="activity">
+          <div class="activity-title">Wind Down Ritual</div>
+          <p>Herbal tea, light stretching, reflection on the day.</p>
+        </div>
+      </div>
+      
+      <div class="time-entry">
+        <div class="time">10:30 PM</div>
+        <div class="activity">
+          <div class="activity-title">Sleep</div>
+          <p>Lights out, phone still away, cool and dark room.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Motivation Page (Page 6) -->
+  <div class="page content-page">
+    <div class="page-header">
+      <h3>Keep Going</h3>
+    </div>
+    
+    <p>Congratulations on completing your Perfect Day Reset! This single day has shown you what's possible when you create intentional space for renewal and focus.</p>
+    
+    <p>While you may not be able to live every day exactly like this, you can certainly incorporate elements from this reset into your daily life:</p>
+    
+    <ul style="padding-left: 1.5rem; margin-bottom: 1.5rem;">
+      <li>Start each morning with the hydration ritual</li>
+      <li>Implement phone-free periods throughout your week</li>
+      <li>Schedule one 30-minute walk without distractions daily</li>
+      <li>Create a consistent wind-down ritual before bed</li>
+      <li>Choose one day per week for a "mini-reset"</li>
+    </ul>
+    
+    <p>For maximum benefit, aim to complete a full Perfect Day Reset once every two weeks. Each time you do, you'll find deeper insights and greater energy reserves.</p>
+    
+    <p>Remember that transformation isn't about perfection – it's about consistent practice and progress. Even implementing a few elements from this reset will create positive ripples throughout your life.</p>
+    
+    <p>If you found value in this process, consider sharing it with someone who might benefit from their own reset.</p>
+    
+    <div class="footer">
+      <p>Your mind just got stronger. Imagine where you'll be in 30 days.</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<svg width="270" height="50" viewBox="0 0 270 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sun Icon - Simple and clear -->
+  <circle cx="25" cy="25" r="15" fill="#4A8B2C" />
+  
+  <!-- Simple Sun Rays -->
+  <path d="M25 5 L25 10" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M25 40 L25 45" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M5 25 L10 25" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M40 25 L45 25" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M11 11 L15 15" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M35 35 L39 39" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M11 39 L15 35" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  <path d="M35 15 L39 11" stroke="#4A8B2C" stroke-width="3" stroke-linecap="round" />
+  
+  <!-- "Perfect Day" text -->
+  <path d="M60 20H63.5C65 20 66 21 66 22.5C66 24 65 25 63.5 25H60V20Z" fill="#4A8B2C"/>
+  <path d="M68 20H75V21.5H69.5V22H74V23.5H69.5V24H75V25.5H68V20Z" fill="#4A8B2C"/>
+  <path d="M77 20H80.5C82 20 83 21 83 22.5C83 24 82 25 80.5 25H77V20Z" fill="#4A8B2C"/>
+  <path d="M85 20H92V21.5H86.5V22H91V23.5H86.5V24H92V25.5H85V20Z" fill="#4A8B2C"/>
+  <path d="M100 20V25.5H98.5V22.5L97 25.5H96L94.5 22.5V25.5H93V20H95L96.5 23.5L98 20H100Z" fill="#4A8B2C"/>
+  <path d="M103 20H107V21.5H104.5V25.5H103V20Z" fill="#4A8B2C"/>
+  
+  <path d="M113 20H111.5V22.5C111.5 24 110.5 25 109 25C107.5 25 106.5 24 106.5 22.5V20H108V22.5C108 23.5 108.5 24 109 24C109.5 24 110 23.5 110 22.5V20H113Z" fill="#4A8B2C"/>
+  <path d="M115 20H118.5C119 20 119.5 20.5 119.5 21C119.5 21.5 119 22 118.5 22C119 22 119.5 22.5 119.5 23C119.5 23.5 119 24 118.5 24H115V20ZM117 21.5H118.5C119 21.5 119.5 21 119.5 20.5C119.5 20 119 19.5 118.5 19.5H117V21.5ZM117 24.5H118.5C119 24.5 119.5 24 119.5 23.5C119.5 23 119 22.5 118.5 22.5H117V24.5Z" fill="#4A8B2C"/>
+  
+  <!-- "Reset" text -->
+  <path d="M60 35H63.5C65 35 66 36 66 37.5C66 39 65 40 63.5 40H60V35Z" fill="#333333"/>
+  <path d="M68 35H75V36.5H69.5V37H74V38.5H69.5V39H75V40.5H68V35Z" fill="#333333"/>
+  <path d="M77 35H80.5C81 35 81.5 35.5 81.5 36C81.5 36.5 81 37 80.5 37C81 37 81.5 37.5 81.5 38C81.5 38.5 81 39 80.5 39H77V35Z" fill="#333333"/>
+  <path d="M83 35H90V36.5H84.5V37H89V38.5H84.5V39H90V40.5H83V35Z" fill="#333333"/>
+  <path d="M92 35H96V36.5H93.5V40.5H92V35Z" fill="#333333"/>
+</svg>

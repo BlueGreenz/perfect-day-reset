@@ -1,0 +1,9 @@
+{
+  "name": "Perfect Day Reset",
+  "short_name": "Perfect Day Reset",
+  "description": "Transform your mind and body with the Perfect Day Reset – a one-day protocol of food, movement, and journaling.",
+  "start_url": "/",
+  "display": "browser",
+  "theme_color": "#4A8B2C",
+  "background_color": "#ffffff"
+}

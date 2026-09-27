@@ -1,0 +1,57 @@
+Task:
+Update the "Light Focus Sprint" section on the /product/reset/midday webpage.
+
+Goal:
+Expand the list of task suggestions under the categories: Reflective, Creative, and Productive Tasks — to include 4 options per category (currently there are only 2).
+
+Instructions:
+
+Locate the section titled “Light Focus Sprint” or the time block from 10:30 to 12:00.
+
+Within that section, find the subcategories:
+
+💭 Reflective Tasks
+
+🎨 Creative Tasks
+
+💪 Productive Tasks
+
+For each category, add the following additional task options:
+
+💭 Reflective Tasks (4 total):
+
+Guided Journaling: Reflect on personal growth or set intentions.
+
+Mind Mapping: Visualize goals and steps to achieve them.
+
+Gratitude List: Write down 10 things you're grateful for — big or small — to elevate mood and reframe perspective.
+
+Life Audit: Evaluate core areas of life (health, work, relationships, finances) and note where you feel aligned or off-balance.
+
+🎨 Creative Tasks (4 total):
+
+Artistic Expression: Engage in drawing, painting, or crafting.
+
+Creative Writing: Write a short story or poem.
+
+Mood Board Creation: Use magazine clippings, digital tools, or drawings to create a visual of your dream lifestyle or next big goal.
+
+DIY or Mini Project: Build, fold origami, or make something simple from scratch (e.g., hand-written card, vision jar, small sculpture).
+
+💪 Productive Tasks (4 total):
+
+Organizational Sprint: Declutter a workspace or organize digital files.
+
+Skill Development: Learn a new tool or technique relevant to personal or professional growth.
+
+Inbox Zero Challenge: Process and archive all emails or messages for a mental clarity boost.
+
+Future Planning Session: Sketch out the next 7–14 days in your calendar with top goals, habits, or projects — align time with intention.
+
+Design Notes:
+
+Keep the style and formatting consistent with the rest of the page.
+
+Group each task list using headers and bullet points or visual icons (if already in use).
+
+Optional: Consider using collapsible sections or icons to make the UI cleaner if the list feels too long.

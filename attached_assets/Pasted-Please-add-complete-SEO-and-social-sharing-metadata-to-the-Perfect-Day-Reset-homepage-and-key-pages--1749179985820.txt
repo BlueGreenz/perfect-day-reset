@@ -1,0 +1,42 @@
+Please add complete SEO and social sharing metadata to the Perfect Day Reset homepage and key pages (e.g., /, /about, /what-you-get, /journey, /login). The metadata should:
+
+🔹 Ensure the site looks attractive and professional in:
+– Google search engine results (with a good title & description)
+– Facebook, Instagram, Twitter (Open Graph + Twitter Card support)
+
+🔹 Use this info for the homepage:
+
+Title: Perfect Day Reset – Reclaim Your Energy, Focus & Mood in 24 Hours  
+Meta Description: Transform your mind and body with the Perfect Day Reset – a one-day protocol of food, movement, and journaling. Start your journey now.  
+Canonical URL: https://perfectdayreset.com  
+Favicon: Add existing site icon  
+Language: en  
+Robots: index, follow  
+
+🔹 Open Graph (Facebook/LinkedIn):
+og:title: Perfect Day Reset – Reclaim Your Energy, Focus & Mood  
+og:description: Our 24-hour lifestyle reboot blends clean food, focused movement, and powerful mindset tools. Start your reset today.  
+og:image: https://perfectdayreset.com/assets/social-preview.jpg (or actual image path)  
+og:url: https://perfectdayreset.com  
+og:type: website  
+
+🔹 Twitter Card:
+twitter:card: summary_large_image  
+twitter:title: Perfect Day Reset – Reclaim Your Energy  
+twitter:description: One day can change everything. Join the reset that improves your energy, focus, and mood.  
+twitter:image: https://perfectdayreset.com/assets/social-preview.jpg
+
+🔹 Add structured data (JSON-LD) for homepage:
+– Website
+– Organization info (Perfect Day Reset, support@perfectdayreset.com)
+– Logo
+– SameAs links to any official social media (add placeholders for now)
+
+Also:  
+✅ Apply a `noindex` tag to /login and any backend-only routes  
+✅ Use <title> and <meta> tags per page (not only global)  
+✅ Make sure the About page also has a unique description and title  
+✅ Generate a clean `sitemap.xml` and `robots.txt`
+
+Let me know once it's implemented and give me a preview of the social cards and Google result snippet.
+

@@ -1,0 +1,125 @@
+PERFECT DAY RESET – PAGE 1: Welcome & Preparation
+🧩 PURPOSE OF THIS PAGE:
+Set emotional tone + trust
+
+Explain what’s coming
+
+Help users prepare
+
+Ensure they feel ready and excited
+
+✨ PAGE 1 LAYOUT & CONTENT:
+🎯 1. HEADLINE (Hero Section)
+Headline:
+
+“Reset Your Body & Mind in One Powerful Day”
+The Perfect Day Reset is a science-backed, step-by-step one-day transformation designed to help you feel clear, energized, and centered — all without scrolling or overthinking.
+
+CTA Button:
+👉 “I’m In – Let’s Start” (scrolls user to preparation section)
+
+Visuals:
+
+Clean image or animation of sunrise, fresh food, nature, or a calm space
+
+No clutter. Just strong emotional impact.
+
+🔍 2. INTRO SECTION: What is the Perfect Day Reset?
+In just one day, we’ll guide you through:
+
+A full digital detox
+
+High-impact meals and supplements
+
+Mind + body routines designed for clarity and calm
+
+A structure so powerful, it’s been described as a “manual for recharging your life.”
+
+This is not a juice cleanse. This is a guided full-body & mind reset.
+No fluff. No guesswork. No phone.
+
+✅ Fully planned.
+✅ Science-based.
+✅ Minimal decisions. Maximum impact.
+
+🧰 3. PREP SECTION: What You’ll Need to Start
+Before your reset day, make sure you’re prepared. We’ll guide you.
+
+🍽️ Choose Your Food Style:
+(User clicks one to continue — unlocks different meal plans in PDF later)
+
+Omni Reset (includes meat & dairy)
+
+Vegetarian
+
+Vegan
+
+Gluten-Free
+
+Keto
+
+(Their choice affects what food list and recipes we show later.)
+
+💊 Core Supplements Checklist:
+(We don’t sell these, but we recommend them for optimal results)
+
+🟩 Must-haves:
+
+Magnesium (e.g., Biomagnis B6 Premium)
+
+Vitamin B12 or Complex
+
+Ashwagandha
+
+Zinc
+
+Pau D’Arco tea
+
+🟨 Optional:
+
+Ginkgo Biloba
+
+Omega-3
+
+🛒 Buy at: local pharmacy, iHerb, Amazon, or health food store
+
+📦 Shopping List Functionality:
+Checkbox checklist that users can tick ✅
+
+Button to download as PDF or screenshot
+
+“Buy on iHerb” or “Find near me” links (optional)
+
+⏰ 4. Pick Your Reset Day
+Let the user interact:
+
+“I will do my reset on:” [ Date picker or just a blank line ]
+🧘‍♂️ Choose a day when you’re home, phone-free, and stress is low.
+
+📵 5. Prepare for a Digital Detox
+Your phone is the #1 enemy of rest and focus. Let’s break that cycle for one day.
+
+Checklist:
+
+ Turn off notifications
+
+ Use airplane mode
+
+ Set auto-reply: “I’m doing a one-day reset”
+
+ Use alarm clock (not phone)
+
+ Let friends/family know you’ll be offline
+
+🙌 6. Final Prep CTA:
+Header:
+
+✅ Ready to Reset?
+
+Subhead:
+
+You’ve selected your food style, got your supplements ready, and picked your reset date. You’re ready to begin.
+
+CTA Button:
+👉 “Take Me to My Perfect Day” → goes to Page 2: The Morning Routine
+
