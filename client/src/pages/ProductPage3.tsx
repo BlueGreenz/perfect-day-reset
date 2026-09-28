@@ -23,10 +23,20 @@ import {
   Minus,
   Youtube
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import beachExerciseImage from "@assets/16x9_A_vibrant_array_of_modern_sports.png";
+import { useCurrentReset, useCompleteItem, useSkipItem, useDelayItem } from "@/lib/reset-api";
+import { toast } from "@/hooks/use-toast";
+import { ApiError } from "@/lib/queryClient";
+import { Loader2 } from "lucide-react";
 
 export default function ProductPage3() {
+  const [, setLocation] = useLocation();
+  const { data: currentReset, isLoading, error: resetError, refetch } = useCurrentReset();
+  const completeItem = useCompleteItem();
+  const skipItem = useSkipItem();
+  const delayItem = useDelayItem();
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -73,9 +83,8 @@ export default function ProductPage3() {
     }
   };
 
-  const routineSteps = [
-    {
-      time: "10:30",
+  const catalogMapping: Record<string, any> = {
+    "focus_sprint": {
       title: "Light Focus Sprint",
       description: <div className="text-gray-600">
         Choose from the categories below. No phone. No multitasking. Work in full flow for 90 minutes.
@@ -205,8 +214,7 @@ export default function ProductPage3() {
       </div>,
       icon: <Brain className="h-6 w-6 text-primary" />
     },
-    {
-      time: "12:00",
+    "midday_movement": {
       title: "Midday Movement (60 Minutes)",
       description: <div className="text-gray-600">
         <p className="text-sm mb-3">
@@ -375,17 +383,13 @@ export default function ProductPage3() {
             </div>
           </div>
         </div>
-        
-
       </div>,
       icon: <Dumbbell className="h-6 w-6 text-primary" />
     },
-    {
-      time: "13:30",
+    "cold_shower": {
       title: "Cold Shower Reset",
-      description: "A 2-5 minute cold shower to boost circulation, mood, and immunity.",
-      icon: <Droplets className="h-6 w-6 text-primary" />,
-      customContent: (
+      description: <div>
+        <p className="text-gray-600 mb-2">A 2-5 minute cold shower to boost circulation, mood, and immunity.</p>
         <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
           <div className="font-medium text-sm mb-2">Benefits of Cold Exposure:</div>
           <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
@@ -404,48 +408,12 @@ export default function ProductPage3() {
             </details>
           </div>
         </div>
-      )
-    },
-    {
-      time: "14:00",
-      title: "Lunch (60 Minutes)",
-      description: <div className="text-gray-600">
-        {getLunchOption()}
-        <button 
-          onClick={() => document.getElementById("meal-plan-section")?.scrollIntoView({ behavior: "smooth" })}
-          className="mt-3 text-primary font-medium hover:underline inline-flex items-center"
-        >
-          <ArrowDown className="h-3 w-3 mr-1" /> See full lunch recipe details below
-        </button>
       </div>,
-      icon: <Utensils className="h-6 w-6 text-primary" />
-    },
-    {
-      time: "15:00",
-      title: "Supplements (Round 2)",
-      description: <div className="text-gray-600">
-        Take your midday supplements to maintain focus and energy:
-        <div className="mt-2 p-3 bg-green-50 border border-green-100 rounded-lg">
-          <ul className="list-disc list-inside space-y-1 text-gray-700">
-            <li><span className="font-medium">Omega-3</span> (reduces inflammation, supports brain function)</li>
-            <li><span className="font-medium">Magnesium</span> (improves calm, reduces muscle tension)</li>
-            <li><span className="font-medium">NAC</span> (powerful antioxidant, supports detoxification)</li>
-            <li><span className="font-medium">Ashwagandha</span> (reduces stress, balances cortisol levels)</li>
-          </ul>
-          <p className="mt-2 text-sm italic">Optional: small caffeine like green tea or coffee only if needed for focus.</p>
-        </div>
-      </div>,
-      icon: <Pill className="h-6 w-6 text-primary" />
-    },
-    {
-      time: "15:15",
-      title: "Reset Reflection",
-      description: "5 minutes. Eyes closed. No music. Ask yourself: What's going well today? What do I need to let go of? How do I want to show up for the second half of the day?",
-      icon: <Heart className="h-6 w-6 text-primary" />
+      icon: <Droplets className="h-6 w-6 text-primary" />
     }
-  ];
+  };
 
-  return (
+  const renderMiddayContent = (middayItems: any[]) => (
     <div className="bg-white min-h-screen">
       {/* Hero Section with beach exercise background */}
       <section className="relative text-white py-24 px-4 overflow-hidden">
@@ -477,42 +445,163 @@ export default function ProductPage3() {
               {/* Timeline Line */}
               <div className="absolute left-0 md:left-1/2 transform md:-translate-x-1/2 top-0 h-full w-1 bg-primary/20"></div>
               
-              {/* Timeline Cards */}
               <div className="space-y-8">
-                {routineSteps.map((step, index) => (
-                  <div key={index} className={`relative flex flex-col md:flex-row ${index % 2 === 0 ? 'md:flex-row-reverse' : ''} items-center md:gap-8`}>
+                {middayItems.map((item, index) => {
+                  const uiData = catalogMapping[item.activityKey];
+                  if (!uiData) {
+                    return (
+                      <div key={item.id} className="text-center p-4 bg-gray-50 rounded-lg text-sm text-gray-500">
+                        This activity cannot be displayed right now.
+                      </div>
+                    );
+                  }
+
+                  const isActive = item.status === 'active';
+                  const isCompleted = item.status === 'completed';
+                  const isSkipped = item.status === 'skipped';
+                  
+                  return (
+                  <div key={item.id} className={`relative flex flex-col md:flex-row ${index % 2 === 0 ? 'md:flex-row-reverse' : ''} items-center md:gap-8 ${!isActive && item.status !== 'scheduled' ? 'opacity-75' : ''}`}>
                     {/* Time Indicator */}
                     <div className="absolute left-0 md:left-1/2 transform -translate-x-1/2 -translate-y-1/2 top-12 flex items-center justify-center z-10">
-                      <div className="bg-white p-2 rounded-full border-2 border-primary">
-                        <CheckCircle2 className="h-6 w-6 text-primary" />
+                      <div className={`bg-white p-2 rounded-full border-2 ${isActive ? 'border-blue-500' : isCompleted ? 'border-green-500' : 'border-gray-200'}`}>
+                        {isCompleted ? <CheckCircle2 className="h-6 w-6 text-green-500" /> : <Clock className={`h-6 w-6 ${isActive ? 'text-blue-500' : 'text-gray-300'}`} />}
                       </div>
                     </div>
                     
                     {/* Time Label */}
                     <div className={`md:w-1/2 text-center md:text-right ${index % 2 === 0 ? 'md:text-left' : ''} mb-4 md:mb-0`}>
-                      <span className="text-lg font-bold bg-primary text-white px-3 py-1 rounded-full">{step.time}</span>
+                      <span className="text-lg font-bold bg-primary text-white px-3 py-1 rounded-full">
+                        {new Date(item.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
                     
                     {/* Step Content */}
                     <div className={`md:w-1/2 ${index % 2 === 0 ? 'md:pr-8' : 'md:pl-8'}`}>
-                      <Card className="bg-white shadow-sm hover:shadow-md transition border-none">
+                      <Card className={`bg-white shadow-sm transition border ${isActive ? 'border-blue-200 shadow-md ring-1 ring-blue-50' : 'border-transparent'}`}>
                         <CardContent className="p-6">
                           <div className="flex items-start gap-4">
                             <div className="p-3 bg-primary/10 rounded-full">
-                              {step.icon}
+                              {uiData.icon}
                             </div>
-                            <div>
-                              <h3 className="font-semibold text-lg mb-2">{step.title}</h3>
-                              <p className="text-gray-600">{step.description}</p>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg mb-2">{uiData.title} {item.isOptional && <span className="text-xs font-normal text-gray-500 ml-2">(Optional)</span>}</h3>
+                              <div className="text-gray-600">{uiData.description}</div>
                               
-                              {step.title === "Cold Shower Reset" && step.customContent}
+                              {isCompleted && <p className="text-sm font-medium text-green-600 mt-4">✓ Completed</p>}
+                              {isSkipped && <p className="text-sm font-medium text-gray-500 mt-4">Skipped</p>}
+                              
+                              {isActive && currentReset!.currentItem?.id === item.id && (
+                                <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+                                  <Button 
+                                    size="sm"
+                                    onClick={async () => {
+                                      try {
+                                        const res = await completeItem.mutateAsync(item.id);
+                                        toast({ title: "Activity completed" });
+                                        if (res.resetRun.status === 'active' && res.resetRun.phase === 'afternoon') {
+                                          setLocation('/product/reset/afternoon');
+                                        }
+                                      } catch (err: any) {
+                                        if (err.status === 409 && err.message.includes("Reset schedule has changed")) {
+                                          toast({ title: "Your schedule changed. We've refreshed it." });
+                                          refetch();
+                                        } else {
+                                          toast({ title: "Cannot complete", description: err.message, variant: "destructive" });
+                                        }
+                                      }
+                                    }}
+                                    disabled={completeItem.isPending || skipItem.isPending || delayItem.isPending}
+                                  >
+                                    {completeItem.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                                    Complete
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={async () => {
+                                      try {
+                                        const res = await skipItem.mutateAsync(item.id);
+                                        toast({ title: "Activity skipped" });
+                                        if (res.resetRun.status === 'active' && res.resetRun.phase === 'afternoon') {
+                                          setLocation('/product/reset/afternoon');
+                                        }
+                                      } catch (err: any) {
+                                        if (err.status === 409 && err.message.includes("Reset schedule has changed")) {
+                                          toast({ title: "Your schedule changed. We've refreshed it." });
+                                          refetch();
+                                        } else {
+                                          toast({ title: "Cannot skip", description: err.message, variant: "destructive" });
+                                        }
+                                      }
+                                    }}
+                                    disabled={completeItem.isPending || skipItem.isPending || delayItem.isPending}
+                                  >
+                                    Skip
+                                  </Button>
+                                  
+                                  <div className="flex gap-1 ml-auto">
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="text-xs px-2"
+                                      onClick={async () => {
+                                        try {
+                                          await delayItem.mutateAsync({
+                                            itemId: item.id,
+                                            delayMinutes: 15,
+                                            expectedScheduleRevision: currentReset!.resetRun.scheduleRevision
+                                          });
+                                          toast({ title: "Schedule updated", description: "+15 minutes" });
+                                        } catch (err: any) {
+                                          if (err.status === 409 && err.message.includes("Reset schedule has changed")) {
+                                            toast({ title: "Your schedule changed. We've refreshed it." });
+                                            refetch();
+                                          } else {
+                                            toast({ title: "Cannot delay", description: err.message, variant: "destructive" });
+                                          }
+                                        }
+                                      }}
+                                      disabled={completeItem.isPending || skipItem.isPending || delayItem.isPending}
+                                    >
+                                      +15m
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="text-xs px-2"
+                                      onClick={async () => {
+                                        try {
+                                          await delayItem.mutateAsync({
+                                            itemId: item.id,
+                                            delayMinutes: 30,
+                                            expectedScheduleRevision: currentReset!.resetRun.scheduleRevision
+                                          });
+                                          toast({ title: "Schedule updated", description: "+30 minutes" });
+                                        } catch (err: any) {
+                                          if (err.status === 409 && err.message.includes("Reset schedule has changed")) {
+                                            toast({ title: "Your schedule changed. We've refreshed it." });
+                                            refetch();
+                                          } else {
+                                            toast({ title: "Cannot delay", description: err.message, variant: "destructive" });
+                                          }
+                                        }
+                                      }}
+                                      disabled={completeItem.isPending || skipItem.isPending || delayItem.isPending}
+                                    >
+                                      +30m
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     </div>
                   </div>
-                ))}
+                );
+                })}
               </div>
             </div>
           </div>
@@ -654,18 +743,165 @@ export default function ProductPage3() {
           <h2 className="text-3xl font-bold mb-6">Energized and renewed! Now channel this clarity into your afternoon of focused achievement and purposeful calm.</h2>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">You've nourished your body, refreshed your mind, and reset your energy. The foundation is set for your most productive and balanced afternoon yet.</p>
           
-          <Button 
-            size="lg" 
-            className="px-8 py-6 text-lg rounded-full font-medium"
-            onClick={() => {
-              // Navigate and scroll to top
-              window.location.href = '/product/reset/afternoon';
-            }}
-          >
-            Continue to the Afternoon Reset <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
+          <div className="text-gray-500 italic">
+            Complete your midday activities above to unlock the Afternoon Reset.
+          </div>
         </div>
       </section>
+    </div>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (resetError) {
+    if ((resetError as ApiError).status === 401) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+          <h2 className="text-xl font-bold mb-2">Session Expired</h2>
+          <p className="text-gray-600 mb-4">Please log in to continue your Reset.</p>
+          <Link href="/login">
+            <Button>Log In</Button>
+          </Link>
+        </div>
+      );
+    }
+    
+    if ((resetError as ApiError).status === 404) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+          <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
+          <h2 className="text-xl font-bold mb-2">No Active Reset</h2>
+          <p className="text-gray-600 mb-4">You haven't set up a Perfect Day Reset yet.</p>
+          <Link href="/product/reset/welcome">
+            <Button>Start Your Reset</Button>
+          </Link>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-bold mb-2">Error Loading Reset</h2>
+        <p className="text-gray-600 mb-4">{(resetError as Error).message}</p>
+        <Button onClick={() => refetch()}>Try Again</Button>
+      </div>
+    );
+  }
+
+  if (!currentReset) return null;
+
+  const status = currentReset.resetRun.status;
+  const phase = currentReset.resetRun.phase;
+
+  if (status === 'ready') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
+        <AlertCircle className="h-12 w-12 text-blue-500 mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Your Reset hasn't started yet.</h2>
+        <p className="text-gray-600 mb-6">Head back to the start page to begin.</p>
+        <Link href="/product/reset/welcome">
+          <Button>Go to Setup</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  if (status === 'sleep') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-4 text-center">
+        <h2 className="text-3xl font-bold mb-4">Your Reset is in the overnight recovery phase.</h2>
+        <p className="text-gray-400 mb-6">Rest well. Your next check-in is tomorrow morning.</p>
+      </div>
+    );
+  }
+
+  if (status === 'next_morning') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-blue-50 p-4 text-center">
+        <h2 className="text-3xl font-bold mb-4">Your next-morning check-in is ready.</h2>
+        <p className="text-gray-600 mb-6">Complete your final reflections to finish your Reset.</p>
+      </div>
+    );
+  }
+
+  if (status === 'completed') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-green-50 p-4 text-center">
+        <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
+        <h2 className="text-3xl font-bold mb-2">Your Reset is complete.</h2>
+        <p className="text-gray-600 mb-6">Congratulations on completing your Perfect Day Reset.</p>
+      </div>
+    );
+  }
+
+  if (status === 'active') {
+    if (phase === 'morning') {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
+          <AlertCircle className="h-12 w-12 text-blue-500 mb-4" />
+          <h2 className="text-2xl font-bold mb-2">You are currently in the Morning phase.</h2>
+          <p className="text-gray-600 mb-6">Complete your morning activities to unlock midday.</p>
+          <Link href="/product/reset/morning">
+            <Button>Go to Morning</Button>
+          </Link>
+        </div>
+      );
+    }
+    
+    if (phase === 'afternoon' || phase === 'evening') {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
+          <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Midday Complete</h2>
+          <p className="text-gray-600 mb-6">Your Reset has progressed beyond this phase.</p>
+          <Link href={`/product/reset/${phase}`}>
+            <Button>Continue to {phase.charAt(0).toUpperCase() + phase.slice(1)}</Button>
+          </Link>
+        </div>
+      );
+    }
+
+    if (phase === 'midday') {
+      const middayItems = [...currentReset.items]
+        .filter(i => i.phase === 'midday')
+        .sort((a, b) => a.sequence - b.sequence);
+      const activeItems = currentReset.items.filter(i => i.status === 'active');
+      
+      // Integrity check
+      if (
+        activeItems.length !== 1 || 
+        !currentReset.currentItem || 
+        currentReset.currentItem.status !== 'active' || 
+        currentReset.currentItem.id !== activeItems[0].id ||
+        currentReset.currentItem.phase !== 'midday'
+      ) {
+        return (
+          <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
+            <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
+            <h2 className="text-xl font-bold mb-2">State Synchronizing...</h2>
+            <p className="text-gray-600 mb-4">Please wait while your Reset state updates.</p>
+            <Button onClick={() => refetch()}>Refresh Page</Button>
+          </div>
+        );
+      }
+
+      return renderMiddayContent(middayItems);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+      <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
+      <h2 className="text-xl font-bold mb-2">Unknown State</h2>
+      <p className="text-gray-600 mb-4">We couldn't determine your Reset phase.</p>
     </div>
   );
 }
