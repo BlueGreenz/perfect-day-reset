@@ -1,4 +1,9 @@
-import { subscribers, users, marketingEmails, emailLogs, type Subscriber, type InsertSubscriber, type User, type InsertUser, type MarketingEmail, type InsertMarketingEmail, type EmailLog, type InsertEmailLog } from "@shared/schema";
+import { 
+  subscribers, users, marketingEmails, emailLogs, resetRuns, resetItems,
+  type Subscriber, type InsertSubscriber, type User, type InsertUser, 
+  type MarketingEmail, type InsertMarketingEmail, type EmailLog, type InsertEmailLog,
+  type ResetRun, type InsertResetRun, type ResetItem, type InsertResetItem
+} from "@shared/schema";
 import session from "express-session";
 import { db, pool } from "./db";
 import { eq } from "drizzle-orm";
@@ -23,6 +28,13 @@ export interface IStorage {
   getAllEmailLogs(): Promise<EmailLog[]>;
   getMarketingEmails(): Promise<MarketingEmail[]>;
   
+  // Reset functionality
+  getResetRunByUserId(userId: number): Promise<ResetRun | undefined>;
+  createResetRun(
+    resetRun: Omit<InsertResetRun, "id" | "createdAt" | "updatedAt">,
+    items: Omit<InsertResetItem, "id" | "resetRunId" | "createdAt" | "updatedAt">[]
+  ): Promise<{ resetRun: ResetRun; items: ResetItem[] } | { existingRun: ResetRun }>;
+
   sessionStore: session.Store;
 }
 
@@ -109,6 +121,48 @@ export class DatabaseStorage implements IStorage {
 
   async getMarketingEmails(): Promise<MarketingEmail[]> {
     return await db.select().from(marketingEmails);
+  }
+
+  async getResetRunByUserId(userId: number): Promise<ResetRun | undefined> {
+    const [run] = await db
+      .select()
+      .from(resetRuns)
+      .where(eq(resetRuns.userId, userId));
+    return run || undefined;
+  }
+
+  async createResetRun(
+    insertRun: Omit<InsertResetRun, "id" | "createdAt" | "updatedAt">,
+    insertItems: Omit<InsertResetItem, "id" | "resetRunId" | "createdAt" | "updatedAt">[]
+  ): Promise<{ resetRun: ResetRun; items: ResetItem[] } | { existingRun: ResetRun }> {
+    return await db.transaction(async (tx) => {
+      // Lock the user row to serialize creation attempts per user
+      await tx.select().from(users).where(eq(users.id, insertRun.userId)).for('update');
+
+      // Check if run already exists
+      const [existingRun] = await tx.select().from(resetRuns).where(eq(resetRuns.userId, insertRun.userId));
+      
+      if (existingRun) {
+        return { existingRun };
+      }
+
+      const [run] = await tx
+        .insert(resetRuns)
+        .values(insertRun)
+        .returning();
+
+      const itemsToInsert = insertItems.map(item => ({
+        ...item,
+        resetRunId: run.id
+      }));
+
+      const items = await tx
+        .insert(resetItems)
+        .values(itemsToInsert)
+        .returning();
+
+      return { resetRun: run, items };
+    });
   }
 }
 

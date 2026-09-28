@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertSubscriberSchema, users } from "@shared/schema";
 import { setupAuth, hashPassword } from "./auth";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import { sendWelcomeEmail, sendPurchaseWelcomeEmail } from "./utils/sendgrid";
 import { emailService } from "./utils/emailService";
 import Stripe from "stripe";
@@ -12,6 +12,9 @@ import { body, validationResult } from "express-validator";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import rateLimit from "express-rate-limit";
+import { CATALOG_VERSION_V1 } from "./reset/activity-catalog";
+import { generateInitialResetSchedule } from "./reset/scheduler";
+import { createResetSchema } from "./reset/setup-schema";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -124,6 +127,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ 
         message: "An error occurred while subscribing. Please try again." 
       });
+    }
+  });
+
+  // Reset Run Creation
+  app.post("/api/reset-runs", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    // Validate body
+    let validatedData;
+    try {
+      validatedData = createResetSchema.parse(req.body);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid setup data", errors: error.errors });
+      }
+      return res.status(400).json({ message: "Invalid request payload" });
+    }
+
+    // V0.1 limitation: 1 purchase = 1 reset run. If user already has a run, block it.
+    // Pre-check for fast failure. Authoritative check is in the transaction.
+    try {
+      const existingRun = await storage.getResetRunByUserId(req.user.id);
+      if (existingRun) {
+        return res.status(409).json({ 
+          message: "A Perfect Day Reset has already been created for this account.",
+          resetRun: existingRun 
+        });
+      }
+    } catch (error) {
+      console.error("Error checking existing run:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+
+    // Generate schedule (handles chronological validation and overlaps)
+    let generatedItems;
+    try {
+      generatedItems = generateInitialResetSchedule({
+        startAt: validatedData.startAt,
+        targetBedtimeAt: validatedData.targetBedtimeAt,
+        targetNextMorningAt: validatedData.targetNextMorningAt,
+        timezone: validatedData.timezone
+      });
+    } catch (error: any) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    // Prepare insert objects
+    const insertRun = {
+      userId: req.user.id,
+      catalogVersion: CATALOG_VERSION_V1,
+      status: "ready",
+      phase: null,
+      scheduleRevision: 0,
+      timezone: validatedData.timezone,
+      startAt: validatedData.startAt,
+      targetBedtimeAt: validatedData.targetBedtimeAt,
+      targetNextMorningAt: validatedData.targetNextMorningAt,
+      resetGoal: validatedData.resetGoal || null,
+      foodPreference: validatedData.foodPreference || null,
+      movementAccess: validatedData.movementAccess || null,
+      blockedTimesJson: validatedData.blockedTimesJson || null
+    };
+
+    const insertItems = generatedItems.map(item => ({
+      activityKey: item.activityKey,
+      variantKey: item.variantKey,
+      phase: item.phase,
+      sequence: item.sequence,
+      originalScheduledAt: item.originalScheduledAt,
+      scheduledAt: item.scheduledAt,
+      durationMinutes: item.durationMinutes,
+      status: item.status as "scheduled"
+    }));
+
+    try {
+      const result = await storage.createResetRun(insertRun, insertItems);
+      
+      if ('existingRun' in result) {
+        return res.status(409).json({ 
+          message: "A Perfect Day Reset has already been created for this account.",
+          resetRun: result.existingRun 
+        });
+      }
+
+      return res.status(201).json({
+        resetRun: result.resetRun,
+        items: result.items
+      });
+    } catch (error) {
+      console.error("Error creating reset run:", error);
+      return res.status(500).json({ message: "An error occurred while saving the Reset." });
     }
   });
 
