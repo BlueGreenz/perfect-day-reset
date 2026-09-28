@@ -2,11 +2,12 @@ import {
   subscribers, users, marketingEmails, emailLogs, resetRuns, resetItems,
   type Subscriber, type InsertSubscriber, type User, type InsertUser, 
   type MarketingEmail, type InsertMarketingEmail, type EmailLog, type InsertEmailLog,
-  type ResetRun, type InsertResetRun, type ResetItem, type InsertResetItem
+  type ResetRun, type InsertResetRun, type ResetItem, type InsertResetItem,
+  type ResetEntry, type InsertResetEntry, resetEntries
 } from "@shared/schema";
 import session from "express-session";
 import { db, pool } from "./db";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
 import connectPgSimple from "connect-pg-simple";
 
 const PostgresSessionStore = connectPgSimple(session);
@@ -23,6 +24,7 @@ export type AdvanceResetResult =
   | { type: "item_not_found" }
   | { type: "conflict" }
   | { type: "corrupt_state" }
+  | { type: "reflection_required" }
   | { type: "success"; resetRun: ResetRun; items: ResetItem[] }
   | { type: "already_done"; resetRun: ResetRun; items: ResetItem[] };
 
@@ -32,6 +34,11 @@ export type StartNextMorningResult =
   | { type: "corrupt_state" }
   | { type: "success"; resetRun: ResetRun; items: ResetItem[] }
   | { type: "already_active"; resetRun: ResetRun; items: ResetItem[] };
+
+export type SaveEntryResult =
+  | { type: "not_found" }
+  | { type: "invalid_lifecycle" }
+  | { type: "success"; entry: ResetEntry };
 
 export interface IStorage {
   createSubscriber(subscriber: InsertSubscriber): Promise<Subscriber>;
@@ -60,6 +67,8 @@ export interface IStorage {
   startResetRunForUser(userId: number): Promise<StartResetResult>;
   advanceResetItemForUser(userId: number, itemId: number, action: "complete" | "skip"): Promise<AdvanceResetResult>;
   startNextMorningForUser(userId: number): Promise<StartNextMorningResult>;
+  saveResetEntryForUser(userId: number, kind: string, content: string): Promise<SaveEntryResult>;
+  getResetEntriesForUser(userId: number): Promise<{ type: "not_found" } | { type: "success", entries: ResetEntry[] }>;
 
   sessionStore: session.Store;
 }
@@ -297,7 +306,11 @@ export class DatabaseStorage implements IStorage {
         if (run.status === "completed") {
           const activeItemsCount = items.filter(i => i.status === 'active').length;
           const scheduledItemsCount = items.filter(i => i.status === 'scheduled').length;
-          if (activeItemsCount > 0 || scheduledItemsCount > 0) {
+          
+          const [nextMorningRef] = await tx.select().from(resetEntries)
+            .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, 'next_morning_reflection')));
+            
+          if (activeItemsCount > 0 || scheduledItemsCount > 0 || !nextMorningRef) {
             return { type: "corrupt_state" };
           }
         }
@@ -307,7 +320,11 @@ export class DatabaseStorage implements IStorage {
         if (run.status === "completed") {
           const activeItemsCount = items.filter(i => i.status === 'active').length;
           const scheduledItemsCount = items.filter(i => i.status === 'scheduled').length;
-          if (activeItemsCount > 0 || scheduledItemsCount > 0) {
+          
+          const [nextMorningRef] = await tx.select().from(resetEntries)
+            .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, 'next_morning_reflection')));
+            
+          if (activeItemsCount > 0 || scheduledItemsCount > 0 || !nextMorningRef) {
             return { type: "corrupt_state" };
           }
         }
@@ -357,6 +374,11 @@ export class DatabaseStorage implements IStorage {
       let updatedNextItem = null;
 
       if (run.status === 'next_morning') {
+        const [nextMorningRef] = await tx.select().from(resetEntries)
+          .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, 'next_morning_reflection')));
+          
+        if (!nextMorningRef) return { type: "reflection_required" };
+
         const [r] = await tx
           .update(resetRuns)
           .set({
@@ -475,6 +497,73 @@ export class DatabaseStorage implements IStorage {
 
       return { type: "success", resetRun: updatedRun, items: updatedItems };
     });
+  }
+
+  async saveResetEntryForUser(userId: number, kind: string, content: string): Promise<SaveEntryResult> {
+    return await db.transaction(async (tx) => {
+      const [run] = await tx
+        .select()
+        .from(resetRuns)
+        .where(eq(resetRuns.userId, userId))
+        .for('update');
+
+      if (!run) {
+        return { type: "not_found" };
+      }
+
+      if (kind === "next_morning_reflection") {
+        if (run.status !== 'next_morning') return { type: "invalid_lifecycle" };
+      } else {
+        if (run.status !== 'active' && run.status !== 'sleep' && run.status !== 'next_morning') {
+          return { type: "invalid_lifecycle" };
+        }
+      }
+
+      const [existingEntry] = await tx
+        .select()
+        .from(resetEntries)
+        .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, kind)));
+
+      const now = new Date();
+
+      if (existingEntry) {
+        if (existingEntry.content === content) {
+          return { type: "success", entry: existingEntry };
+        }
+        const [updatedEntry] = await tx
+          .update(resetEntries)
+          .set({ content })
+          .where(eq(resetEntries.id, existingEntry.id))
+          .returning();
+        return { type: "success", entry: updatedEntry };
+      } else {
+        const [newEntry] = await tx
+          .insert(resetEntries)
+          .values({
+            resetRunId: run.id,
+            kind,
+            content,
+            createdAt: now
+          })
+          .returning();
+        return { type: "success", entry: newEntry };
+      }
+    });
+  }
+
+  async getResetEntriesForUser(userId: number): Promise<{ type: "not_found" } | { type: "success", entries: ResetEntry[] }> {
+    const run = await db.query.resetRuns.findFirst({
+      where: eq(resetRuns.userId, userId)
+    });
+
+    if (!run) return { type: "not_found" };
+
+    const entries = await db.select()
+      .from(resetEntries)
+      .where(eq(resetEntries.resetRunId, run.id))
+      .orderBy(asc(resetEntries.createdAt), asc(resetEntries.id));
+
+    return { type: "success", entries };
   }
 }
 

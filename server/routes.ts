@@ -15,6 +15,7 @@ import rateLimit from "express-rate-limit";
 import { CATALOG_VERSION_V1 } from "./reset/activity-catalog";
 import { generateInitialResetSchedule } from "./reset/scheduler";
 import { createResetSchema } from "./reset/setup-schema";
+import { allowedEntryKinds, resetEntrySchema } from "./reset/entry-schema";
 import { AdvanceResetResult } from "./storage";
 
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -206,6 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (result.type === "not_found") return res.status(404).json({ message: "No Reset found" });
     if (result.type === "item_not_found") return res.status(404).json({ message: "Item not found in current Reset" });
     if (result.type === "conflict") return res.status(409).json({ message: "Item cannot be modified from its current state" });
+    if (result.type === "reflection_required") return res.status(409).json({ message: "Next-morning reflection is required before completing the Reset" });
     if (result.type === "corrupt_state") return res.status(500).json({ message: "Reset is in a corrupt state" });
     
     const activeItem = result.items.find(item => item.status === 'active');
@@ -288,6 +290,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error starting next morning:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Save Reflection Entry
+  app.put("/api/reset-runs/current/entries/:kind", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const kind = req.params.kind as any;
+    if (!allowedEntryKinds.includes(kind)) {
+      return res.status(400).json({ message: "Invalid entry kind" });
+    }
+    
+    const parsed = resetEntrySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid reflection content", errors: parsed.error.errors });
+    }
+
+    try {
+      const result = await storage.saveResetEntryForUser(req.user.id, kind, parsed.data.content);
+      
+      if (result.type === "not_found") {
+        return res.status(404).json({ message: "No Reset found" });
+      }
+
+      if (result.type === "invalid_lifecycle") {
+        return res.status(409).json({ message: "Reflection cannot be saved in the current Reset state" });
+      }
+
+      return res.status(200).json({ entry: result.entry });
+    } catch (error) {
+      console.error("Error saving reflection:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get Reflection Entries
+  app.get("/api/reset-runs/current/entries", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const result = await storage.getResetEntriesForUser(req.user.id);
+      
+      if (result.type === "not_found") {
+        return res.status(404).json({ message: "No Reset found" });
+      }
+
+      return res.status(200).json({ entries: result.entries });
+    } catch (error) {
+      console.error("Error fetching reflections:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
