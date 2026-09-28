@@ -9,6 +9,7 @@ import session from "express-session";
 import { db, pool } from "./db";
 import { eq, asc, and } from "drizzle-orm";
 import connectPgSimple from "connect-pg-simple";
+import { computeDelayedSchedule } from "./reset/rescheduler";
 
 const PostgresSessionStore = connectPgSimple(session);
 
@@ -34,6 +35,16 @@ export type StartNextMorningResult =
   | { type: "corrupt_state" }
   | { type: "success"; resetRun: ResetRun; items: ResetItem[] }
   | { type: "already_active"; resetRun: ResetRun; items: ResetItem[] };
+
+export type DelayResetResult =
+  | { type: "not_found" }
+  | { type: "invalid_lifecycle" }
+  | { type: "stale_revision" }
+  | { type: "item_not_found" }
+  | { type: "conflict" }
+  | { type: "corrupt_state" }
+  | { type: "schedule_conflict" }
+  | { type: "success"; resetRun: ResetRun; items: ResetItem[] };
 
 export type SaveEntryResult =
   | { type: "not_found" }
@@ -66,6 +77,7 @@ export interface IStorage {
   ): Promise<{ resetRun: ResetRun; items: ResetItem[] } | { existingRun: ResetRun }>;
   startResetRunForUser(userId: number): Promise<StartResetResult>;
   advanceResetItemForUser(userId: number, itemId: number, action: "complete" | "skip"): Promise<AdvanceResetResult>;
+  delayResetItemForUser(userId: number, itemId: number, delayMinutes: number, expectedScheduleRevision: number): Promise<DelayResetResult>;
   startNextMorningForUser(userId: number): Promise<StartNextMorningResult>;
   saveResetEntryForUser(userId: number, kind: string, content: string): Promise<SaveEntryResult>;
   getResetEntriesForUser(userId: number): Promise<{ type: "not_found" } | { type: "success", entries: ResetEntry[] }>;
@@ -564,6 +576,48 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(resetEntries.createdAt), asc(resetEntries.id));
 
     return { type: "success", entries };
+  }
+
+  async delayResetItemForUser(userId: number, itemId: number, delayMinutes: number, expectedScheduleRevision: number): Promise<DelayResetResult> {
+    return await db.transaction(async (tx) => {
+      const [run] = await tx.select().from(resetRuns).where(eq(resetRuns.userId, userId)).for('update');
+      if (!run) return { type: "not_found" };
+      if (run.status !== 'active') return { type: "invalid_lifecycle" };
+      if (run.scheduleRevision !== expectedScheduleRevision) return { type: "stale_revision" };
+      if (!run.targetBedtimeAt) return { type: "corrupt_state" };
+
+      const items = await tx.select().from(resetItems).where(eq(resetItems.resetRunId, run.id)).orderBy(asc(resetItems.sequence));
+      
+      const targetItem = items.find(i => i.id === itemId);
+      if (!targetItem) return { type: "item_not_found" };
+      if (targetItem.status !== 'active') return { type: "conflict" };
+
+      const activeItems = items.filter(i => i.status === 'active');
+      if (activeItems.length !== 1) return { type: "corrupt_state" };
+
+      const rescheduleResult = computeDelayedSchedule(items, targetItem.id, delayMinutes, run.targetBedtimeAt);
+      if (rescheduleResult.type === 'schedule_conflict') return { type: "schedule_conflict" };
+
+      const now = new Date();
+      
+      const updatedItemsMap = new Map<number, ResetItem>();
+      for (const item of items) updatedItemsMap.set(item.id, { ...item });
+
+      for (const change of rescheduleResult.changes) {
+        const [updated] = await tx.update(resetItems)
+          .set({ scheduledAt: change.newScheduledAt, updatedAt: now })
+          .where(eq(resetItems.id, change.itemId))
+          .returning();
+        updatedItemsMap.set(updated.id, updated);
+      }
+
+      const [updatedRun] = await tx.update(resetRuns)
+        .set({ scheduleRevision: run.scheduleRevision + 1, updatedAt: now })
+        .where(eq(resetRuns.id, run.id))
+        .returning();
+
+      return { type: "success", resetRun: updatedRun, items: Array.from(updatedItemsMap.values()).sort((a,b) => a.sequence - b.sequence) };
+    });
   }
 }
 

@@ -16,6 +16,7 @@ import { CATALOG_VERSION_V1 } from "./reset/activity-catalog";
 import { generateInitialResetSchedule } from "./reset/scheduler";
 import { createResetSchema } from "./reset/setup-schema";
 import { allowedEntryKinds, resetEntrySchema } from "./reset/entry-schema";
+import { delayRequestSchema } from "./reset/delay-schema";
 import { AdvanceResetResult } from "./storage";
 
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -253,6 +254,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return handleAdvanceResult(res, result);
     } catch (error) {
       console.error("Error skipping item:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Delay Reset Item
+  app.post("/api/reset-runs/current/items/:itemId/delay", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const itemId = parseInt(req.params.itemId);
+    if (isNaN(itemId) || itemId <= 0) {
+      return res.status(400).json({ message: "Invalid item ID" });
+    }
+
+    const parsed = delayRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid delay parameters", errors: parsed.error.errors });
+    }
+
+    try {
+      const result = await storage.delayResetItemForUser(
+        req.user.id,
+        itemId,
+        parsed.data.delayMinutes,
+        parsed.data.expectedScheduleRevision
+      );
+
+      if (result.type === "not_found") return res.status(404).json({ message: "No Reset found" });
+      if (result.type === "item_not_found") return res.status(404).json({ message: "Item not found in current Reset" });
+      if (result.type === "invalid_lifecycle") return res.status(409).json({ message: "Reset must be active to delay an item" });
+      if (result.type === "conflict") return res.status(409).json({ message: "Item must be active to be delayed" });
+      if (result.type === "corrupt_state") return res.status(500).json({ message: "Reset is in a corrupt state" });
+      if (result.type === "stale_revision") return res.status(409).json({ message: "Reset schedule has changed; refresh and try again" });
+      if (result.type === "schedule_conflict") return res.status(409).json({ message: "The requested delay does not fit before your planned bedtime" });
+
+      const activeItem = result.items.find(item => item.status === 'active');
+      const nextScheduledItem = result.items.find(item => item.status === 'scheduled');
+      const currentItem = activeItem || nextScheduledItem || null;
+
+      return res.status(200).json({
+        resetRun: result.resetRun,
+        items: result.items,
+        currentItem
+      });
+    } catch (error) {
+      console.error("Error delaying item:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });

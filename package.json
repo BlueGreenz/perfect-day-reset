@@ -9,6 +9,7 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "verify:scheduler": "tsx scripts/verify-scheduler.ts",
+    "verify:rescheduler": "tsx scripts/verify-rescheduler.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
