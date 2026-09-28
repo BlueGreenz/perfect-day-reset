@@ -2,11 +2,14 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowRight, ArrowDown, Clock, Coffee, Utensils, Pill, Sunrise, Wind, Heart, CheckCircle2, Youtube, Sun, TreePine } from "lucide-react";
+import { ArrowRight, ArrowDown, Clock, Coffee, Utensils, Pill, Sunrise, Wind, Heart, CheckCircle2, Youtube, Sun, TreePine, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import morningImage from "@assets/16x9_the_morning_sun_on_a_plant_fille.png";
+import { useCurrentReset } from "@/lib/reset-api";
 
 export default function ProductPage2() {
+  const { data: currentReset, isLoading, error: resetError } = useCurrentReset();
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -168,7 +171,7 @@ export default function ProductPage2() {
     }
   ];
 
-  return (
+  const morningContent = (
     <div className="bg-white min-h-screen">
       {/* Hero Section with morning plant background */}
       <section className="relative text-white py-24 px-4 overflow-hidden">
@@ -435,4 +438,118 @@ export default function ProductPage2() {
       </section>
     </div>
   );
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg text-gray-600">Loading your morning routine...</p>
+      </div>
+    );
+  }
+
+  if (resetError && (resetError as any).status === 401) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm text-center border border-gray-200">
+          <p className="text-gray-600">Please log in to continue your Reset.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if ((resetError && (resetError as any).status === 404) || (!currentReset && !isLoading && !resetError)) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm text-center border border-gray-200">
+          <h2 className="text-2xl font-bold mb-4">Reset Not Found</h2>
+          <p className="text-gray-600 mb-6">You haven't set up a Reset yet.</p>
+          <Link href="/product/reset/welcome">
+            <Button className="w-full">Go to Setup</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentReset?.resetRun.status === 'ready') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm text-center border border-gray-200">
+          <h2 className="text-2xl font-bold mb-4">Not Started</h2>
+          <p className="text-gray-600 mb-6">Your Reset hasn't started yet.</p>
+          <Link href="/product/reset/welcome">
+            <Button className="w-full">Return to Setup</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentReset?.resetRun.status === 'active' && currentReset.resetRun.phase !== 'morning') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm text-center border border-gray-200">
+          <h2 className="text-2xl font-bold mb-4">Phase Passed</h2>
+          <p className="text-gray-600">Your Reset has progressed beyond the morning phase.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentReset?.resetRun.status === 'sleep') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm text-center border border-gray-200">
+          <p className="text-gray-600">Your Reset is in the overnight recovery phase.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentReset?.resetRun.status === 'next_morning') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm text-center border border-gray-200">
+          <p className="text-gray-600">Your next-morning check-in is ready.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentReset?.resetRun.status === 'completed') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm text-center border border-gray-200">
+          <p className="text-gray-600">Your Reset is complete.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Active + Morning Gate
+  if (currentReset?.resetRun.status === 'active' && currentReset.resetRun.phase === 'morning') {
+    const activeItems = currentReset.items.filter(item => item.status === 'active');
+    
+    if (activeItems.length !== 1 || !currentReset.currentItem || currentReset.currentItem.status !== 'active') {
+      return (
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm text-center border border-gray-200">
+            <p className="text-gray-600">Your morning routine is not currently active.</p>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <>
+        <div className="bg-primary text-primary-foreground text-center p-2 text-sm font-medium">
+          Current activity: {currentReset.currentItem.activityKey}
+        </div>
+        {morningContent}
+      </>
+    );
+  }
+
+  return null;
 }

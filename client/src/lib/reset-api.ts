@@ -82,3 +82,17 @@ export function useCreateReset() {
     }
   });
 }
+
+export function useStartReset() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/reset-runs/current/start");
+      return (await res.json()) as CurrentResetResponse;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/reset-runs/current"], data);
+    }
+  });
+}

@@ -21,10 +21,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ChevronRight, ArrowRight, Sunrise, Coffee, BookOpen, ShoppingBag, Bell, Smartphone, Download, PenTool, Droplets, Calculator } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { toast } from "@/hooks/use-toast";
 import PerfectDayResetPDF from "@/components/PerfectDayResetPDF";
-import { useCurrentReset, useCreateReset } from "@/lib/reset-api";
+import { useCurrentReset, useCreateReset, useStartReset } from "@/lib/reset-api";
 import { Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -45,8 +45,10 @@ defaultNextMorning.setDate(defaultNextMorning.getDate() + 1);
 defaultNextMorning.setHours(7, 0, 0, 0);
 
 export default function ProductPage1() {
+  const [, setLocation] = useLocation();
   const { data: currentReset, isLoading: isResetLoading, error: resetError, refetch } = useCurrentReset();
   const createReset = useCreateReset();
+  const startReset = useStartReset();
 
   const [startAt, setStartAt] = useState(toDatetimeLocal(defaultStart));
   const [targetBedtimeAt, setTargetBedtimeAt] = useState(toDatetimeLocal(defaultBedtime));
@@ -1948,7 +1950,35 @@ export default function ProductPage1() {
                       <p><strong>Next Morning:</strong> {new Date(currentReset.resetRun.targetNextMorningAt).toLocaleString()}</p>
                     </div>
                     {currentReset.resetRun.status === 'ready' && (
-                       <p className="text-center italic text-green-700">You can start this Reset when the time comes.</p>
+                      <div className="flex flex-col items-center mt-6 pt-4 border-t border-green-200">
+                        <p className="text-center italic text-green-700 mb-4">You can start this Reset when the time comes.</p>
+                        <Button 
+                          size="lg" 
+                          className="w-full"
+                          disabled={startReset.isPending}
+                          onClick={async () => {
+                            try {
+                              const result = await startReset.mutateAsync();
+                              if (result.resetRun.status === 'active' && result.resetRun.phase === 'morning' && result.currentItem && result.currentItem.status === 'active') {
+                                setLocation('/product/reset/morning');
+                              }
+                            } catch (err: any) {
+                              if (err.status === 409) {
+                                // Conflict, refetch to get actual state
+                                refetch();
+                              } else if (err.status === 404) {
+                                toast({ title: "Reset not found", description: "Please recreate it.", variant: "destructive" });
+                                refetch();
+                              } else {
+                                toast({ title: "Failed to start Reset", description: err.message, variant: "destructive" });
+                              }
+                            }
+                          }}
+                        >
+                          {startReset.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          {startReset.isPending ? "Starting..." : "Start My Reset"}
+                        </Button>
+                      </div>
                     )}
                     {currentReset.resetRun.status === 'active' && (
                        <p className="text-center italic text-green-700">Your Reset is currently in progress.</p>
