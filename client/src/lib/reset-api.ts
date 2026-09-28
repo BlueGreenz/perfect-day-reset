@@ -96,3 +96,45 @@ export function useStartReset() {
     }
   });
 }
+
+export function useCompleteItem() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (itemId: number) => {
+      const res = await apiRequest("POST", `/api/reset-runs/current/items/${itemId}/complete`);
+      return (await res.json()) as CurrentResetResponse;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/reset-runs/current"], data);
+    }
+  });
+}
+
+export function useSkipItem() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (itemId: number) => {
+      const res = await apiRequest("POST", `/api/reset-runs/current/items/${itemId}/skip`);
+      return (await res.json()) as CurrentResetResponse;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/reset-runs/current"], data);
+    }
+  });
+}
+
+export function useDelayItem() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ itemId, delayMinutes, expectedScheduleRevision }: { itemId: number, delayMinutes: number, expectedScheduleRevision: number }) => {
+      const res = await apiRequest("POST", `/api/reset-runs/current/items/${itemId}/delay`, { delayMinutes, expectedScheduleRevision });
+      return (await res.json()) as CurrentResetResponse;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/reset-runs/current"], data);
+    }
+  });
+}

@@ -3,12 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowRight, ArrowDown, Clock, Coffee, Utensils, Pill, Sunrise, Wind, Heart, CheckCircle2, Youtube, Sun, TreePine, Loader2 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import morningImage from "@assets/16x9_the_morning_sun_on_a_plant_fille.png";
-import { useCurrentReset } from "@/lib/reset-api";
+import { useCurrentReset, useCompleteItem, useSkipItem, useDelayItem } from "@/lib/reset-api";
+import { toast } from "@/hooks/use-toast";
+import { ApiError } from "@/lib/queryClient";
 
 export default function ProductPage2() {
-  const { data: currentReset, isLoading, error: resetError } = useCurrentReset();
+  const [, setLocation] = useLocation();
+  const { data: currentReset, isLoading, error: resetError, refetch } = useCurrentReset();
+  const completeItem = useCompleteItem();
+  const skipItem = useSkipItem();
+  const delayItem = useDelayItem();
 
   // Scroll to top when component mounts
   useEffect(() => {
@@ -43,27 +49,23 @@ export default function ProductPage2() {
     }
   };
 
-  const routineSteps = [
-    {
-      time: "7:00",
+  const catalogMapping: Record<string, any> = {
+    "wake_up": {
       title: "Wake Up",
       description: "Use your alarm clock, not your phone. Open the windows. Take 3 deep breaths. Say: \"Today, I reset.\"",
       icon: <Sunrise className="h-6 w-6 text-primary" />
     },
-    {
-      time: "7:10",
+    "hydration": {
       title: "Hydration Ritual",
       description: "Drink a large glass of warm water with lemon & a pinch of sea salt. Sit in silence for 5 minutes after drinking.",
       icon: <Coffee className="h-6 w-6 text-primary" />
     },
-    {
-      time: "7:20",
+    "light_movement": {
       title: "Light Movement",
       description: <>10 minutes of stretching or yoga. Focus on breath. Feel your body wake up. Optional: follow our short YouTube video (if offline mode is skipped): <a href="https://www.youtube.com/watch?v=nvFm30ZAZRY" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1 inline-flex mt-1"><Youtube className="h-4 w-4" /> Morning Yoga Routine</a></>,
       icon: <Wind className="h-6 w-6 text-primary" />
     },
-    {
-      time: "7:30",
+    "grounding_walk": {
       title: "Morning Grounding Walk",
       description: <div className="text-gray-600">
         30-minute walk outside without your phone. Reconnect with nature and absorb morning light.
@@ -101,8 +103,7 @@ export default function ProductPage2() {
       </div>,
       icon: <Sun className="h-6 w-6 text-primary" />
     },
-    {
-      time: "8:00",
+    "morning_journal": {
       title: "Mind Reset",
       description: <div className="text-gray-600">
         Write in a notebook (pen & paper — no phone):
@@ -116,9 +117,8 @@ export default function ProductPage2() {
       </div>,
       icon: <Heart className="h-6 w-6 text-primary" />
     },
-    {
-      time: "8:30",
-      title: "Breakfast Time (60 min)",
+    "breakfast": {
+      title: "Breakfast Time",
       description: <div className="text-gray-600">
         {getBreakfastOption()} <br />
         <div className="mt-2 p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
@@ -133,25 +133,7 @@ export default function ProductPage2() {
       </div>,
       icon: <Utensils className="h-6 w-6 text-primary" />
     },
-    {
-      time: "9:30",
-      title: "Supplement Time",
-      description: <div className="text-gray-600">
-        Take your core supplements with or after food:
-        <div className="mt-2 p-3 bg-green-50 border border-green-100 rounded-lg">
-          <ul className="list-disc list-inside space-y-1 text-gray-700">
-            <li><span className="font-medium">Vitamin C</span> (supports immune function)</li>
-            <li><span className="font-medium">Vitamin D3</span> (enhances mood and immunity)</li>
-            <li><span className="font-medium">Zinc</span> (boosts immune system)</li>
-            <li><span className="font-medium">L-Tyrosine</span> (supports focus and mental clarity)</li>
-            <li><span className="font-medium">Electrolytes</span> (in a glass of water for hydration)</li>
-          </ul>
-        </div>
-      </div>,
-      icon: <Pill className="h-6 w-6 text-primary" />
-    },
-    {
-      time: "10:00",
+    "integration": {
       title: "Integration Moment",
       description: <div className="text-gray-600">
         Sit quietly for 10 minutes. No agenda. Let your body and brain settle.
@@ -169,9 +151,8 @@ export default function ProductPage2() {
       </div>,
       icon: <Clock className="h-6 w-6 text-primary" />
     }
-  ];
-
-  const morningContent = (
+  };
+  const renderMorningContent = (morningItems: any[]) => (
     <div className="bg-white min-h-screen">
       {/* Hero Section with morning plant background */}
       <section className="relative text-white py-24 px-4 overflow-hidden">
@@ -205,38 +186,154 @@ export default function ProductPage2() {
               
               {/* Timeline Cards */}
               <div className="space-y-8">
-                {routineSteps.map((step, index) => (
-                  <div key={index} className={`relative flex flex-col md:flex-row ${index % 2 === 0 ? 'md:flex-row-reverse' : ''} items-center md:gap-8`}>
+                {morningItems.map((item, index) => {
+                  const mapped = catalogMapping[item.activityKey];
+                  const isActive = item.status === 'active';
+                  const isCompleted = item.status === 'completed';
+                  const isSkipped = item.status === 'skipped';
+                  const timeLabel = new Date(item.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                  if (!mapped) {
+                    return (
+                      <div key={item.id} className="relative flex items-center justify-center p-4">
+                        <Card className="bg-gray-50 border-dashed border-2">
+                          <CardContent className="p-4">
+                            <p className="text-gray-500 text-sm">This morning activity cannot be displayed right now.</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  }
+
+                  return (
+                  <div key={item.id} className={`relative flex flex-col md:flex-row ${index % 2 === 0 ? 'md:flex-row-reverse' : ''} items-center md:gap-8 ${isSkipped ? 'opacity-50' : ''}`}>
                     {/* Time Indicator */}
                     <div className="absolute left-0 md:left-1/2 transform -translate-x-1/2 -translate-y-1/2 top-12 flex items-center justify-center z-10">
-                      <div className="bg-white p-2 rounded-full border-2 border-primary">
-                        <CheckCircle2 className="h-6 w-6 text-primary" />
+                      <div className={`bg-white p-2 rounded-full border-2 ${isCompleted ? 'border-green-500' : isActive ? 'border-primary' : 'border-gray-300'}`}>
+                        {isCompleted ? <CheckCircle2 className="h-6 w-6 text-green-500" /> : mapped.icon}
                       </div>
                     </div>
                     
                     {/* Time Label */}
                     <div className={`md:w-1/2 text-center md:text-right ${index % 2 === 0 ? 'md:text-left' : ''} mb-4 md:mb-0`}>
-                      <span className="text-lg font-bold bg-primary text-white px-3 py-1 rounded-full">{step.time}</span>
+                      <span className={`text-lg font-bold px-3 py-1 rounded-full ${isActive ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>
+                        {timeLabel}
+                      </span>
                     </div>
                     
                     {/* Step Content */}
-                    <div className={`md:w-1/2 ${index % 2 === 0 ? 'md:pr-8' : 'md:pl-8'}`}>
-                      <Card className="bg-white shadow-sm hover:shadow-md transition border-none">
+                    <div className={`md:w-1/2 w-full ${index % 2 === 0 ? 'md:pr-8' : 'md:pl-8'}`}>
+                      <Card className={`bg-white shadow-sm hover:shadow-md transition border-none ${isActive ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
                         <CardContent className="p-6">
                           <div className="flex items-start gap-4">
-                            <div className="p-3 bg-primary/10 rounded-full">
-                              {step.icon}
+                            <div className={`p-3 rounded-full ${isActive ? 'bg-primary/10' : 'bg-gray-50'}`}>
+                              {mapped.icon}
                             </div>
-                            <div>
-                              <h3 className="font-semibold text-lg mb-2">{step.title}</h3>
-                              <p className="text-gray-600">{step.description}</p>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg mb-2">{mapped.title}</h3>
+                              <div className="text-gray-600 mb-4">{mapped.description}</div>
+                              {isCompleted && <p className="text-sm font-medium text-green-600">✓ Completed</p>}
+                              {isSkipped && <p className="text-sm font-medium text-gray-500">Skipped</p>}
+                              
+                              {isActive && currentReset!.currentItem?.id === item.id && (
+                                <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+                                  <Button 
+                                    size="sm"
+                                    onClick={async () => {
+                                      try {
+                                        const res = await completeItem.mutateAsync(item.id);
+                                        if (res.resetRun.status === 'active' && res.resetRun.phase === 'midday') {
+                                          setLocation('/product/reset/midday');
+                                        }
+                                      } catch(err: any) {
+                                        if (err.status === 409) refetch();
+                                        toast({ title: "Failed to complete", description: err.message, variant: "destructive" });
+                                      }
+                                    }}
+                                    disabled={completeItem.isPending || skipItem.isPending || delayItem.isPending}
+                                  >
+                                    Complete
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={async () => {
+                                      try {
+                                        const res = await skipItem.mutateAsync(item.id);
+                                        if (res.resetRun.status === 'active' && res.resetRun.phase === 'midday') {
+                                          setLocation('/product/reset/midday');
+                                        }
+                                      } catch(err: any) {
+                                        if (err.status === 409) refetch();
+                                        toast({ title: "Failed to skip", description: err.message, variant: "destructive" });
+                                      }
+                                    }}
+                                    disabled={completeItem.isPending || skipItem.isPending || delayItem.isPending}
+                                  >
+                                    Skip
+                                  </Button>
+                                  <div className="flex gap-1 ml-auto">
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="text-xs px-2"
+                                      onClick={async () => {
+                                        try {
+                                          await delayItem.mutateAsync({
+                                            itemId: item.id,
+                                            delayMinutes: 15,
+                                            expectedScheduleRevision: currentReset!.resetRun.scheduleRevision
+                                          });
+                                          toast({ title: "Schedule updated", description: "+15 minutes" });
+                                        } catch (err: any) {
+                                          if (err.status === 409 && err.message.includes("Reset schedule has changed")) {
+                                            toast({ title: "Your schedule changed. We've refreshed it." });
+                                            refetch();
+                                          } else {
+                                            toast({ title: "Cannot delay", description: err.message, variant: "destructive" });
+                                          }
+                                        }
+                                      }}
+                                      disabled={completeItem.isPending || skipItem.isPending || delayItem.isPending}
+                                    >
+                                      +15m
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="text-xs px-2"
+                                      onClick={async () => {
+                                        try {
+                                          await delayItem.mutateAsync({
+                                            itemId: item.id,
+                                            delayMinutes: 30,
+                                            expectedScheduleRevision: currentReset!.resetRun.scheduleRevision
+                                          });
+                                          toast({ title: "Schedule updated", description: "+30 minutes" });
+                                        } catch (err: any) {
+                                          if (err.status === 409 && err.message.includes("Reset schedule has changed")) {
+                                            toast({ title: "Your schedule changed. We've refreshed it." });
+                                            refetch();
+                                          } else {
+                                            toast({ title: "Cannot delay", description: err.message, variant: "destructive" });
+                                          }
+                                        }
+                                      }}
+                                      disabled={completeItem.isPending || skipItem.isPending || delayItem.isPending}
+                                    >
+                                      +30m
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -448,7 +545,7 @@ export default function ProductPage2() {
     );
   }
 
-  if (resetError && (resetError as any).status === 401) {
+  if (resetError && (resetError as ApiError).status === 401) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
         <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm text-center border border-gray-200">
@@ -458,7 +555,7 @@ export default function ProductPage2() {
     );
   }
 
-  if ((resetError && (resetError as any).status === 404) || (!currentReset && !isLoading && !resetError)) {
+  if ((resetError && (resetError as ApiError).status === 404) || (!currentReset && !isLoading && !resetError)) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
         <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm text-center border border-gray-200">
@@ -546,7 +643,7 @@ export default function ProductPage2() {
         <div className="bg-primary text-primary-foreground text-center p-2 text-sm font-medium">
           Current activity: {currentReset.currentItem.activityKey}
         </div>
-        {morningContent}
+        {renderMorningContent(currentReset.items.filter(i => i.phase === 'morning').sort((a,b) => a.sequence - b.sequence))}
       </>
     );
   }
