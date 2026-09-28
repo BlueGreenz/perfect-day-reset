@@ -11,6 +11,13 @@ import connectPgSimple from "connect-pg-simple";
 
 const PostgresSessionStore = connectPgSimple(session);
 
+export type StartResetResult = 
+  | { type: "not_found" }
+  | { type: "invalid_state" }
+  | { type: "corrupt_state" }
+  | { type: "already_active"; resetRun: ResetRun; items: ResetItem[] }
+  | { type: "success"; resetRun: ResetRun; items: ResetItem[] };
+
 export interface IStorage {
   createSubscriber(subscriber: InsertSubscriber): Promise<Subscriber>;
   getSubscriberByEmail(email: string): Promise<Subscriber | undefined>;
@@ -35,6 +42,7 @@ export interface IStorage {
     resetRun: Omit<InsertResetRun, "id" | "createdAt" | "updatedAt">,
     items: Omit<InsertResetItem, "id" | "resetRunId" | "createdAt" | "updatedAt">[]
   ): Promise<{ resetRun: ResetRun; items: ResetItem[] } | { existingRun: ResetRun }>;
+  startResetRunForUser(userId: number): Promise<StartResetResult>;
 
   sessionStore: session.Store;
 }
@@ -176,6 +184,72 @@ export class DatabaseStorage implements IStorage {
         .returning();
 
       return { resetRun: run, items };
+    });
+  }
+
+  async startResetRunForUser(userId: number): Promise<StartResetResult> {
+    return await db.transaction(async (tx) => {
+      // 1. Fetch and lock the user's reset run
+      const [run] = await tx
+        .select()
+        .from(resetRuns)
+        .where(eq(resetRuns.userId, userId))
+        .for('update');
+
+      if (!run) {
+        return { type: "not_found" };
+      }
+
+      const items = await tx
+        .select()
+        .from(resetItems)
+        .where(eq(resetItems.resetRunId, run.id))
+        .orderBy(asc(resetItems.sequence));
+
+      if (run.status === 'active') {
+        return { type: "already_active", resetRun: run, items };
+      }
+
+      if (run.status !== 'ready') {
+        return { type: "invalid_state" };
+      }
+
+      const firstScheduledItem = items.find(i => i.status === 'scheduled');
+      if (!firstScheduledItem) {
+        return { type: "corrupt_state" };
+      }
+
+      const now = new Date();
+
+      const [updatedRun] = await tx
+        .update(resetRuns)
+        .set({
+          status: 'active',
+          phase: firstScheduledItem.phase,
+          startedAt: now,
+          updatedAt: now
+        })
+        .where(eq(resetRuns.id, run.id))
+        .returning();
+
+      const [updatedItem] = await tx
+        .update(resetItems)
+        .set({
+          status: 'active',
+          updatedAt: now
+        })
+        .where(eq(resetItems.id, firstScheduledItem.id))
+        .returning();
+
+      const updatedItems = items.map(item => 
+        item.id === updatedItem.id ? updatedItem : item
+      );
+
+      return { 
+        type: "success", 
+        resetRun: updatedRun, 
+        items: updatedItems 
+      };
     });
   }
 }

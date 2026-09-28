@@ -161,6 +161,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Start the Reset Run
+  app.post("/api/reset-runs/current/start", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const result = await storage.startResetRunForUser(req.user.id);
+      
+      if (result.type === "not_found") {
+        return res.status(404).json({ message: "No Reset found" });
+      }
+
+      if (result.type === "invalid_state") {
+        return res.status(409).json({ message: "Reset cannot be started from its current state" });
+      }
+
+      if (result.type === "corrupt_state") {
+        return res.status(500).json({ message: "Reset is in a corrupt state (no scheduled items)" });
+      }
+
+      // Both already_active and success return the same shape payload
+      // Derive currentItem for frontend
+      const activeItem = result.items.find(item => item.status === 'active');
+      const nextScheduledItem = result.items.find(item => item.status === 'scheduled');
+      const currentItem = activeItem || nextScheduledItem || null;
+
+      // HTTP 200 OK is used since idempotency means we are simply returning the active state
+      return res.status(200).json({
+        resetRun: result.resetRun,
+        items: result.items,
+        currentItem
+      });
+
+    } catch (error) {
+      console.error("Error starting reset run:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Reset Run Creation
   app.post("/api/reset-runs", async (req, res) => {
     if (!req.isAuthenticated()) {
