@@ -1,6 +1,7 @@
-import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, json, index, check } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 
 export const subscribers = pgTable("subscribers", {
   id: serial("id").primaryKey(),
@@ -36,6 +37,65 @@ export const emailLogs = pgTable("email_logs", {
   userId: serial("user_id").references(() => users.id),
 });
 
+export const resetRuns = pgTable("reset_runs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  catalogVersion: text("catalog_version").notNull(),
+  status: text("status").notNull(), // 'setup', 'ready', 'active', 'sleep', 'next_morning', 'completed', 'abandoned'
+  phase: text("phase"), // 'morning', 'midday', 'afternoon', 'evening', 'sleep', 'next_morning' (nullable during setup/ready)
+  scheduleRevision: integer("schedule_revision").notNull().default(0),
+  timezone: text("timezone").notNull(),
+  startAt: timestamp("start_at", { withTimezone: true }),
+  targetBedtimeAt: timestamp("target_bedtime_at", { withTimezone: true }),
+  targetNextMorningAt: timestamp("target_next_morning_at", { withTimezone: true }),
+  resetGoal: text("reset_goal"),
+  foodPreference: text("food_preference"),
+  movementAccess: text("movement_access"),
+  blockedTimesJson: json("blocked_times_json"),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  sleepStartedAt: timestamp("sleep_started_at", { withTimezone: true }),
+  nextMorningStartedAt: timestamp("next_morning_started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("reset_runs_user_id_idx").on(table.userId),
+  check("reset_runs_status_chk", sql`${table.status} IN ('setup', 'ready', 'active', 'sleep', 'next_morning', 'completed', 'abandoned')`),
+  check("reset_runs_phase_chk", sql`${table.phase} IS NULL OR ${table.phase} IN ('morning', 'midday', 'afternoon', 'evening', 'sleep', 'next_morning')`)
+]);
+
+export const resetItems = pgTable("reset_items", {
+  id: serial("id").primaryKey(),
+  resetRunId: integer("reset_run_id").notNull().references(() => resetRuns.id, { onDelete: "cascade" }),
+  activityKey: text("activity_key").notNull(),
+  variantKey: text("variant_key"),
+  phase: text("phase").notNull(),
+  sequence: integer("sequence").notNull(),
+  originalScheduledAt: timestamp("original_scheduled_at", { withTimezone: true }).notNull(),
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
+  durationMinutes: integer("duration_minutes").notNull(),
+  status: text("status").notNull(), // 'scheduled', 'active', 'completed', 'skipped'
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  skippedAt: timestamp("skipped_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("reset_items_run_id_status_seq_idx").on(table.resetRunId, table.status, table.sequence),
+  check("reset_items_status_chk", sql`${table.status} IN ('scheduled', 'active', 'completed', 'skipped')`),
+  check("reset_items_phase_chk", sql`${table.phase} IN ('morning', 'midday', 'afternoon', 'evening', 'next_morning')`)
+]);
+
+export const resetEntries = pgTable("reset_entries", {
+  id: serial("id").primaryKey(),
+  resetRunId: integer("reset_run_id").notNull().references(() => resetRuns.id, { onDelete: "cascade" }),
+  resetItemId: integer("reset_item_id").references(() => resetItems.id, { onDelete: "set null" }),
+  kind: text("kind").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("reset_entries_run_id_idx").on(table.resetRunId)
+]);
+
 export const insertSubscriberSchema = createInsertSchema(subscribers).pick({
   email: true,
 });
@@ -69,3 +129,14 @@ export type InsertMarketingEmail = z.infer<typeof insertMarketingEmailSchema>;
 export type MarketingEmail = typeof marketingEmails.$inferSelect;
 export type InsertEmailLog = z.infer<typeof insertEmailLogSchema>;
 export type EmailLog = typeof emailLogs.$inferSelect;
+
+export const insertResetRunSchema = createInsertSchema(resetRuns);
+export const insertResetItemSchema = createInsertSchema(resetItems);
+export const insertResetEntrySchema = createInsertSchema(resetEntries);
+
+export type InsertResetRun = z.infer<typeof insertResetRunSchema>;
+export type ResetRun = typeof resetRuns.$inferSelect;
+export type InsertResetItem = z.infer<typeof insertResetItemSchema>;
+export type ResetItem = typeof resetItems.$inferSelect;
+export type InsertResetEntry = z.infer<typeof insertResetEntrySchema>;
+export type ResetEntry = typeof resetEntries.$inferSelect;
