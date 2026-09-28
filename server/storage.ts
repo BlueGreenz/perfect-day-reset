@@ -294,15 +294,30 @@ export class DatabaseStorage implements IStorage {
       }
 
       if (action === "complete" && targetItem.status === "completed") {
+        if (run.status === "completed") {
+          const activeItemsCount = items.filter(i => i.status === 'active').length;
+          const scheduledItemsCount = items.filter(i => i.status === 'scheduled').length;
+          if (activeItemsCount > 0 || scheduledItemsCount > 0) {
+            return { type: "corrupt_state" };
+          }
+        }
         return { type: "already_done", resetRun: run, items };
       }
       if (action === "skip" && targetItem.status === "skipped") {
+        if (run.status === "completed") {
+          const activeItemsCount = items.filter(i => i.status === 'active').length;
+          const scheduledItemsCount = items.filter(i => i.status === 'scheduled').length;
+          if (activeItemsCount > 0 || scheduledItemsCount > 0) {
+            return { type: "corrupt_state" };
+          }
+        }
         return { type: "already_done", resetRun: run, items };
       }
 
       if (action === "complete" && targetItem.status === "skipped") return { type: "conflict" };
       if (action === "skip" && targetItem.status === "completed") return { type: "conflict" };
-      if (run.status !== 'active') return { type: "conflict" };
+      if (run.status !== 'active' && run.status !== 'next_morning') return { type: "conflict" };
+      if (run.status === 'next_morning' && action === 'skip') return { type: "conflict" };
       if (targetItem.status !== 'active') return { type: "conflict" };
 
       const activeItems = items.filter(i => i.status === 'active');
@@ -311,8 +326,12 @@ export class DatabaseStorage implements IStorage {
       }
 
       const nextScheduledItem = items.find(i => i.status === 'scheduled' && i.sequence > targetItem.sequence);
-      if (!nextScheduledItem) {
-        return { type: "corrupt_state" };
+      
+      if (run.status === 'next_morning') {
+        if (targetItem.phase !== 'next_morning') return { type: "corrupt_state" };
+        if (nextScheduledItem) return { type: "corrupt_state" };
+      } else {
+        if (!nextScheduledItem) return { type: "corrupt_state" };
       }
 
       const now = new Date();
@@ -337,7 +356,19 @@ export class DatabaseStorage implements IStorage {
       let updatedRun;
       let updatedNextItem = null;
 
-      if (nextScheduledItem.phase === 'next_morning') {
+      if (run.status === 'next_morning') {
+        const [r] = await tx
+          .update(resetRuns)
+          .set({
+            status: 'completed',
+            phase: 'next_morning',
+            completedAt: now,
+            updatedAt: now
+          })
+          .where(eq(resetRuns.id, run.id))
+          .returning();
+        updatedRun = r;
+      } else if (nextScheduledItem!.phase === 'next_morning') {
         const [r] = await tx
           .update(resetRuns)
           .set({
@@ -353,7 +384,7 @@ export class DatabaseStorage implements IStorage {
         const [r] = await tx
           .update(resetRuns)
           .set({
-            phase: nextScheduledItem.phase,
+            phase: nextScheduledItem!.phase,
             updatedAt: now
           })
           .where(eq(resetRuns.id, run.id))
@@ -366,7 +397,7 @@ export class DatabaseStorage implements IStorage {
             status: 'active',
             updatedAt: now
           })
-          .where(eq(resetItems.id, nextScheduledItem.id))
+          .where(eq(resetItems.id, nextScheduledItem!.id))
           .returning();
         updatedNextItem = i;
       }
