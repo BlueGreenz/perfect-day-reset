@@ -130,6 +130,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reset Run Retrieval
+  app.get("/api/reset-runs/current", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const resetData = await storage.getResetRunAndItemsByUserId(req.user.id);
+      
+      if (!resetData) {
+        // Return 404 because this accurately represents a missing resource for the logged-in user,
+        // allowing the frontend to easily differentiate between "no active setup" (404) and "not logged in" (401).
+        return res.status(404).json({ message: "No Reset found" });
+      }
+
+      // Derive lightweight currentItem deterministically
+      const activeItem = resetData.items.find(item => item.status === 'active');
+      const nextScheduledItem = resetData.items.find(item => item.status === 'scheduled');
+      const currentItem = activeItem || nextScheduledItem || null;
+
+      return res.status(200).json({
+        resetRun: resetData.resetRun,
+        items: resetData.items,
+        currentItem
+      });
+    } catch (error) {
+      console.error("Error fetching current reset run:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Reset Run Creation
   app.post("/api/reset-runs", async (req, res) => {
     if (!req.isAuthenticated()) {

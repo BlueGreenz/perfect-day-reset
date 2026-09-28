@@ -6,7 +6,7 @@ import {
 } from "@shared/schema";
 import session from "express-session";
 import { db, pool } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import connectPgSimple from "connect-pg-simple";
 
 const PostgresSessionStore = connectPgSimple(session);
@@ -30,6 +30,7 @@ export interface IStorage {
   
   // Reset functionality
   getResetRunByUserId(userId: number): Promise<ResetRun | undefined>;
+  getResetRunAndItemsByUserId(userId: number): Promise<{ resetRun: ResetRun; items: ResetItem[] } | undefined>;
   createResetRun(
     resetRun: Omit<InsertResetRun, "id" | "createdAt" | "updatedAt">,
     items: Omit<InsertResetItem, "id" | "resetRunId" | "createdAt" | "updatedAt">[]
@@ -129,6 +130,19 @@ export class DatabaseStorage implements IStorage {
       .from(resetRuns)
       .where(eq(resetRuns.userId, userId));
     return run || undefined;
+  }
+
+  async getResetRunAndItemsByUserId(userId: number): Promise<{ resetRun: ResetRun; items: ResetItem[] } | undefined> {
+    const run = await this.getResetRunByUserId(userId);
+    if (!run) return undefined;
+
+    const items = await db
+      .select()
+      .from(resetItems)
+      .where(eq(resetItems.resetRunId, run.id))
+      .orderBy(asc(resetItems.sequence));
+
+    return { resetRun: run, items };
   }
 
   async createResetRun(
