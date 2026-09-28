@@ -18,6 +18,14 @@ export type StartResetResult =
   | { type: "already_active"; resetRun: ResetRun; items: ResetItem[] }
   | { type: "success"; resetRun: ResetRun; items: ResetItem[] };
 
+export type AdvanceResetResult =
+  | { type: "not_found" }
+  | { type: "item_not_found" }
+  | { type: "conflict" }
+  | { type: "corrupt_state" }
+  | { type: "success"; resetRun: ResetRun; items: ResetItem[] }
+  | { type: "already_done"; resetRun: ResetRun; items: ResetItem[] };
+
 export interface IStorage {
   createSubscriber(subscriber: InsertSubscriber): Promise<Subscriber>;
   getSubscriberByEmail(email: string): Promise<Subscriber | undefined>;
@@ -43,6 +51,7 @@ export interface IStorage {
     items: Omit<InsertResetItem, "id" | "resetRunId" | "createdAt" | "updatedAt">[]
   ): Promise<{ resetRun: ResetRun; items: ResetItem[] } | { existingRun: ResetRun }>;
   startResetRunForUser(userId: number): Promise<StartResetResult>;
+  advanceResetItemForUser(userId: number, itemId: number, action: "complete" | "skip"): Promise<AdvanceResetResult>;
 
   sessionStore: session.Store;
 }
@@ -250,6 +259,117 @@ export class DatabaseStorage implements IStorage {
         resetRun: updatedRun, 
         items: updatedItems 
       };
+    });
+  }
+
+  async advanceResetItemForUser(userId: number, itemId: number, action: "complete" | "skip"): Promise<AdvanceResetResult> {
+    return await db.transaction(async (tx) => {
+      const [run] = await tx
+        .select()
+        .from(resetRuns)
+        .where(eq(resetRuns.userId, userId))
+        .for('update');
+
+      if (!run) {
+        return { type: "not_found" };
+      }
+
+      const items = await tx
+        .select()
+        .from(resetItems)
+        .where(eq(resetItems.resetRunId, run.id))
+        .orderBy(asc(resetItems.sequence));
+
+      const targetItem = items.find(i => i.id === itemId);
+      if (!targetItem) {
+        return { type: "item_not_found" };
+      }
+
+      if (action === "complete" && targetItem.status === "completed") {
+        return { type: "already_done", resetRun: run, items };
+      }
+      if (action === "skip" && targetItem.status === "skipped") {
+        return { type: "already_done", resetRun: run, items };
+      }
+
+      if (action === "complete" && targetItem.status === "skipped") return { type: "conflict" };
+      if (action === "skip" && targetItem.status === "completed") return { type: "conflict" };
+      if (run.status !== 'active') return { type: "conflict" };
+      if (targetItem.status !== 'active') return { type: "conflict" };
+
+      const activeItems = items.filter(i => i.status === 'active');
+      if (activeItems.length !== 1) {
+        return { type: "corrupt_state" };
+      }
+
+      const nextScheduledItem = items.find(i => i.status === 'scheduled' && i.sequence > targetItem.sequence);
+      if (!nextScheduledItem) {
+        return { type: "corrupt_state" };
+      }
+
+      const now = new Date();
+
+      const itemUpdatePayload: any = { 
+        status: action === "complete" ? "completed" : "skipped", 
+        updatedAt: now 
+      };
+      
+      if (action === "complete") {
+        itemUpdatePayload.completedAt = now;
+      } else {
+        itemUpdatePayload.skippedAt = now;
+      }
+
+      const [updatedTargetItem] = await tx
+        .update(resetItems)
+        .set(itemUpdatePayload)
+        .where(eq(resetItems.id, targetItem.id))
+        .returning();
+
+      let updatedRun;
+      let updatedNextItem = null;
+
+      if (nextScheduledItem.phase === 'next_morning') {
+        const [r] = await tx
+          .update(resetRuns)
+          .set({
+            status: 'sleep',
+            phase: 'sleep',
+            sleepStartedAt: now,
+            updatedAt: now
+          })
+          .where(eq(resetRuns.id, run.id))
+          .returning();
+        updatedRun = r;
+      } else {
+        const [r] = await tx
+          .update(resetRuns)
+          .set({
+            phase: nextScheduledItem.phase,
+            updatedAt: now
+          })
+          .where(eq(resetRuns.id, run.id))
+          .returning();
+        updatedRun = r;
+
+        const [i] = await tx
+          .update(resetItems)
+          .set({
+            status: 'active',
+            updatedAt: now
+          })
+          .where(eq(resetItems.id, nextScheduledItem.id))
+          .returning();
+        updatedNextItem = i;
+      }
+
+      const updatedItems = items.map(item => {
+        if (item.id === updatedTargetItem.id) return updatedTargetItem;
+        if (updatedNextItem && item.id === updatedNextItem.id) return updatedNextItem;
+        return item;
+      });
+
+      return { type: "success", resetRun: updatedRun, items: updatedItems };
     });
   }
 }

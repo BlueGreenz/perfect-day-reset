@@ -15,6 +15,7 @@ import rateLimit from "express-rate-limit";
 import { CATALOG_VERSION_V1 } from "./reset/activity-catalog";
 import { generateInitialResetSchedule } from "./reset/scheduler";
 import { createResetSchema } from "./reset/setup-schema";
+import { AdvanceResetResult } from "./storage";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -197,6 +198,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error starting reset run:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  const handleAdvanceResult = (res: any, result: AdvanceResetResult) => {
+    if (result.type === "not_found") return res.status(404).json({ message: "No Reset found" });
+    if (result.type === "item_not_found") return res.status(404).json({ message: "Item not found in current Reset" });
+    if (result.type === "conflict") return res.status(409).json({ message: "Item cannot be modified from its current state" });
+    if (result.type === "corrupt_state") return res.status(500).json({ message: "Reset is in a corrupt state" });
+    
+    const activeItem = result.items.find(item => item.status === 'active');
+    const nextScheduledItem = result.items.find(item => item.status === 'scheduled');
+    const currentItem = activeItem || nextScheduledItem || null;
+    
+    return res.status(200).json({
+      resetRun: result.resetRun,
+      items: result.items,
+      currentItem
+    });
+  };
+
+  // Complete an item
+  app.post("/api/reset-runs/current/items/:itemId/complete", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const itemId = parseInt(req.params.itemId, 10);
+    if (isNaN(itemId) || itemId <= 0) {
+      return res.status(400).json({ message: "Invalid item ID" });
+    }
+    try {
+      const result = await storage.advanceResetItemForUser(req.user.id, itemId, "complete");
+      return handleAdvanceResult(res, result);
+    } catch (error) {
+      console.error("Error completing item:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Skip an item
+  app.post("/api/reset-runs/current/items/:itemId/skip", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const itemId = parseInt(req.params.itemId, 10);
+    if (isNaN(itemId) || itemId <= 0) {
+      return res.status(400).json({ message: "Invalid item ID" });
+    }
+    try {
+      const result = await storage.advanceResetItemForUser(req.user.id, itemId, "skip");
+      return handleAdvanceResult(res, result);
+    } catch (error) {
+      console.error("Error skipping item:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
