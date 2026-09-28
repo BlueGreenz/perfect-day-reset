@@ -26,6 +26,13 @@ export type AdvanceResetResult =
   | { type: "success"; resetRun: ResetRun; items: ResetItem[] }
   | { type: "already_done"; resetRun: ResetRun; items: ResetItem[] };
 
+export type StartNextMorningResult =
+  | { type: "not_found" }
+  | { type: "invalid_state" }
+  | { type: "corrupt_state" }
+  | { type: "success"; resetRun: ResetRun; items: ResetItem[] }
+  | { type: "already_active"; resetRun: ResetRun; items: ResetItem[] };
+
 export interface IStorage {
   createSubscriber(subscriber: InsertSubscriber): Promise<Subscriber>;
   getSubscriberByEmail(email: string): Promise<Subscriber | undefined>;
@@ -52,6 +59,7 @@ export interface IStorage {
   ): Promise<{ resetRun: ResetRun; items: ResetItem[] } | { existingRun: ResetRun }>;
   startResetRunForUser(userId: number): Promise<StartResetResult>;
   advanceResetItemForUser(userId: number, itemId: number, action: "complete" | "skip"): Promise<AdvanceResetResult>;
+  startNextMorningForUser(userId: number): Promise<StartNextMorningResult>;
 
   sessionStore: session.Store;
 }
@@ -368,6 +376,71 @@ export class DatabaseStorage implements IStorage {
         if (updatedNextItem && item.id === updatedNextItem.id) return updatedNextItem;
         return item;
       });
+
+      return { type: "success", resetRun: updatedRun, items: updatedItems };
+    });
+  }
+
+  async startNextMorningForUser(userId: number): Promise<StartNextMorningResult> {
+    return await db.transaction(async (tx) => {
+      const [run] = await tx
+        .select()
+        .from(resetRuns)
+        .where(eq(resetRuns.userId, userId))
+        .for('update');
+
+      if (!run) {
+        return { type: "not_found" };
+      }
+
+      const items = await tx
+        .select()
+        .from(resetItems)
+        .where(eq(resetItems.resetRunId, run.id))
+        .orderBy(asc(resetItems.sequence));
+
+      if (run.status === "next_morning") {
+        const activeItems = items.filter(i => i.status === 'active');
+        if (activeItems.length === 1 && activeItems[0].phase === 'next_morning') {
+          return { type: "already_active", resetRun: run, items };
+        }
+        return { type: "corrupt_state" };
+      }
+
+      if (run.status !== "sleep") {
+        return { type: "invalid_state" };
+      }
+
+      const activeItems = items.filter(i => i.status === 'active');
+      if (activeItems.length > 0) {
+        return { type: "corrupt_state" };
+      }
+
+      const firstScheduledItem = items.find(i => i.status === 'scheduled');
+      if (!firstScheduledItem || firstScheduledItem.phase !== "next_morning") {
+        return { type: "corrupt_state" };
+      }
+
+      const now = new Date();
+
+      const [updatedRun] = await tx
+        .update(resetRuns)
+        .set({ 
+          status: 'next_morning', 
+          phase: 'next_morning', 
+          nextMorningStartedAt: now, 
+          updatedAt: now 
+        })
+        .where(eq(resetRuns.id, run.id))
+        .returning();
+
+      const [updatedItem] = await tx
+        .update(resetItems)
+        .set({ status: 'active', updatedAt: now })
+        .where(eq(resetItems.id, firstScheduledItem.id))
+        .returning();
+      
+      const updatedItems = items.map(item => item.id === updatedItem.id ? updatedItem : item);
 
       return { type: "success", resetRun: updatedRun, items: updatedItems };
     });
