@@ -285,7 +285,7 @@ export default function TestimonialsSection() {
                   }, 100);
                 }}
               >
-                Get the Perfect Day Reset – $67
+                Get the Perfect Day Reset – $19
               </Button>
             </Link>
           </div>

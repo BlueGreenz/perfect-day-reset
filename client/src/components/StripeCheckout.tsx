@@ -75,7 +75,7 @@ function CheckoutForm({ clientSecret, customerEmail }: CheckoutFormProps) {
           </>
         ) : (
           <>
-            Complete Purchase - $67
+            Complete Purchase - $19
             <ArrowRight className="ml-2 h-5 w-5" />
           </>
         )}
@@ -151,7 +151,7 @@ export default function StripeCheckout() {
         <CardHeader className="text-center">
           <CardTitle className="flex items-center justify-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
-            Perfect Day Reset - $67
+            Perfect Day Reset - $19
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -196,7 +196,7 @@ export default function StripeCheckout() {
       <CardHeader className="text-center">
         <CardTitle>Complete Your Purchase</CardTitle>
         <p className="text-sm text-gray-600">
-          Paying for: Perfect Day Reset - $67
+          Paying for: Perfect Day Reset - $19
         </p>
       </CardHeader>
       <CardContent>

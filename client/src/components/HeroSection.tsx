@@ -48,7 +48,7 @@ export default function HeroSection() {
                 className="block"
               >
                 <Button size="lg" className="cta-button w-full sm:w-auto bg-primary text-white font-medium px-8 py-6 rounded-full hover:bg-green-600 transition text-lg">
-                  Get the Perfect Day Reset – $67
+                  Get the Perfect Day Reset – $19
                 </Button>
               </Link>
               
@@ -94,7 +94,7 @@ export default function HeroSection() {
             endDate={expireDate}
             title="Launch Special: 30% OFF"
             description="This introductory price ends soon! Get lifetime access now."
-            ctaText="Get the Perfect Day Reset – $67"
+            ctaText="Get the Perfect Day Reset – $19"
             ctaLink="/what-you-get"
           />
         </div>

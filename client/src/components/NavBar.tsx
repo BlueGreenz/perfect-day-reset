@@ -142,7 +142,7 @@ export default function NavBar() {
                 size="sm"
                 className="border-primary text-primary hover:bg-primary/10 h-8 px-2 text-xs font-medium"
               >
-                $67
+                $19
               </Button>
             </Link>
             
@@ -236,7 +236,7 @@ export default function NavBar() {
               <Button 
                 className="cta-button bg-primary text-white font-medium py-3 rounded-full hover:bg-green-600 transition-all w-full"
               >
-                Get Started – $67
+                Get Started – $19
               </Button>
             </Link>
           </div>

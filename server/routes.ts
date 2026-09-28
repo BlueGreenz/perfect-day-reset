@@ -131,11 +131,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
       const { email, receipt_email } = req.body;
-      const amount = 67; // Fixed price: $67
+      const amount = 19; // Fixed price: $19
       const climateContribution = Math.round(amount * 0.005 * 100); // 0.5% for CO₂ removal
       
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents ($67 = 6700 cents)
+        amount: Math.round(amount * 100), // Convert to cents ($19 = 1900 cents)
         currency: "usd",
         receipt_email: email || receipt_email,
         metadata: {

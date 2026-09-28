@@ -67,7 +67,7 @@ export default function ProductSection() {
             
             <div className="mt-10">
               <div className="flex items-center mb-4">
-                <span className="text-3xl font-bold text-primary">$67</span>
+                <span className="text-3xl font-bold text-primary">$19</span>
                 <span className="ml-3 line-through text-gray-500">$147</span>
                 <span className="ml-3 bg-red-100 text-red-700 px-2 py-1 rounded-md text-sm font-medium">55% OFF</span>
               </div>
@@ -77,7 +77,7 @@ export default function ProductSection() {
                 className="inline-block w-full md:w-auto"
               >
                 <Button className="cta-button bg-primary text-white font-medium px-8 py-3 rounded-full hover:bg-green-600 transition w-full">
-                  Get the Perfect Day Reset – $67
+                  Get the Perfect Day Reset – $19
                 </Button>
               </Link>
               

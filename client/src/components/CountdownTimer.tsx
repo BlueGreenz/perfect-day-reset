@@ -18,7 +18,7 @@ export default function CountdownTimer({
   endDate,
   title = "Limited Time Offer",
   description = "This special price is only available for a limited time",
-  ctaText = "Get the Perfect Day Reset – $67",
+  ctaText = "Get the Perfect Day Reset – $19",
   ctaLink = "/what-you-get",
   onExpire
 }: CountdownTimerProps) {

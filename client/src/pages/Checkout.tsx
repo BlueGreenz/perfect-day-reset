@@ -90,7 +90,7 @@ export default function Checkout() {
                   <div className="border-t pt-4">
                     <div className="flex justify-between items-center text-lg font-semibold">
                       <span>Total</span>
-                      <span>$67</span>
+                      <span>$19</span>
                     </div>
                   </div>
                 </div>

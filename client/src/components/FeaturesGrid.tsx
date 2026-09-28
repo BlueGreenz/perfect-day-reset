@@ -98,7 +98,7 @@ export default function FeaturesGrid() {
             href="/what-you-get"
           >
             <Button className="cta-button bg-primary text-white font-medium px-8 py-3 rounded-full hover:bg-green-600 transition">
-              Get the Perfect Day Reset – $67
+              Get the Perfect Day Reset – $19
             </Button>
           </a>
         </div>

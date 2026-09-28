@@ -193,7 +193,7 @@ export default function FAQSection() {
             className="inline-block"
           >
             <Button size="lg" className="cta-button bg-primary text-white font-medium px-8 py-6 rounded-full hover:bg-green-600 transition text-lg">
-              Get the Perfect Day Reset – $67
+              Get the Perfect Day Reset – $19
             </Button>
           </a>
         </div>

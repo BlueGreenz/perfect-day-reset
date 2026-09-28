@@ -58,7 +58,7 @@ export default function SEOHead({
     },
     "offers": {
       "@type": "Offer",
-      "price": "67",
+      "price": "19",
       "priceCurrency": "USD",
       "availability": "https://schema.org/InStock",
       "url": "https://perfectdayreset.com/what-you-get"

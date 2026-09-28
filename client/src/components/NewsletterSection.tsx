@@ -88,7 +88,7 @@ export default function NewsletterSection() {
               <Button 
                 className="cta-button bg-white text-primary font-medium px-8 py-3 rounded-full hover:bg-gray-100 transition"
               >
-                Get the Perfect Day Reset – $67
+                Get the Perfect Day Reset – $19
               </Button>
             </a>
           </div>

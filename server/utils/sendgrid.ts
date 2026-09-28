@@ -160,7 +160,7 @@ export async function sendWelcomeEmail(email: string): Promise<boolean> {
         <p>Don't wait to start your transformation journey!</p>
         <div style="text-align: center; margin-top: 20px;">
           <a href="https://perfectdayreset.com/checkout" style="background-color: #4A8B2C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
-            Get the Perfect Day Reset – $67
+            Get the Perfect Day Reset – $19
           </a>
         </div>
       </div>

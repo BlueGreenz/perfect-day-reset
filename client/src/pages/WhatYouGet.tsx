@@ -34,7 +34,7 @@ export default function WhatYouGet() {
     <div className="bg-[#FCFCFC] min-h-screen font-sans">
       <SEOHead
         title="Perfect Day Reset Program – Complete 24-Hour Transformation Guide"
-        description="Get the complete Perfect Day Reset program: morning routines, midday recharge protocols, evening reflection practices. Transform your energy in 24 hours for just $67."
+        description="Get the complete Perfect Day Reset program: morning routines, midday recharge protocols, evening reflection practices. Transform your energy in 24 hours for just $19."
         canonical="https://perfectdayreset.com/what-you-get"
         ogTitle="Perfect Day Reset Program – 24-Hour Transformation"
         ogDescription="Complete step-by-step guide to reset your energy, focus, and mood in just one day. Includes morning, midday, and evening protocols."
@@ -329,7 +329,7 @@ export default function WhatYouGet() {
       {/* BLOCK 6: FINAL CTA SECTION */}
       <div className="py-16 bg-gradient-to-br from-primary/5 to-blue-50 border-t border-primary/10">
         <div className="container mx-auto px-6 max-w-3xl text-center">
-          <h2 className="text-2xl md:text-4xl font-bold mb-6">Start Your Reset Now for Only $67</h2>
+          <h2 className="text-2xl md:text-4xl font-bold mb-6">Start Your Reset Now for Only $19</h2>
           <p className="text-lg text-gray-700 mb-8 max-w-2xl mx-auto">
             One day designed to transform your energy, clarity, and focus. 
             Get immediate access and start whenever you're ready.
@@ -341,8 +341,8 @@ export default function WhatYouGet() {
               className="inline-block mb-4"
             >
               <Button className="bg-gradient-to-r from-primary to-green-500 hover:from-primary/90 hover:to-green-600 text-white px-6 sm:px-10 py-6 sm:py-7 rounded-lg h-auto text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 w-full sm:w-auto">
-                <span className="hidden sm:inline">Get the Perfect Day Reset – $67</span>
-                <span className="sm:hidden">Get Perfect Day Reset – $67</span>
+                <span className="hidden sm:inline">Get the Perfect Day Reset – $19</span>
+                <span className="sm:hidden">Get Perfect Day Reset – $19</span>
                 <ArrowRight className="ml-2 sm:ml-3 h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </Link>
