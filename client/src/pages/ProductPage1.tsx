@@ -24,8 +24,37 @@ import { ChevronRight, ArrowRight, Sunrise, Coffee, BookOpen, ShoppingBag, Bell,
 import { Link } from "wouter";
 import { toast } from "@/hooks/use-toast";
 import PerfectDayResetPDF from "@/components/PerfectDayResetPDF";
+import { useCurrentReset, useCreateReset } from "@/lib/reset-api";
+import { Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+
+function toDatetimeLocal(d: Date) {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const defaultStart = new Date();
+defaultStart.setDate(defaultStart.getDate() + 1);
+defaultStart.setHours(7, 0, 0, 0);
+
+const defaultBedtime = new Date(defaultStart);
+defaultBedtime.setHours(22, 0, 0, 0);
+
+const defaultNextMorning = new Date(defaultStart);
+defaultNextMorning.setDate(defaultNextMorning.getDate() + 1);
+defaultNextMorning.setHours(7, 0, 0, 0);
 
 export default function ProductPage1() {
+  const { data: currentReset, isLoading: isResetLoading, error: resetError, refetch } = useCurrentReset();
+  const createReset = useCreateReset();
+
+  const [startAt, setStartAt] = useState(toDatetimeLocal(defaultStart));
+  const [targetBedtimeAt, setTargetBedtimeAt] = useState(toDatetimeLocal(defaultBedtime));
+  const [targetNextMorningAt, setTargetNextMorningAt] = useState(toDatetimeLocal(defaultNextMorning));
+  const [resetGoal, setResetGoal] = useState("");
+  const [movementAccess, setMovementAccess] = useState("bodyweight");
+  const [blockedTimes, setBlockedTimes] = useState("");
+
   const [selectedDiet, setSelectedDiet] = useState<string>("omni");
   const [waterCalc, setWaterCalc] = useState({
     weight: "",
@@ -1885,28 +1914,168 @@ export default function ProductPage1() {
             </Card>
 
             {/* Ready to Reset */}
+            {/* Setup & Ready State */}
             <Card className="mb-10">
               <CardHeader>
                 <CardTitle className="text-center">
-                  Ready to Reset?
+                  Your Reset Setup
                 </CardTitle>
                 <CardDescription className="text-center">
-                  You've selected your food style, got your supplements ready, and picked your reset date. 
-                  You're ready to begin your Perfect Day Reset journey!
+                  Configure your upcoming Perfect Day Reset.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-col items-center">
-                <Button 
-                  size="lg" 
-                  className="px-8 py-6 text-lg rounded-full font-medium"
-                  onClick={() => {
-                    // Navigate and scroll to top
-                    window.location.href = '/product/reset/morning';
-                  }}
-                >
-                  Take Me to My Perfect Day <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
+              <CardContent className="flex flex-col items-center w-full">
+                {isResetLoading ? (
+                  <div className="flex flex-col items-center justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                    <p>Loading your Reset...</p>
+                  </div>
+                ) : resetError && (resetError as any).status === 401 ? (
+                  <div className="bg-orange-50 text-orange-700 p-4 rounded-md">
+                    <p>Please log in to configure your Reset.</p>
+                  </div>
+                ) : resetError && (resetError as any).status !== 404 ? (
+                  <div className="bg-red-50 text-red-700 p-4 rounded-md">
+                    <p>There was a problem loading your Reset. Please try again.</p>
+                  </div>
+                ) : currentReset ? (
+                  <div className="w-full max-w-md bg-green-50 p-6 rounded-xl border border-green-200">
+                    <h3 className="text-xl font-bold text-green-800 text-center mb-4">Your Reset is {currentReset.resetRun.status}!</h3>
+                    <div className="space-y-2 text-sm text-green-900 mb-6">
+                      <p><strong>Goal:</strong> {currentReset.resetRun.resetGoal || 'Not specified'}</p>
+                      <p><strong>Start:</strong> {new Date(currentReset.resetRun.startAt).toLocaleString()}</p>
+                      <p><strong>Bedtime:</strong> {new Date(currentReset.resetRun.targetBedtimeAt).toLocaleString()}</p>
+                      <p><strong>Next Morning:</strong> {new Date(currentReset.resetRun.targetNextMorningAt).toLocaleString()}</p>
+                    </div>
+                    {currentReset.resetRun.status === 'ready' && (
+                       <p className="text-center italic text-green-700">You can start this Reset when the time comes.</p>
+                    )}
+                    {currentReset.resetRun.status === 'active' && (
+                       <p className="text-center italic text-green-700">Your Reset is currently in progress.</p>
+                    )}
+                    {currentReset.resetRun.status === 'sleep' && (
+                       <p className="text-center italic text-green-700">Your Reset is in the overnight recovery phase.</p>
+                    )}
+                    {currentReset.resetRun.status === 'next_morning' && (
+                       <p className="text-center italic text-green-700">Your next-morning check-in is ready.</p>
+                    )}
+                    {currentReset.resetRun.status === 'completed' && (
+                       <p className="text-center italic text-green-700">Your Reset is complete.</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-full max-w-md space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="startAt">Start Time</Label>
+                      <Input 
+                        id="startAt" 
+                        type="datetime-local" 
+                        value={startAt} 
+                        onChange={e => setStartAt(e.target.value)} 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bedtimeAt">Target Bedtime</Label>
+                      <Input 
+                        id="bedtimeAt" 
+                        type="datetime-local" 
+                        value={targetBedtimeAt} 
+                        onChange={e => setTargetBedtimeAt(e.target.value)} 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="nextMorningAt">Target Next Morning</Label>
+                      <Input 
+                        id="nextMorningAt" 
+                        type="datetime-local" 
+                        value={targetNextMorningAt} 
+                        onChange={e => setTargetNextMorningAt(e.target.value)} 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="resetGoal">Primary Goal for this Reset</Label>
+                      <Input 
+                        id="resetGoal" 
+                        placeholder="e.g., Deep rest, planning, detox..."
+                        value={resetGoal} 
+                        onChange={e => setResetGoal(e.target.value)} 
+                      />
+                    </div>
 
+                    <div className="space-y-2">
+                      <Label htmlFor="movementAccess">Movement Style</Label>
+                      <select 
+                        id="movementAccess" 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={movementAccess}
+                        onChange={e => setMovementAccess(e.target.value)}
+                      >
+                        <option value="bodyweight">Bodyweight / Yoga</option>
+                        <option value="gym">Full Gym Access</option>
+                        <option value="outdoor">Outdoor Running / Walking</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="blockedTimes">Blocked Time / Commitments (Optional)</Label>
+                      <Textarea 
+                        id="blockedTimes" 
+                        placeholder="e.g., Doctor appointment 1pm-2pm"
+                        value={blockedTimes} 
+                        onChange={e => setBlockedTimes(e.target.value)} 
+                      />
+                    </div>
+
+                    <Button 
+                      size="lg" 
+                      className="w-full mt-4"
+                      disabled={createReset.isPending}
+                      onClick={async () => {
+                        if (!startAt || !targetBedtimeAt || !targetNextMorningAt) {
+                          toast({ title: "Please fill out all times", variant: "destructive" });
+                          return;
+                        }
+                        if (!resetGoal.trim()) {
+                          toast({ title: "Please provide a goal for this Reset", variant: "destructive" });
+                          return;
+                        }
+                        if (!selectedDiet) {
+                          toast({ title: "Please select a food preference above", variant: "destructive" });
+                          return;
+                        }
+                        if (!movementAccess) {
+                          toast({ title: "Please select your movement style", variant: "destructive" });
+                          return;
+                        }
+                        
+                        try {
+                          await createReset.mutateAsync({
+                            startAt: new Date(startAt).toISOString(),
+                            targetBedtimeAt: new Date(targetBedtimeAt).toISOString(),
+                            targetNextMorningAt: new Date(targetNextMorningAt).toISOString(),
+                            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                            resetGoal,
+                            foodPreference: selectedDiet,
+                            movementAccess,
+                            blockedTimesJson: blockedTimes ? { notes: blockedTimes } : undefined
+                          });
+                          toast({ title: "Reset configured!" });
+                        } catch (err: any) {
+                          if (err.status === 409) {
+                            // Already exists, just refetch
+                            refetch();
+                          } else {
+                            toast({ title: "Failed to setup Reset", description: err.message, variant: "destructive" });
+                          }
+                        }
+                      }}
+                    >
+                      {createReset.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      {createReset.isPending ? "Setting up..." : "Save Setup"}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
