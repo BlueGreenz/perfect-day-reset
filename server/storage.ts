@@ -1,10 +1,10 @@
 import { subscribers, users, marketingEmails, emailLogs, type Subscriber, type InsertSubscriber, type User, type InsertUser, type MarketingEmail, type InsertMarketingEmail, type EmailLog, type InsertEmailLog } from "@shared/schema";
 import session from "express-session";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq } from "drizzle-orm";
-import createMemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPgSimple(session);
 
 export interface IStorage {
   createSubscriber(subscriber: InsertSubscriber): Promise<Subscriber>;
@@ -30,8 +30,8 @@ export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
 
   constructor() {
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000, // prune expired entries every 24h
+    this.sessionStore = new PostgresSessionStore({
+      pool,
     });
   }
 
