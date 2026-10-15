@@ -7,13 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, LogIn, Sparkles, ArrowRight } from "lucide-react";
+import { Loader2, LogIn, Sparkles, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import SEOHead from "@/components/SEOHead";
 
 const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+  username: z.string().min(1, "Email or username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -23,6 +23,7 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const { user, loginMutation } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -44,8 +45,8 @@ export default function Login() {
       onSuccess: () => {
         setLocation("/dashboard");
       },
-      onError: (error: any) => {
-        setError("Invalid username or password. Please try again.");
+      onError: () => {
+        setError("Invalid email, username, or password. Please try again.");
       },
     });
   };
@@ -54,7 +55,7 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50 flex items-center justify-center p-4">
       <SEOHead
         title="Login - Perfect Day Reset"
-        description="Log in to your Perfect Day Reset account to access your transformation program and continue your wellness journey."
+        description="Log in to your Perfect Day Reset account using your email or username to access your 24-hour transformation portal."
         canonical="https://perfectdayreset.com/login"
         noindex={true}
       />
@@ -68,7 +69,7 @@ export default function Login() {
             Welcome Back!
           </h1>
           <p className="text-gray-600">
-            Log in to continue your Perfect Day Reset journey
+            Log in with your email address or username to continue your Perfect Day Reset
           </p>
         </div>
 
@@ -94,10 +95,14 @@ export default function Login() {
                   name="username"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Username</FormLabel>
+                      <FormLabel>Email or Username</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Enter your username" 
+                        <Input
+                          id="username"
+                          autoComplete="username"
+                          enterKeyHint="next"
+                          required
+                          placeholder="Enter your email or username"
                           {...field}
                           className="h-12"
                         />
@@ -112,22 +117,40 @@ export default function Login() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel htmlFor="current-password">Password</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="password" 
-                          placeholder="Enter your password" 
-                          {...field}
-                          className="h-12"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="current-password"
+                            type={showPassword ? "text" : "password"}
+                            autoComplete="current-password"
+                            enterKeyHint="done"
+                            required
+                            placeholder="Enter your password"
+                            {...field}
+                            className="h-12 pr-11"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full h-12 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-semibold rounded-lg"
                   disabled={loginMutation.isPending}
                 >
@@ -149,7 +172,7 @@ export default function Login() {
             {/* Help Section */}
             <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800 text-center">
-                <strong>Need help?</strong> Use the credentials provided on your success page after purchase.
+                <strong>Need help?</strong> Sign in with the checkout email address you used at purchase (or your generated username) and the password sent to your inbox.
               </p>
             </div>
 

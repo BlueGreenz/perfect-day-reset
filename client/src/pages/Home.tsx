@@ -30,6 +30,7 @@ import Footer from "@/components/Footer";
 import FAQSection from "@/components/FAQSection";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import ComparisonSection from "@/components/ComparisonSection";
+import PortalPreviewMockup from "@/components/PortalPreviewMockup";
 import SEOHead from "@/components/SEOHead";
 import sunriseBackground from "@assets/16x9_A_vibrant_golden_sunrise_gradual.webp";
 import founderPhoto from "@assets/unnamed.jpg";
@@ -704,6 +705,10 @@ export default function Home() {
             <p className="text-lg sm:text-xl text-gray-600">
               Your $19 access unlocks our live Interactive Web Companion Portal in your mobile or desktop browser alongside the full Printable PDF kit.
             </p>
+          </div>
+
+          <div className="mb-14">
+            <PortalPreviewMockup />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">

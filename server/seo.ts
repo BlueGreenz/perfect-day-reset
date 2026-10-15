@@ -99,7 +99,7 @@ export const HOME_SEMANTIC_HTML = `
         <li><strong>Dynamic 24-Hour Schedule &amp; 1-Tap Delay Rescheduler:</strong> Running 15 minutes late? The engine recalculates your day automatically—no guilt.</li>
         <li><strong>5 Customizable Nutrition Modes:</strong> Switch between Omnivore, Vegetarian, Keto, Paleo, and Vegan tracks with 1-click grocery lists.</li>
         <li><strong>Interactive Hydration Calculator, Digital Detox Checklist &amp; Saved Evening Reflections:</strong> Track your daily water target, digital boundaries, and journal entries in the web portal or on paper with the Printable PDF Guide &amp; 7-Day Daily Reset Tracker.</li>
-        <li><strong>Lifetime Access + 30-Day 100% Money-Back Guarantee:</strong> Repeat your 24-Hour Reset unlimited times for a one-time $19 payment.</li>
+        <li><strong>Lifetime Access + 14-Day 100% Money-Back Guarantee:</strong> Repeat your 24-Hour Reset unlimited times for a one-time $19 payment.</li>
       </ul>
       <p><a href="/checkout">Start My 24-Hour Reset — $19</a> | <a href="/what-you-get">See Full Program Breakdown</a></p>
     </section>
@@ -114,7 +114,7 @@ export const HOME_SEMANTIC_HTML = `
         <dt>Can I repeat the 24-Hour Reset whenever I want?</dt>
         <dd>Yes. Your one-time $19 purchase gives you lifetime access to start a fresh Reset Run any weekend, post-travel recovery day, or stressful week.</dd>
         <dt>Is there a refund policy?</dt>
-        <dd>Yes, every purchase is backed by a 30-day 100% money-back satisfaction guarantee.</dd>
+        <dd>Yes, every purchase is backed by a 14-day 100% money-back satisfaction guarantee.</dd>
       </dl>
     </section>
   </main>
@@ -264,22 +264,22 @@ const ROUTE_SEO_MAP: Record<string, RouteSEOConfig> = {
 </div>`,
   },
   "/refund-policy": {
-    title: "Refund Policy – 30-Day Money-Back Guarantee | Perfect Day Reset",
+    title: "Refund Policy – 14-Day Money-Back Guarantee | Perfect Day Reset",
     description:
-      "Read the Perfect Day Reset 30-day 100% money-back satisfaction guarantee and refund policy.",
+      "Read the Perfect Day Reset 14-day 100% money-back satisfaction guarantee and refund policy.",
     canonical: "https://perfectdayreset.com/refund-policy",
-    ogTitle: "Refund Policy – Perfect Day Reset",
+    ogTitle: "Refund Policy – 14-Day Satisfaction Guarantee | Perfect Day Reset",
     ogDescription:
-      "Your purchase of the Perfect Day Reset is protected by our 30-day money-back satisfaction guarantee.",
+      "Your purchase of the Perfect Day Reset is protected by our 14-day money-back satisfaction guarantee.",
     ogImage: DEFAULT_OG_IMAGE,
     twitterTitle: "Refund Policy – Perfect Day Reset",
-    twitterDescription: "30-day money-back satisfaction guarantee on the Perfect Day Reset.",
+    twitterDescription: "14-day money-back satisfaction guarantee on the Perfect Day Reset.",
     semanticHtml: `
 <div class="ssr-seo-shell">
   ${SHARED_NAV_HTML}
   <main>
-    <h1>Refund Policy — 30-Day Satisfaction Guarantee</h1>
-    <p>We stand behind the Perfect Day Reset. If you complete the 24-hour protocol within 30 days of purchase and are not satisfied with your experience, contact <a href="mailto:support@perfectdayreset.com">support@perfectdayreset.com</a> for a full refund.</p>
+    <h1>Refund Policy — 14-Day Money-Back Satisfaction Guarantee</h1>
+    <p>We stand behind the Perfect Day Reset 100%. If you complete the 24-Hour Reset (or try the protocol within 14 days of purchase) and do not feel noticeably more energized, focused, and clear-headed, contact <a href="mailto:support@perfectdayreset.com">support@perfectdayreset.com</a> within 14 days for a full, friendly refund.</p>
   </main>
   ${SHARED_FOOTER_HTML}
 </div>`,

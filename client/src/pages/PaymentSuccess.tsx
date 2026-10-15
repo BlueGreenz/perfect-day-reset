@@ -4,20 +4,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, Eye, EyeOff, Copy, ArrowRight, Sparkles, Heart, Star, Mail } from "lucide-react";
-import { Link } from "wouter";
+import { CheckCircle, Eye, EyeOff, Copy, ArrowRight, Sparkles, Heart, Star, Mail, ShieldCheck, Loader2 } from "lucide-react";
+import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 
 interface UserCredentials {
   username: string;
   password: string;
+  email?: string | null;
 }
 
 export default function PaymentSuccess() {
+  const [, setLocation] = useLocation();
+  const { user, loginMutation } = useAuth();
   const [credentials, setCredentials] = useState<UserCredentials | null>(null);
+  const [autoLoggedIn, setAutoLoggedIn] = useState(false);
+  const [isEnteringPortal, setIsEnteringPortal] = useState(false);
   const [pollingTimedOut, setPollingTimedOut] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState<{ username: boolean; password: boolean }>({ username: false, password: false });
@@ -39,7 +45,7 @@ export default function PaymentSuccess() {
         description: "You'll receive helpful wellness tips and exclusive updates.",
       });
     },
-    onError: (error: Error) => {
+    onError: () => {
       toast({
         title: "Oops!",
         description: "Something went wrong. You can always subscribe later from our homepage.",
@@ -49,9 +55,8 @@ export default function PaymentSuccess() {
   });
 
   useEffect(() => {
-    // Get payment intent ID from URL search params
     const urlParams = new URLSearchParams(window.location.search);
-    const paymentIntentId = urlParams.get('payment_intent');
+    const paymentIntentId = urlParams.get("payment_intent");
 
     if (!paymentIntentId) {
       setPollingTimedOut(true);
@@ -68,19 +73,33 @@ export default function PaymentSuccess() {
       attempts += 1;
 
       try {
-        const response = await fetch(`/api/payment-success/${paymentIntentId}`);
+        const response = await fetch(`/api/payment-success/${paymentIntentId}`, {
+          credentials: "include",
+        });
         if (response.ok) {
           const data = await response.json();
           if (!cancelled) {
             setCredentials({
               username: data.username,
               password: data.password || "Check your email for login details",
+              email: data.email || null,
             });
+            if (data.email && !email) {
+              setEmail(data.email);
+            }
+            if (data.autoLoggedIn || data.user) {
+              setAutoLoggedIn(true);
+              if (data.user) {
+                queryClient.setQueryData(["/api/user"], data.user);
+              } else {
+                queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+              }
+            }
           }
           return;
         }
       } catch (error) {
-        console.error('Error fetching credentials:', error);
+        console.error("Error fetching credentials:", error);
       }
 
       if (cancelled) return;
@@ -96,7 +115,7 @@ export default function PaymentSuccess() {
       }
     };
 
-    timeoutId = setTimeout(pollCredentials, 2000);
+    pollCredentials();
 
     return () => {
       cancelled = true;
@@ -106,22 +125,38 @@ export default function PaymentSuccess() {
     };
   }, [toast]);
 
-  const generateDemoUsername = () => {
-    const adjectives = ['swift', 'bright', 'calm', 'bold', 'wise', 'pure', 'fresh', 'strong', 'clear', 'vibrant'];
-    const nouns = ['warrior', 'dreamer', 'seeker', 'explorer', 'creator', 'builder', 'achiever', 'champion', 'pioneer', 'master'];
-    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    const number = Math.floor(Math.random() * 1000);
-    return `${adjective}_${noun}_${number}`;
-  };
-
-  const generateDemoPassword = () => {
-    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-    let result = '';
-    for (let i = 0; i < 12; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
+  const handleEnterPortal = (targetPath: string = "/product/reset/welcome") => {
+    if (user || autoLoggedIn) {
+      setLocation(targetPath);
+      return;
     }
-    return result;
+
+    if (
+      credentials?.username &&
+      credentials?.password &&
+      !credentials.password.startsWith("Check your email")
+    ) {
+      setIsEnteringPortal(true);
+      loginMutation.mutate(
+        {
+          username: credentials.username,
+          password: credentials.password,
+        },
+        {
+          onSuccess: () => {
+            setIsEnteringPortal(false);
+            setLocation(targetPath);
+          },
+          onError: () => {
+            setIsEnteringPortal(false);
+            setLocation("/login");
+          },
+        }
+      );
+      return;
+    }
+
+    setLocation("/login");
   };
 
   const copyToClipboard = async (text: string, type: 'username' | 'password') => {
@@ -135,7 +170,7 @@ export default function PaymentSuccess() {
       setTimeout(() => {
         setCopied(prev => ({ ...prev, [type]: false }));
       }, 2000);
-    } catch (err) {
+    } catch {
       toast({
         title: "Failed to copy",
         description: "Please manually copy the credentials",
@@ -149,7 +184,7 @@ export default function PaymentSuccess() {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-600">Processing your payment and setting up your account...</p>
+          <p className="text-gray-600">Processing your payment and signing you into your Reset Portal...</p>
         </div>
       </div>
     );
@@ -158,7 +193,7 @@ export default function PaymentSuccess() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50">
       {/* Success Header */}
-      <div className="pt-20 pb-12 text-center">
+      <div className="pt-20 pb-10 text-center">
         <div className="container mx-auto px-4">
           <div className="inline-flex items-center justify-center w-24 h-24 bg-green-100 rounded-full mb-6">
             <CheckCircle className="h-12 w-12 text-green-600" />
@@ -169,15 +204,148 @@ export default function PaymentSuccess() {
           </h1>
           
           <p className="text-xl text-gray-600 mb-6 max-w-2xl mx-auto">
-            Your payment was successful and your Perfect Day Reset journey starts now!
+            Your payment is confirmed and your interactive Perfect Day Reset portal is ready right now!
           </p>
 
+          {/* 1-Click Primary Portal Entry Above the Fold */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+            <Button
+              size="lg"
+              onClick={() => handleEnterPortal("/product/reset/welcome")}
+              disabled={isEnteringPortal}
+              data-testid="button-enter-portal-hero"
+              className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white px-10 py-6 text-lg sm:text-xl rounded-full font-semibold shadow-2xl transform hover:scale-105 transition-all"
+            >
+              {isEnteringPortal ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Opening Your Portal...
+                </>
+              ) : (
+                <>
+                  Enter My Reset Portal Now
+                  <ArrowRight className="ml-3 h-6 w-6" />
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => handleEnterPortal("/dashboard")}
+              disabled={isEnteringPortal}
+              className="border-gray-300 bg-white/90 hover:bg-white text-gray-800 px-7 py-6 text-base rounded-full font-semibold"
+            >
+              Open Full Member Dashboard
+            </Button>
+          </div>
+
           {/* Social Impact Badge */}
-          <Badge className="bg-green-100 text-green-800 border-green-200 px-4 py-2 mb-8">
+          <Badge className="bg-green-100 text-green-800 border-green-200 px-4 py-2">
             <Heart className="h-4 w-4 mr-2" />
             Thank you! $1 has been donated to children's programs
           </Badge>
         </div>
+      </div>
+
+      {/* Credentials Section */}
+      <div className="container mx-auto px-4 mb-12">
+        <Card className="max-w-2xl mx-auto bg-white shadow-xl">
+          <CardContent className="p-8">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <ShieldCheck className="h-6 w-6 text-emerald-600" />
+              <h2 className="text-2xl font-bold text-center text-gray-800">
+                Your Account &amp; Login Credentials
+              </h2>
+            </div>
+            {(user || autoLoggedIn) && (
+              <p className="text-sm text-emerald-700 font-medium text-center mb-6">
+                ✓ You are already signed in on this device! Save the details below for logging in on other devices.
+              </p>
+            )}
+            
+            {credentials ? (
+              <>
+                <div className="space-y-5">
+                  {credentials.email && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Login Email (You can log in with either your Email OR Username)
+                      </label>
+                      <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-lg font-mono text-base text-emerald-950">
+                        {credentials.email}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Username */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Username
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 p-3 bg-gray-50 rounded-lg font-mono text-lg">
+                        {credentials.username}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(credentials.username, 'username')}
+                        className={copied.username ? 'bg-green-50 text-green-600' : ''}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Password
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 p-3 bg-gray-50 rounded-lg font-mono text-lg">
+                        {showPassword ? credentials.password : '••••••••••••'}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(credentials.password, 'password')}
+                        className={copied.password ? 'bg-green-50 text-green-600' : ''}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Saved to your inbox too:</strong> We've also emailed these credentials to you. Whenever you return on a phone or laptop, you can sign in using either your email address or username.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="text-center space-y-4">
+                <div className="p-6 bg-blue-50 rounded-lg border border-blue-200 text-blue-900">
+                  <Mail className="h-8 w-8 text-blue-600 mx-auto mb-3" />
+                  <p className="font-semibold text-lg mb-2">
+                    Check Your Email for Your Login Details
+                  </p>
+                  <p className="text-sm text-blue-800 leading-relaxed">
+                    Your payment is confirmed and your account is being finalized. We've sent your username and password to your checkout email address. If you don't see it within a couple of minutes, please check your spam or promotions folder.
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Motivational Message */}
@@ -195,7 +363,7 @@ export default function PaymentSuccess() {
               This isn't just a purchase—it's your commitment to becoming the person you've always wanted to be.
             </p>
             
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <div className="grid md:grid-cols-3 gap-6">
               <div className="text-center">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <Star className="h-8 w-8 text-blue-600" />
@@ -220,82 +388,6 @@ export default function PaymentSuccess() {
                 <p className="text-sm text-gray-600">Build lasting habits that will serve you for life</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Credentials Section */}
-      <div className="container mx-auto px-4 mb-12">
-        <Card className="max-w-2xl mx-auto bg-white shadow-xl">
-          <CardContent className="p-8">
-            <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Your Login Credentials</h2>
-            
-            {credentials ? (
-              <>
-                <div className="space-y-6">
-                  {/* Username */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 p-3 bg-gray-50 rounded-lg font-mono text-lg">
-                        {credentials.username}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyToClipboard(credentials.username, 'username')}
-                        className={copied.username ? 'bg-green-50 text-green-600' : ''}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Password */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 p-3 bg-gray-50 rounded-lg font-mono text-lg">
-                        {showPassword ? credentials.password : '••••••••••••'}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyToClipboard(credentials.password, 'password')}
-                        className={copied.password ? 'bg-green-50 text-green-600' : ''}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-8 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Important:</strong> Please save these credentials safely. You'll need them to access your Perfect Day Reset program.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div className="text-center space-y-4">
-                <div className="p-6 bg-blue-50 rounded-lg border border-blue-200 text-blue-900">
-                  <Mail className="h-8 w-8 text-blue-600 mx-auto mb-3" />
-                  <p className="font-semibold text-lg mb-2">
-                    Check Your Email for Your Login Details
-                  </p>
-                  <p className="text-sm text-blue-800 leading-relaxed">
-                    Your payment is confirmed and your account is being finalized. We've sent your username and password to your checkout email address. If you don't see it within a couple of minutes, please check your spam or promotions folder.
-                  </p>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -408,14 +500,18 @@ export default function PaymentSuccess() {
         )}
       </div>
 
-      {/* CTA Button */}
+      {/* Bottom CTA Button */}
       <div className="container mx-auto px-4 pb-20 text-center">
-        <Link href="/login">
-          <Button size="lg" className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white px-12 py-6 text-xl rounded-full font-semibold shadow-2xl transform hover:scale-105 transition-all">
-            Log In to Begin Your Perfect Day Reset
-            <ArrowRight className="ml-3 h-6 w-6" />
-          </Button>
-        </Link>
+        <Button
+          size="lg"
+          onClick={() => handleEnterPortal("/product/reset/welcome")}
+          disabled={isEnteringPortal}
+          data-testid="button-enter-portal-footer"
+          className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white px-12 py-6 text-xl rounded-full font-semibold shadow-2xl transform hover:scale-105 transition-all"
+        >
+          Enter My Reset Portal Now
+          <ArrowRight className="ml-3 h-6 w-6" />
+        </Button>
         
         <p className="text-gray-600 mt-4 text-sm">
           Ready to transform your life? Your journey to better energy, clarity, and focus starts now!

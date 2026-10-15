@@ -1,11 +1,17 @@
 import React from "react";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
+import SEOHead from "@/components/SEOHead";
 import { FileText, User, Copyright, AlertTriangle } from "lucide-react";
 
 export default function TermsOfService() {
   return (
     <div className="bg-white min-h-screen">
+      <SEOHead
+        title="Terms of Service – Perfect Day Reset"
+        description="Read the Terms of Service, usage license, and wellness disclaimer for Perfect Day Reset."
+        canonical="https://perfectdayreset.com/terms-of-service"
+      />
       <NavBar />
       
       <div className="pt-20 pb-16">

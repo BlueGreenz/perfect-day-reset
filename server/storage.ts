@@ -6,8 +6,8 @@ import {
   type ResetEntry, type InsertResetEntry, resetEntries
 } from "@shared/schema";
 import session from "express-session";
-import { db, pool } from "./db";
-import { eq, asc, and } from "drizzle-orm";
+import { db, pool, ensureProductionTables } from "./db";
+import { eq, asc, desc, and, sql } from "drizzle-orm";
 import connectPgSimple from "connect-pg-simple";
 import createMemoryStore from "memorystore";
 import { computeDelayedSchedule } from "./reset/rescheduler";
@@ -61,6 +61,7 @@ export interface IStorage {
   // User authentication methods
   createUser(user: InsertUser): Promise<User>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   getUser(id: number): Promise<User | undefined>;
   getUserByStripeSessionId(sessionId: string): Promise<User | undefined>;
   
@@ -104,94 +105,41 @@ export class DatabaseStorage implements IStorage {
       this.sessionStore = this.fallbackMem.sessionStore;
     }
 
-    this.ensureSchemaTables().catch((err) => {
+    ensureProductionTables().catch((err) => {
       console.warn("Non-fatal schema auto-check warning:", err?.message || err);
     });
   }
 
-  private async ensureSchemaTables(): Promise<void> {
-    if (!pool) return;
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS "session" (
-        "sid" varchar NOT NULL COLLATE "default",
-        "sess" json NOT NULL,
-        "expire" timestamp(6) NOT NULL,
-        CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
-      );
-      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
-
-      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "email" text;
-      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "first_name" text;
-
-      CREATE TABLE IF NOT EXISTS "reset_runs" (
-        "id" serial PRIMARY KEY NOT NULL,
-        "user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE cascade,
-        "catalog_version" text NOT NULL,
-        "status" text NOT NULL,
-        "phase" text,
-        "schedule_revision" integer DEFAULT 0 NOT NULL,
-        "timezone" text NOT NULL,
-        "start_at" timestamp with time zone,
-        "target_bedtime_at" timestamp with time zone,
-        "target_next_morning_at" timestamp with time zone,
-        "reset_goal" text,
-        "food_preference" text,
-        "movement_access" text,
-        "blocked_times_json" json,
-        "started_at" timestamp with time zone,
-        "sleep_started_at" timestamp with time zone,
-        "next_morning_started_at" timestamp with time zone,
-        "completed_at" timestamp with time zone,
-        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS "reset_items" (
-        "id" serial PRIMARY KEY NOT NULL,
-        "reset_run_id" integer NOT NULL REFERENCES "reset_runs"("id") ON DELETE cascade,
-        "activity_key" text NOT NULL,
-        "variant_key" text,
-        "phase" text NOT NULL,
-        "sequence" integer NOT NULL,
-        "original_scheduled_at" timestamp with time zone NOT NULL,
-        "scheduled_at" timestamp with time zone NOT NULL,
-        "duration_minutes" integer NOT NULL,
-        "status" text NOT NULL,
-        "completed_at" timestamp with time zone,
-        "skipped_at" timestamp with time zone,
-        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS "reset_entries" (
-        "id" serial PRIMARY KEY NOT NULL,
-        "reset_run_id" integer NOT NULL REFERENCES "reset_runs"("id") ON DELETE cascade,
-        "reset_item_id" integer REFERENCES "reset_items"("id") ON DELETE set null,
-        "kind" text NOT NULL,
-        "content" text NOT NULL,
-        "created_at" timestamp with time zone DEFAULT now() NOT NULL
-      );
-    `);
-  }
-
   async createSubscriber(insertSubscriber: InsertSubscriber): Promise<Subscriber> {
-    const [subscriber] = await db
-      .insert(subscribers)
-      .values(insertSubscriber)
-      .returning();
-    return subscriber;
+    try {
+      const [subscriber] = await db
+        .insert(subscribers)
+        .values(insertSubscriber)
+        .returning();
+      return subscriber;
+    } catch {
+      return this.fallbackMem.createSubscriber(insertSubscriber);
+    }
   }
 
   async getSubscriberByEmail(email: string): Promise<Subscriber | undefined> {
-    const [subscriber] = await db
-      .select()
-      .from(subscribers)
-      .where(eq(subscribers.email, email));
-    return subscriber || undefined;
+    try {
+      const [subscriber] = await db
+        .select()
+        .from(subscribers)
+        .where(eq(subscribers.email, email));
+      return subscriber || undefined;
+    } catch {
+      return this.fallbackMem.getSubscriberByEmail(email);
+    }
   }
 
   async getAllSubscribers(): Promise<Subscriber[]> {
-    return await db.select().from(subscribers);
+    try {
+      return await db.select().from(subscribers);
+    } catch {
+      return this.fallbackMem.getAllSubscribers();
+    }
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -216,6 +164,22 @@ export class DatabaseStorage implements IStorage {
       return user || undefined;
     } catch {
       return this.fallbackMem.getUserByUsername(username);
+    }
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) return undefined;
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(sql`LOWER(${users.email}) = ${normalized}`)
+        .orderBy(desc(users.id));
+      if (user) return user;
+      return this.fallbackMem.getUserByEmail(normalized);
+    } catch {
+      return this.fallbackMem.getUserByEmail(normalized);
     }
   }
 
@@ -853,6 +817,18 @@ export class MemStorage implements IStorage {
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     return this.usersList.find((u) => u.username === username);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) return undefined;
+    for (let i = this.usersList.length - 1; i >= 0; i--) {
+      const u = this.usersList[i];
+      if (u.email && u.email.trim().toLowerCase() === normalized) {
+        return u;
+      }
+    }
+    return undefined;
   }
 
   async getUser(id: number): Promise<User | undefined> {

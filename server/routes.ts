@@ -1091,6 +1091,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Looking for payment success data for: ${paymentIntentId}`);
         console.log(`Stored credentials keys:`, Array.from(paymentCredentials.keys()));
       }
+
+      const respondWithAutoLogin = async (payload: {
+        username: string;
+        password?: string;
+        email: string | null;
+        message: string;
+      }) => {
+        const userRecord =
+          (await storage.getUserByStripeSessionId(paymentIntentId)) ||
+          (await storage.getUserByUsername(payload.username));
+
+        if (userRecord && typeof req.logIn === "function") {
+          await new Promise<void>((resolve) => {
+            req.logIn(userRecord, (err) => {
+              if (err && process.env.NODE_ENV !== "production") {
+                console.warn("Auto-login warning on payment-success:", err);
+              }
+              resolve();
+            });
+          });
+        }
+
+        return res.json({
+          ...payload,
+          autoLoggedIn: Boolean(userRecord && req.isAuthenticated && req.isAuthenticated()),
+          user: userRecord
+            ? {
+                id: userRecord.id,
+                username: userRecord.username,
+                email: userRecord.email ?? null,
+                createdAt: userRecord.createdAt,
+              }
+            : undefined,
+        });
+      };
       
       // 1. Check if we have stored credentials for this payment
       const storedCredentials = paymentCredentials.get(paymentIntentId);
@@ -1098,7 +1133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (process.env.NODE_ENV !== 'production') {
           console.log(`Found stored credentials for ${paymentIntentId}`);
         }
-        return res.json({
+        return await respondWithAutoLogin({
           username: storedCredentials.username,
           password: storedCredentials.password,
           email: storedCredentials.email ?? null,
@@ -1108,20 +1143,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 2. Self-healing provisioning: if webhook hasn't fired or is unreachable (e.g., localhost or disabled webhook),
       // verify the PaymentIntent directly with Stripe and provision on the spot if succeeded.
-      if (paymentIntentId && paymentIntentId.startsWith("pi_")) {
+      if (paymentIntentId && paymentIntentId.startsWith("pi_") && stripe) {
         try {
           const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
           if (paymentIntent.status === "succeeded") {
             const provisioned = await provisionPaidUser(paymentIntent);
             if (provisioned.password) {
-              return res.json({
+              return await respondWithAutoLogin({
                 username: provisioned.username,
                 password: provisioned.password,
                 email: provisioned.email,
                 message: "Account created successfully!"
               });
             }
-            return res.json({
+            return await respondWithAutoLogin({
               username: provisioned.username,
               email: provisioned.email,
               message: "Account created successfully! Check your email for password."
@@ -1148,7 +1183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Return username and email since password is already hashed in DB
-      res.json({ 
+      return await respondWithAutoLogin({ 
         username: user.username,
         email: user.email ?? null,
         message: "Account created successfully! Check your email for password."

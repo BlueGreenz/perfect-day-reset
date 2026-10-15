@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
 import SEOHead from "@/components/SEOHead";
+import PortalPreviewMockup from "@/components/PortalPreviewMockup";
 import { Button } from "@/components/ui/button";
 import heroImage from "@assets/16x9_A_vibrant_golden_sunrise_gradual.webp";
 import sunriseImage from "@assets/Hommikune venitamine päikesetõusul.webp";
@@ -114,6 +115,10 @@ export default function WhatYouGet() {
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               Everything you need for a complete mind-body transformation in a single day—accessible instantly on any phone or laptop, or printed on paper.
             </p>
+          </div>
+
+          <div className="mb-14">
+            <PortalPreviewMockup />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

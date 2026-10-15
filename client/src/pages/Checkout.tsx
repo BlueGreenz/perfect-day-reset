@@ -189,7 +189,7 @@ export default function Checkout() {
                     </div>
                     <div className="flex items-center text-sm">
                       <Clock className="h-4 w-4 text-blue-600 mr-2" />
-                      <span>30-day money-back satisfaction guarantee</span>
+                      <span>14-day money-back satisfaction guarantee</span>
                     </div>
                     <div className="flex items-center text-sm">
                       <CheckCircle className="h-4 w-4 text-blue-600 mr-2" />

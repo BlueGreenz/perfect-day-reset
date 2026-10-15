@@ -1,11 +1,17 @@
 import React from "react";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
+import SEOHead from "@/components/SEOHead";
 import { Cookie, Settings, BarChart3, Target } from "lucide-react";
 
 export default function CookiePolicy() {
   return (
     <div className="bg-white min-h-screen">
+      <SEOHead
+        title="Cookie Policy – Perfect Day Reset"
+        description="Understand how Perfect Day Reset uses essential session and preference cookies to power your interactive reset portal."
+        canonical="https://perfectdayreset.com/cookie-policy"
+      />
       <NavBar />
       
       <div className="pt-20 pb-16">

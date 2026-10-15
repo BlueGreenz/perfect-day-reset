@@ -1,309 +1,247 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Star, Quote, ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
-import CountdownTimer from "./CountdownTimer";
+import {
+  Star,
+  Quote,
+  Sparkles,
+  CheckCircle2,
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
+  ArrowRight,
+} from "lucide-react";
 import successGroupImage from "@assets/21x9_A_diverse_group_of_confident_pro.webp";
 import { Link } from "wouter";
 
-const testimonials = [
+interface TestimonialItem {
+  name: string;
+  role: string;
+  badge: string;
+  image: string;
+  content: string;
+  benefit: string;
+  rating: number;
+}
+
+const featuredTestimonials: TestimonialItem[] = [
+  {
+    name: "Marcus V.",
+    role: "Corporate Sales Director",
+    badge: "Verified Member • Omnivore Track",
+    image:
+      "https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&auto=format&fit=crop&w=120&h=120&q=80",
+    content:
+      "After years of starting my day with double espressos and hitting a wall by 2 PM, the Morning Hydration & Sunlight Anchor changed my energy curve on day one. I closed three back-to-back afternoon client calls with zero brain fog.",
+    benefit: "Steady Morning Energy & Zero 2 PM Crash",
+    rating: 5,
+  },
+  {
+    name: "Elena R.",
+    role: "Startup Founder",
+    badge: "Verified Member • Keto Track",
+    image:
+      "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=120&h=120&q=80",
+    content:
+      "I always quit 30-day wellness challenges by Day 4 the moment an investor call ran late. The +15m Delay Rescheduler inside the web portal recalculated my afternoon automatically—no guilt, no starting over.",
+    benefit: "Adaptive Schedule That Survives Real Workdays",
+    rating: 5,
+  },
+  {
+    name: "Daniel K.",
+    role: "Product Manager",
+    badge: "Verified Member • Vegetarian Track",
+    image:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=120&h=120&q=80",
+    content:
+      "My biggest issue was feeling exhausted all day and then 'tired but wired' at 10 PM scrolling my phone. The Evening Decompression & 5-Prompt Cognitive Unload gave me my first deep, uninterrupted night of sleep in months.",
+    benefit: "Calm Evening Nervous System & Restorative Sleep",
+    rating: 5,
+  },
+];
+
+const additionalTestimonials: TestimonialItem[] = [
   {
     name: "Sarah K.",
     role: "Marketing Director",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
-    content: "The Perfect Day Reset completely transformed how I structure my days. I'm now accomplishing more while feeling less stressed. The morning routine alone was worth the investment!",
+    badge: "Verified Member • Paleo Track",
+    image:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
+    content:
+      "The Perfect Day Reset completely transformed how I structure my weekends. I run the 24-hour protocol every second Sunday and wake up Monday morning feeling sharper than I did in my twenties.",
     benefit: "More productive, less stressed",
-    rating: 5
-  },
-  {
-    name: "Michael T.",
-    role: "Software Engineer",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
-    content: "As someone who has tried countless productivity systems, this is the first one that actually stuck. The difference is that it integrates seamlessly with real life instead of requiring my life to change for the system.",
-    benefit: "Finally found a system that works",
-    rating: 5
+    rating: 5,
   },
   {
     name: "Jennifer L.",
     role: "Healthcare Provider",
-    image: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
-    content: "Working in healthcare with crazy shifts made me think no routine could work for me. This program proved me wrong - the flexible approach and focus on energy management rather than rigid scheduling was exactly what I needed.",
+    badge: "Verified Member • Omnivore Track",
+    image:
+      "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
+    content:
+      "Working in healthcare with demanding shifts made me think no routine could work for me. Focusing on circadian light, hydration, and blood-sugar stability for 24 intentional hours was the reset my body needed.",
     benefit: "Energy management over rigid scheduling",
-    rating: 5
-  },
-  {
-    name: "David R.",
-    role: "Entrepreneur",
-    image: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
-    content: "I was skeptical about yet another wellness program, but the Perfect Day Reset is different. It's practical, science-based, and delivers results from day one. The digital detox part was life-changing for me.",
-    benefit: "Practical and immediate results",
-    rating: 5
+    rating: 5,
   },
   {
     name: "Emma C.",
-    role: "Parent & Freelancer",
-    image: "https://images.unsplash.com/photo-1499952127939-9bbf5af6c51c?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
-    content: "As a parent and freelancer, finding balance seemed impossible. The Perfect Day Reset gave me a blueprint for recharging that works even with my chaotic schedule. I do the reset twice a month now and it's been transformative.",
-    benefit: "Balance despite a busy schedule",
-    rating: 5
+    role: "Parent & Consultant",
+    badge: "Verified Member • Vegan Track",
+    image:
+      "https://images.unsplash.com/photo-1499952127939-9bbf5af6c51c?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
+    content:
+      "Having both the interactive phone companion and the printable PDF meant I could put my phone in a drawer and follow the paper blueprint with my family. The 1-click grocery list saved me an hour of planning.",
+    benefit: "Screen-free clarity despite a busy home",
+    rating: 5,
   },
-  {
-    name: "Alex M.",
-    role: "University Student",
-    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
-    content: "Between studies, part-time work, and social life, I was burning out fast. The Perfect Day Reset taught me how to actually rest and recharge. My focus improved dramatically and I'm finally enjoying my university experience.",
-    benefit: "Better focus and energy for studies",
-    rating: 5
-  },
-  {
-    name: "Rachel S.",
-    role: "Fitness Coach",
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
-    content: "Even as a fitness professional, I was struggling with my own wellness routine. The Perfect Day Reset showed me how to integrate mind, body, and spirit in a way that actually works. Now I recommend it to all my clients.",
-    benefit: "Holistic wellness approach that works",
-    rating: 5
-  },
-  {
-    name: "James P.",
-    role: "Sales Manager",
-    image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
-    content: "High-pressure sales environment left me completely drained. The Perfect Day Reset gave me a system to reset my energy and mindset. My performance improved and I'm actually enjoying work again instead of just surviving it.",
-    benefit: "Renewed energy and work enjoyment",
-    rating: 5
-  },
-  {
-    name: "Lisa H.",
-    role: "Creative Director",
-    image: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
-    content: "Creative blocks were killing my career. The Perfect Day Reset unlocked something in me - the combination of movement, mindfulness, and digital detox sparked creativity I didn't know I had. It's like hitting a reset button for inspiration.",
-    benefit: "Breakthrough creative blocks",
-    rating: 5
-  },
-  {
-    name: "Tom W.",
-    role: "Retired Teacher",
-    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80",
-    content: "At 62, I thought it was too late to change my habits. The Perfect Day Reset proved me wrong. The gentle approach and focus on small, meaningful changes gave me a new lease on life. I feel 10 years younger.",
-    benefit: "Proof it's never too late to change",
-    rating: 5
-  }
 ];
 
 export default function TestimonialsSection() {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [displayCount, setDisplayCount] = useState(3);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  
-  // Calculate expiration date (48 hours from now)
-  const expireDate = new Date();
-  expireDate.setHours(expireDate.getHours() + 48);
-  
-  const nextTestimonial = () => {
-    if (activeIndex + displayCount < testimonials.length) {
-      setActiveIndex(activeIndex + 1);
-    } else {
-      setActiveIndex(0);
-    }
-  };
-  
-  const prevTestimonial = () => {
-    if (activeIndex > 0) {
-      setActiveIndex(activeIndex - 1);
-    } else {
-      setActiveIndex(testimonials.length - displayCount);
-    }
-  };
+  const [showMore, setShowMore] = useState(false);
 
-  // Auto-play functionality for continuous right-to-left movement
-  useEffect(() => {
-    if (!isAutoPlaying) return;
-    
-    const interval = setInterval(() => {
-      nextTestimonial();
-    }, 4000); // Move every 4 seconds
-    
-    return () => clearInterval(interval);
-  }, [activeIndex, displayCount, isAutoPlaying]);
-  
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setDisplayCount(3);
-      } else if (window.innerWidth >= 768) {
-        setDisplayCount(2);
-      } else {
-        setDisplayCount(1);
-      }
-    };
-    
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
-  // Calculate displayed testimonials
-  const visibleTestimonials = testimonials.slice(activeIndex, activeIndex + displayCount);
+  const displayedTestimonials = showMore
+    ? [...featuredTestimonials, ...additionalTestimonials]
+    : featuredTestimonials;
 
   return (
-    <section 
+    <section
       id="testimonials"
-      className="relative bg-gradient-to-b from-white via-orange-50/30 to-orange-50 pt-8 pb-16 md:pt-12 md:pb-24"
+      className="relative bg-gradient-to-b from-white via-orange-50/30 to-orange-50 pt-12 pb-20 md:pt-16 md:pb-24"
       style={{
         backgroundImage: `url(${successGroupImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
       }}
     >
-      {/* Overlay for better text readability and smooth transition */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/60 via-orange-50/70 to-orange-50/85"></div>
-      
-      <div className="container relative z-10">
-        <div className="flex justify-between items-end mb-8">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <Sparkles className="h-7 w-7 text-emerald-500" />
-              <h2 className="text-3xl md:text-5xl font-black text-emerald-600 tracking-tight bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent drop-shadow-sm">SUCCESS STORIES</h2>
-            </div>
+      {/* Overlay for high text contrast */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/85 to-orange-50/95" />
+
+      <div className="container relative z-10 max-w-6xl mx-auto px-4">
+        <div className="text-center max-w-3xl mx-auto mb-12">
+          <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-full mb-3">
+            <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+            Real 24-Hour Reset Outcomes
           </div>
-          
-          <div className="hidden md:flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="rounded-full"
-              onClick={() => {
-                setIsAutoPlaying(false);
-                prevTestimonial();
-                setTimeout(() => setIsAutoPlaying(true), 5000);
-              }}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="rounded-full"
-              onClick={() => {
-                setIsAutoPlaying(false);
-                nextTestimonial();
-                setTimeout(() => setIsAutoPlaying(true), 5000);
-              }}
-            >
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-            <div className="ml-2 text-xs text-gray-500">
-              {isAutoPlaying ? "Auto-playing" : "Paused"}
-            </div>
-          </div>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">
+            Why High Performers Switch From 30-Day Challenges to One Engineered Day
+          </h2>
+          <p className="text-gray-600 text-lg">
+            Specific results from busy professionals who used the 24-Hour Reset to fix morning fatigue, eliminate the 2 PM crash, and sleep deeply again.
+          </p>
         </div>
-        
-        <div 
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-8"
-          onMouseEnter={() => setIsAutoPlaying(false)}
-          onMouseLeave={() => setIsAutoPlaying(true)}
-        >
-          {visibleTestimonials.map((testimonial, index) => (
-            <div 
-              key={index + activeIndex} 
-              className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-500 transform hover:scale-105"
+
+        {/* Scannable 3-Card Featured Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 mb-8">
+          {displayedTestimonials.map((testimonial, index) => (
+            <div
+              key={index}
+              className="bg-white p-6 sm:p-7 rounded-2xl shadow-md border border-gray-100 flex flex-col justify-between hover:shadow-xl transition-shadow"
             >
-              <div className="mb-4">
-                <Quote className="h-8 w-8 text-primary/20" />
-              </div>
-              
-              <div className="mb-6">
-                <div className="flex mb-2">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="text-yellow-400 fill-current h-4 w-4" />
-                  ))}
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="flex">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className="text-amber-400 fill-current h-4 w-4"
+                      />
+                    ))}
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                    {testimonial.badge}
+                  </span>
                 </div>
-                <p className="text-sm font-medium text-primary">{testimonial.benefit}</p>
+
+                <div className="mb-3 flex items-start gap-2">
+                  <Quote className="h-5 w-5 text-orange-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm font-bold text-gray-900">
+                    {testimonial.benefit}
+                  </p>
+                </div>
+
+                <p className="text-gray-700 text-sm sm:text-base leading-relaxed mb-6">
+                  "{testimonial.content}"
+                </p>
               </div>
-              
-              <p className="text-gray-700 mb-6 italic">"{testimonial.content}"</p>
-              
-              <div className="flex items-center">
-                <img 
-                  src={testimonial.image} 
-                  alt={`${testimonial.name} profile photo`} 
+
+              <div className="flex items-center pt-4 border-t border-gray-100">
+                <img
+                  src={testimonial.image}
+                  alt={`${testimonial.name} – ${testimonial.role}`}
                   loading="lazy"
                   decoding="async"
-                  className="w-12 h-12 rounded-full object-cover mr-4"
+                  className="w-11 h-11 rounded-full object-cover mr-3.5 border border-orange-200"
                 />
                 <div>
-                  <h4 className="font-medium">{testimonial.name}</h4>
-                  <p className="text-gray-600 text-sm">{testimonial.role}</p>
+                  <h4 className="font-bold text-gray-900 text-sm">
+                    {testimonial.name}
+                  </h4>
+                  <p className="text-xs font-semibold text-orange-700">
+                    {testimonial.role}
+                  </p>
                 </div>
               </div>
             </div>
           ))}
         </div>
-        
-        <div className="flex justify-center md:hidden mb-8">
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="rounded-full"
-              onClick={() => {
-                setIsAutoPlaying(false);
-                prevTestimonial();
-                setTimeout(() => setIsAutoPlaying(true), 5000);
-              }}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="rounded-full"
-              onClick={() => {
-                setIsAutoPlaying(false);
-                nextTestimonial();
-                setTimeout(() => setIsAutoPlaying(true), 5000);
-              }}
-            >
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-            <div className="ml-2 text-xs text-gray-500">
-              {isAutoPlaying ? "Auto" : "Paused"}
-            </div>
-          </div>
+
+        {/* Optional Toggle for Additional Stories */}
+        <div className="text-center mb-14">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowMore((prev) => !prev)}
+            className="rounded-full border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-semibold px-6 py-2.5"
+          >
+            {showMore ? (
+              <>
+                Show Fewer Stories
+                <ChevronUp className="ml-2 h-4 w-4" />
+              </>
+            ) : (
+              <>
+                Read 3 More Member Stories
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center mt-16">
-          <div className="md:col-span-2">
-            <h3 className="text-2xl font-bold mb-4">Transform Your Daily Routine Today</h3>
-            <p className="text-gray-700 mb-6">
-              Join our community of satisfied users who have discovered the power of the Perfect Day Reset. One structured day can change everything.
-            </p>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <Link href="/checkout">
-                <Button 
-                  size="lg" 
-                  className="cta-button bg-primary text-white font-semibold px-8 py-6 rounded-full hover:bg-green-600 transition text-lg w-full sm:w-auto"
-                >
-                  Start My 24-Hour Reset — $19
-                </Button>
-              </Link>
-              <Link href="/what-you-get">
-                <Button 
-                  variant="outline"
-                  size="lg" 
-                  className="border-gray-300 text-gray-800 hover:bg-white font-medium px-6 py-6 rounded-full transition text-base w-full sm:w-auto"
-                >
-                  See Full Program Breakdown
-                </Button>
-              </Link>
+
+        {/* High-Trust Conversion & 14-Day Guarantee Banner (Zero Fake Scarcity Timers) */}
+        <div className="bg-white rounded-2xl p-8 sm:p-10 shadow-xl border border-emerald-200/80 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          <div className="lg:col-span-8">
+            <div className="inline-flex items-center gap-2 text-emerald-700 text-xs font-bold uppercase tracking-wider mb-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+              14-Day 100% Satisfaction Guarantee • Instant Digital Access
             </div>
+            <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+              Experience the 24-Hour Reset Completely Risk-Free
+            </h3>
+            <p className="text-gray-600 text-base leading-relaxed">
+              Get instant access to the Interactive Web Companion Portal, 1-Tap Delay Rescheduler, 5 Nutrition Modes, and Printable PDF Kit for a one-time $19 payment. If you don't feel noticeably more energized and clear-headed within 14 days, email us for a full, friendly refund.
+            </p>
           </div>
-          
-          <div>
-            <CountdownTimer 
-              endDate={expireDate}
-              title="Launch Special — $19"
-              description="Instant access to the Web Companion Portal + Printable PDF Kit!"
-            />
+
+          <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col gap-3 justify-end">
+            <Link href="/checkout" className="w-full">
+              <Button
+                size="lg"
+                className="w-full bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-semibold px-8 py-6 rounded-full shadow-lg text-base sm:text-lg"
+              >
+                Start My 24-Hour Reset — $19
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+            <Link href="/quiz" className="w-full">
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full border-gray-300 text-gray-800 hover:bg-gray-50 font-semibold px-6 py-5 rounded-full text-sm"
+              >
+                Or Take the Free 60s Diagnostic Quiz
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

@@ -86,17 +86,21 @@ export function setupAuth(app: Express) {
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
+      const normalizedIdentifier = username.trim();
       // Check rate limiting
-      if (isRateLimited(username)) {
+      if (isRateLimited(normalizedIdentifier)) {
         return done(null, false, { message: 'Too many login attempts. Please try again later.' });
       }
       
-      const user = await storage.getUserByUsername(username);
+      let user = await storage.getUserByUsername(normalizedIdentifier);
+      if (!user) {
+        user = await storage.getUserByEmail(normalizedIdentifier);
+      }
       if (!user || !(await comparePasswords(password, user.password))) {
-        recordFailedAttempt(username);
-        return done(null, false, { message: 'Invalid username or password.' });
+        recordFailedAttempt(normalizedIdentifier);
+        return done(null, false, { message: 'Invalid email, username, or password.' });
       } else {
-        clearFailedAttempts(username);
+        clearFailedAttempts(normalizedIdentifier);
         return done(null, user);
       }
     }),

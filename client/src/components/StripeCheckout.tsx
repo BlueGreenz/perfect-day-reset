@@ -86,7 +86,7 @@ function CheckoutForm({ clientSecret, customerEmail, totalAmount }: CheckoutForm
 
       <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
         <Shield className="h-4 w-4" />
-        <span>Secured by Stripe • 30-Day Money-Back Guarantee</span>
+        <span>Secured by Stripe • 14-Day Money-Back Guarantee</span>
       </div>
     </form>
   );
@@ -181,13 +181,6 @@ export default function StripeCheckout({
 
   const totalAmount = includeOrderBump ? 31 : 19;
 
-  useEffect(() => {
-    const savedEmail = loadQuizProfile()?.email;
-    if (savedEmail && !email) {
-      setEmail(savedEmail);
-    }
-  }, []);
-
   const requestPaymentIntent = async (targetEmail: string, withBump: boolean) => {
     setIsInitializingIntent(true);
     try {
@@ -218,6 +211,14 @@ export default function StripeCheckout({
       setIsInitializingIntent(false);
     }
   };
+
+  useEffect(() => {
+    const savedEmail = loadQuizProfile()?.email?.trim();
+    if (savedEmail && savedEmail.includes("@")) {
+      setEmail(savedEmail);
+      requestPaymentIntent(savedEmail, includeOrderBump);
+    }
+  }, []);
 
   const handleToggleOrderBump = (nextValue: boolean) => {
     if (onToggleOrderBump) {
@@ -266,6 +267,7 @@ export default function StripeCheckout({
             <Input
               id="email"
               type="email"
+              autoComplete="email"
               placeholder="your@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -322,6 +324,18 @@ export default function StripeCheckout({
             ? "Perfect Day Reset ($19) + 7-Day Momentum & 2-Hour Workday Kit ($12) — $31.00"
             : "Paying for: Perfect Day Reset — $19.00"}
         </p>
+        <div className="mt-2 flex items-center justify-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-full py-1.5 px-3 border border-gray-200">
+          <span>
+            Portal access for: <strong className="text-gray-900">{email}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowPayment(false)}
+            className="text-primary hover:underline font-semibold ml-1"
+          >
+            Edit email
+          </button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <OrderBumpCard

@@ -1,11 +1,17 @@
 import React from "react";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
+import SEOHead from "@/components/SEOHead";
 import { Shield, Mail, Eye, Database } from "lucide-react";
 
 export default function PrivacyPolicy() {
   return (
     <div className="bg-white min-h-screen">
+      <SEOHead
+        title="Privacy Policy – Perfect Day Reset"
+        description="Learn how Perfect Day Reset collects, uses, and safeguards your personal data and privacy."
+        canonical="https://perfectdayreset.com/privacy-policy"
+      />
       <NavBar />
       
       <div className="pt-20 pb-16">
