@@ -114,15 +114,19 @@
     @apply border-border;
   }
 
+  html, body {
+    overflow-x: hidden;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    color: #333;
+    color: #111827;
     font-family: 'Open Sans', 'Roboto', sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Inter', 'Open Sans', sans-serif;
-    @apply font-bold tracking-tight text-gray-900;
+    @apply font-bold tracking-tight;
     margin-bottom: 1rem;
   }
 

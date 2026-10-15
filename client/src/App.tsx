@@ -59,7 +59,7 @@ function Router() {
         <ProtectedRoute path="/product/reset/afternoon" component={ProductPage4}/>
         <ProtectedRoute path="/product/reset/evening" component={ProductPage4}/>
         <ProtectedRoute path="/product/reset/reflection" component={ProductPage5}/>
-        <ProtectedRoute path="/daily-reset-tracker" component={DailyResetTrackerPage}/>
+        <Route path="/daily-reset-tracker" component={DailyResetTrackerPage}/>
         
         {/* Public Pages */}
         <Route path="/about" component={About}/>

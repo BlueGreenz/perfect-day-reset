@@ -64,7 +64,7 @@ export default function WhatYouGet() {
                 <Smartphone className="h-4 w-4" />
                 Works Instantly on Any Phone or Laptop + Printable PDF
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">
                 The Complete 24-Hour Reset System — One-Time Access ($19)
               </h1>
               <p className="text-slate-300 text-sm sm:text-base mt-1">
@@ -81,7 +81,7 @@ export default function WhatYouGet() {
               <Link href="/quiz" className="block w-full sm:w-auto">
                 <Button
                   variant="outline"
-                  className="w-full sm:w-auto border-amber-400/60 text-amber-300 hover:bg-amber-400/15 hover:text-amber-200 px-5 py-5 rounded-full h-auto text-sm font-semibold"
+                  className="w-full sm:w-auto bg-white/10 border-amber-400/60 text-amber-300 hover:bg-amber-400/20 hover:text-amber-200 px-5 py-5 rounded-full h-auto text-sm font-semibold"
                 >
                   <Sparkles className="mr-1.5 h-4 w-4" />
                   Free 60s Diagnostic

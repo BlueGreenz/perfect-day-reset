@@ -4,6 +4,8 @@ import { setupVite, serveStatic, log } from "./vite";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 
+process.env.NODE_ENV = process.env.NODE_ENV || "development";
+
 const app = express();
 
 // Security middleware
@@ -47,12 +49,17 @@ const authLimiter = rateLimit({
 app.use(generalLimiter);
 app.use("/api/login", authLimiter);
 
-// CRITICAL: Exclude webhook from JSON parsing to preserve raw body for Stripe signature verification
+// CRITICAL: Preserve raw body for Stripe webhook signature verification
 app.use((req, res, next) => {
   if (req.path === '/api/stripe-webhook') {
-    next(); // Skip JSON parsing for Stripe webhook
+    next(); // Let route-level express.raw() handle /api/stripe-webhook
   } else {
-    express.json({ limit: '10mb' })(req, res, next);
+    express.json({
+      limit: '10mb',
+      verify: (req, _res, buf) => {
+        (req as any).rawBody = buf;
+      },
+    })(req, res, next);
   }
 });
 
@@ -115,7 +122,7 @@ app.use((req, res, next) => {
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
+    ...(process.platform !== "win32" ? { reusePort: true } : {}),
   }, () => {
     log(`serving on port ${port}`);
   });

@@ -40,12 +40,28 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
   }
 }
 
+export interface PurchaseReceiptOptions {
+  amountCents?: number;
+  includeOrderBump?: boolean;
+}
+
 /**
- * Send a welcome email to new newsletter subscribers
+ * Send a welcome email with login credentials and dynamic receipt ($19.00 or $31.00) to paying customers
  */
-export async function sendPurchaseWelcomeEmail(email: string, username: string, password: string): Promise<boolean> {
+export async function sendPurchaseWelcomeEmail(
+  email: string,
+  username: string,
+  password: string,
+  options?: PurchaseReceiptOptions
+): Promise<boolean> {
   const fromEmail = process.env.SMTP_FROM || 'support@perfectdayreset.com';
-  
+  const isBundle = options?.includeOrderBump === true || options?.amountCents === 3100;
+  const formattedAmount = isBundle ? '$31.00' : '$19.00';
+  const climateDonation = isBundle ? '$0.16' : '$0.10';
+  const productSummary = isBundle
+    ? 'The Perfect Day Reset (24-Hour Protocol) + 7-Day Momentum & Emergency 2-Hour Workday Reset Kit'
+    : 'The Perfect Day Reset (24-Hour Protocol)';
+
   const htmlContent = `
     <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
       <div style="text-align: center; margin-bottom: 30px;">
@@ -56,28 +72,32 @@ export async function sendPurchaseWelcomeEmail(email: string, username: string, 
       <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
         <h2 style="color: #4A8B2C; margin-bottom: 15px;">🎉 Your Purchase is Complete!</h2>
         <p>Thank you for choosing Perfect Day Reset. Your account has been created and you now have instant access to the complete 24-hour transformation protocol.</p>
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 14px;">
+          <p style="margin: 4px 0;"><strong>Order Summary:</strong> ${productSummary}</p>
+          <p style="margin: 4px 0;"><strong>Total Paid:</strong> ${formattedAmount} USD</p>
+        </div>
       </div>
       
       <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
         <h3 style="color: #2d5a2d; margin-bottom: 15px;">🔑 Your Login Credentials</h3>
-        <p><strong>Website:</strong> <a href="https://perfectdayreset.com" style="color: #4A8B2C;">perfectdayreset.com</a></p>
+        <p><strong>Website:</strong> <a href="https://perfectdayreset.com/login" style="color: #4A8B2C;">perfectdayreset.com/login</a></p>
         <p><strong>Username:</strong> <span style="background: #fff; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${username}</span></p>
         <p><strong>Password:</strong> <span style="background: #fff; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${password}</span></p>
-        <p style="margin-top: 15px; font-size: 14px; color: #666;"><em>💡 Save these credentials in a secure place. You can change your password after logging in.</em></p>
+        <p style="margin-top: 15px; font-size: 14px; color: #666;"><em>💡 Save these credentials in a secure place. You can log in immediately on any phone or laptop.</em></p>
       </div>
       
       <div style="margin-bottom: 20px;">
-        <h3 style="color: #4A8B2C;">What's Included in Your Perfect Day Reset:</h3>
+        <h3 style="color: #4A8B2C;">What's Included in Your Portal:</h3>
         <ul style="padding-left: 20px;">
-          <li><strong>Morning Protocol:</strong> Energizing routines to start your day right</li>
-          <li><strong>Midday Reset:</strong> Focus-enhancing techniques for sustained energy</li>
-          <li><strong>Evening Wind-down:</strong> Restorative practices for quality sleep</li>
-          <li><strong>Science-backed guidance:</strong> Research-supported wellness strategies</li>
+          <li><strong>Morning Protocol:</strong> Energizing routines to anchor your circadian rhythm</li>
+          <li><strong>Midday Reset &amp; 1-Tap Delay Rescheduler:</strong> Dynamic schedule adjustments + 5 nutrition modes</li>
+          <li><strong>Evening Wind-down:</strong> Digital detox &amp; 5-prompt reflection journal for deep sleep</li>
+          <li><strong>7-Day Momentum &amp; Emergency 2-Hour Workday Toolkit:</strong> Interactive 120-minute workday triage &amp; Executive Dining-Out Cheat Sheet</li>
         </ul>
       </div>
       
       <div style="text-align: center; margin: 30px 0;">
-        <a href="https://perfectdayreset.com" style="background-color: #4A8B2C; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
+        <a href="https://perfectdayreset.com/login" style="background-color: #4A8B2C; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
           Access Your Perfect Day Reset Now →
         </a>
       </div>
@@ -86,8 +106,8 @@ export async function sendPurchaseWelcomeEmail(email: string, username: string, 
         <h3 style="color: #4A8B2C;">🌍 Your Positive Impact</h3>
         <p>By purchasing Perfect Day Reset, you've also contributed to:</p>
         <ul style="padding-left: 20px;">
-          <li><strong>Climate Action:</strong> €0.05 donated to remove CO₂ from the atmosphere</li>
-          <li><strong>Children's Support:</strong> $1 donated to children's programs worldwide</li>
+          <li><strong>Climate Action:</strong> ${climateDonation} (0.5%) donated to remove CO₂ from the atmosphere via Stripe Climate</li>
+          <li><strong>Children's Support:</strong> $1.00 donated to children's programs worldwide</li>
         </ul>
         <p style="font-style: italic; color: #666;">Thank you for making a difference!</p>
       </div>
@@ -105,26 +125,27 @@ Welcome to Perfect Day Reset!
 Your account is ready - let's transform your day!
 
 Your Purchase is Complete!
-Thank you for choosing Perfect Day Reset. Your account has been created and you now have instant access to the complete 24-hour transformation protocol.
+Order Summary: ${productSummary}
+Total Paid: ${formattedAmount} USD
 
 Your Login Credentials:
-Website: perfectdayreset.com
+Website: https://perfectdayreset.com/login
 Username: ${username}
 Password: ${password}
 
-Save these credentials in a secure place. You can change your password after logging in.
+Save these credentials in a secure place.
 
 What's Included:
-- Morning Protocol: Energizing routines to start your day right
-- Midday Reset: Focus-enhancing techniques for sustained energy  
-- Evening Wind-down: Restorative practices for quality sleep
-- Science-backed guidance: Research-supported wellness strategies
+- Morning Protocol: Energizing routines to anchor your circadian rhythm
+- Midday Reset & 1-Tap Delay Rescheduler: Dynamic schedule adjustments + 5 nutrition modes
+- Evening Wind-down: Digital detox & 5-prompt reflection journal for deep sleep
+- 7-Day Momentum & Emergency 2-Hour Workday Toolkit: Interactive 120-minute workday triage & Executive Dining-Out Cheat Sheet
 
 Your Positive Impact:
-- Climate Action: €0.05 donated to remove CO₂ from the atmosphere
-- Children's Support: $1 donated to children's programs worldwide
+- Climate Action: ${climateDonation} (0.5%) donated to remove CO₂ from the atmosphere
+- Children's Support: $1.00 donated to children's programs worldwide
 
-Access your program now at: https://perfectdayreset.com
+Access your program now at: https://perfectdayreset.com/login
 
 Questions? Reply to this email or visit our support page.
 © ${new Date().getFullYear()} Perfect Day Reset. All rights reserved.
@@ -133,11 +154,13 @@ Questions? Reply to this email or visit our support page.
   return sendEmail({
     to: email,
     from: fromEmail,
-    subject: '🎉 Welcome to Perfect Day Reset - Your Account is Ready!',
+    subject: `🎉 Welcome to Perfect Day Reset - Your Account & Receipt (${formattedAmount})`,
     text: textContent,
     html: htmlContent
   });
 }
+
+export const sendWelcomeEmailWithCredentials = sendPurchaseWelcomeEmail;
 
 export async function sendWelcomeEmail(email: string): Promise<boolean> {
   const fromEmail = 'support@perfectdayreset.com';

@@ -9,9 +9,11 @@ import session from "express-session";
 import { db, pool } from "./db";
 import { eq, asc, and } from "drizzle-orm";
 import connectPgSimple from "connect-pg-simple";
+import createMemoryStore from "memorystore";
 import { computeDelayedSchedule } from "./reset/rescheduler";
 
 const PostgresSessionStore = connectPgSimple(session);
+const MemoryStore = createMemoryStore(session);
 
 export type StartResetResult = 
   | { type: "not_found" }
@@ -635,4 +637,286 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export class MemStorage implements IStorage {
+  sessionStore: session.Store;
+  private subscribersList: Subscriber[] = [];
+  private usersList: User[] = [];
+  private marketingList: MarketingEmail[] = [];
+  private emailLogsList: EmailLog[] = [];
+  private runsList: ResetRun[] = [];
+  private itemsList: ResetItem[] = [];
+  private entriesList: ResetEntry[] = [];
+  private nextId = 1;
+
+  constructor() {
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000,
+    });
+  }
+
+  async createSubscriber(insertSubscriber: InsertSubscriber): Promise<Subscriber> {
+    const sub: Subscriber = {
+      id: this.nextId++,
+      email: insertSubscriber.email,
+      createdAt: new Date(),
+    };
+    this.subscribersList.push(sub);
+    return sub;
+  }
+
+  async getSubscriberByEmail(email: string): Promise<Subscriber | undefined> {
+    return this.subscribersList.find((s) => s.email === email);
+  }
+
+  async getAllSubscribers(): Promise<Subscriber[]> {
+    return [...this.subscribersList];
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const user: User = {
+      id: this.nextId++,
+      username: insertUser.username,
+      password: insertUser.password,
+      email: insertUser.email ?? null,
+      firstName: insertUser.firstName ?? null,
+      stripeSessionId: insertUser.stripeSessionId ?? null,
+      createdAt: new Date(),
+    };
+    this.usersList.push(user);
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return this.usersList.find((u) => u.username === username);
+  }
+
+  async getUser(id: number): Promise<User | undefined> {
+    return this.usersList.find((u) => u.id === id);
+  }
+
+  async getUserByStripeSessionId(sessionId: string): Promise<User | undefined> {
+    return this.usersList.find((u) => u.stripeSessionId === sessionId);
+  }
+
+  async addMarketingEmail(data: InsertMarketingEmail): Promise<MarketingEmail> {
+    const entry: MarketingEmail = {
+      id: this.nextId++,
+      email: data.email,
+      firstName: data.firstName ?? null,
+      optedInAt: new Date(),
+      isActive: "true",
+    };
+    this.marketingList.push(entry);
+    return entry;
+  }
+
+  async logEmail(data: InsertEmailLog): Promise<EmailLog> {
+    const entry: EmailLog = {
+      id: this.nextId++,
+      userId: data.userId ?? 0,
+      email: data.email,
+      emailType: data.emailType,
+      subject: data.subject,
+      sentAt: new Date(),
+      status: data.status ?? "sent",
+    };
+    this.emailLogsList.push(entry);
+    return entry;
+  }
+
+  async getAllEmailLogs(): Promise<EmailLog[]> {
+    return [...this.emailLogsList];
+  }
+
+  async getMarketingEmails(): Promise<MarketingEmail[]> {
+    return [...this.marketingList];
+  }
+
+  async getResetRunByUserId(userId: number): Promise<ResetRun | undefined> {
+    return this.runsList.find((r) => r.userId === userId);
+  }
+
+  async getResetRunAndItemsByUserId(
+    userId: number
+  ): Promise<{ resetRun: ResetRun; items: ResetItem[] } | undefined> {
+    const resetRun = this.runsList.find((r) => r.userId === userId);
+    if (!resetRun) return undefined;
+    const items = this.itemsList
+      .filter((i) => i.resetRunId === resetRun.id)
+      .sort((a, b) => a.sequence - b.sequence);
+    return { resetRun, items };
+  }
+
+  async createResetRun(
+    resetRun: Omit<InsertResetRun, "id" | "createdAt" | "updatedAt">,
+    items: Omit<InsertResetItem, "id" | "resetRunId" | "createdAt" | "updatedAt">[]
+  ): Promise<{ resetRun: ResetRun; items: ResetItem[] } | { existingRun: ResetRun }> {
+    const existing = this.runsList.find((r) => r.userId === resetRun.userId);
+    if (existing) return { existingRun: existing };
+    const now = new Date();
+    const createdRun: ResetRun = {
+      id: this.nextId++,
+      userId: resetRun.userId,
+      catalogVersion: resetRun.catalogVersion ?? "v1",
+      status: resetRun.status ?? "ready",
+      phase: resetRun.phase ?? null,
+      scheduleRevision: resetRun.scheduleRevision ?? 0,
+      timezone: resetRun.timezone,
+      startAt: resetRun.startAt ?? null,
+      targetBedtimeAt: resetRun.targetBedtimeAt ?? null,
+      targetNextMorningAt: resetRun.targetNextMorningAt ?? null,
+      startedAt: null,
+      sleepStartedAt: null,
+      nextMorningStartedAt: null,
+      completedAt: null,
+      resetGoal: resetRun.resetGoal ?? null,
+      foodPreference: resetRun.foodPreference ?? null,
+      movementAccess: resetRun.movementAccess ?? null,
+      blockedTimesJson: resetRun.blockedTimesJson ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.runsList.push(createdRun);
+    const createdItems: ResetItem[] = items.map((item) => {
+      const it: ResetItem = {
+        id: this.nextId++,
+        resetRunId: createdRun.id,
+        activityKey: item.activityKey,
+        variantKey: item.variantKey ?? null,
+        phase: item.phase,
+        sequence: item.sequence,
+        originalScheduledAt: item.originalScheduledAt ?? null,
+        scheduledAt: item.scheduledAt ?? null,
+        durationMinutes: item.durationMinutes ?? null,
+        status: item.status ?? "scheduled",
+        completedAt: item.completedAt ?? null,
+        skippedAt: item.skippedAt ?? null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.itemsList.push(it);
+      return it;
+    });
+    return { resetRun: createdRun, items: createdItems };
+  }
+
+  async startResetRunForUser(userId: number): Promise<StartResetResult> {
+    const data = await this.getResetRunAndItemsByUserId(userId);
+    if (!data) return { type: "not_found" };
+    if (data.resetRun.status === "active") {
+      return { type: "already_active", resetRun: data.resetRun, items: data.items };
+    }
+    if (data.resetRun.status !== "ready") return { type: "invalid_state" };
+    const first = data.items[0];
+    if (!first) return { type: "corrupt_state" };
+    first.status = "active";
+    data.resetRun.status = "active";
+    data.resetRun.phase = first.phase;
+    return { type: "success", resetRun: data.resetRun, items: data.items };
+  }
+
+  async advanceResetItemForUser(
+    userId: number,
+    itemId: number,
+    action: "complete" | "skip"
+  ): Promise<AdvanceResetResult> {
+    const data = await this.getResetRunAndItemsByUserId(userId);
+    if (!data) return { type: "not_found" };
+    const item = data.items.find((i) => i.id === itemId);
+    if (!item) return { type: "item_not_found" };
+    item.status = action === "complete" ? "completed" : "skipped";
+    const next = data.items.find((i) => i.status === "scheduled");
+    if (next) {
+      next.status = "active";
+      data.resetRun.phase = next.phase;
+    } else {
+      data.resetRun.status = "completed";
+      data.resetRun.phase = null;
+    }
+    return { type: "success", resetRun: data.resetRun, items: data.items };
+  }
+
+  async delayResetItemForUser(
+    userId: number,
+    itemId: number,
+    delayMinutes: number,
+    expectedScheduleRevision: number
+  ): Promise<DelayResetResult> {
+    const data = await this.getResetRunAndItemsByUserId(userId);
+    if (!data) return { type: "not_found" };
+    if (data.resetRun.scheduleRevision !== expectedScheduleRevision) {
+      return { type: "stale_revision" };
+    }
+    if (!data.resetRun.targetBedtimeAt) return { type: "corrupt_state" };
+    const res = computeDelayedSchedule(
+      data.items,
+      itemId,
+      delayMinutes,
+      data.resetRun.targetBedtimeAt
+    );
+    if (res.type === "schedule_conflict") return { type: "schedule_conflict" };
+    for (const ch of res.changes) {
+      const it = data.items.find((i) => i.id === ch.itemId);
+      if (it) it.scheduledAt = ch.newScheduledAt;
+    }
+    data.resetRun.scheduleRevision += 1;
+    return { type: "success", resetRun: data.resetRun, items: data.items };
+  }
+
+  async startNextMorningForUser(userId: number): Promise<StartNextMorningResult> {
+    const data = await this.getResetRunAndItemsByUserId(userId);
+    if (!data) return { type: "not_found" };
+    data.resetRun.status = "active";
+    data.resetRun.phase = "next_morning";
+    return { type: "success", resetRun: data.resetRun, items: data.items };
+  }
+
+  async saveResetEntryForUser(
+    userId: number,
+    kind: string,
+    content: string
+  ): Promise<SaveEntryResult> {
+    const run = await this.getResetRunByUserId(userId);
+    if (!run) return { type: "not_found" };
+    const existing = this.entriesList.find(
+      (e) => e.resetRunId === run.id && e.kind === kind
+    );
+    if (existing) {
+      existing.content = content;
+      return { type: "success", entry: existing };
+    }
+    const newEntry: ResetEntry = {
+      id: this.nextId++,
+      resetRunId: run.id,
+      resetItemId: null,
+      kind,
+      content,
+      createdAt: new Date(),
+    };
+    this.entriesList.push(newEntry);
+    return { type: "success", entry: newEntry };
+  }
+
+  async getResetEntriesForUser(
+    userId: number
+  ): Promise<{ type: "not_found" } | { type: "success"; entries: ResetEntry[] }> {
+    const run = await this.getResetRunByUserId(userId);
+    if (!run) return { type: "not_found" };
+    const entries = this.entriesList.filter((e) => e.resetRunId === run.id);
+    return { type: "success", entries };
+  }
+
+  async updateResetFoodPreferenceForUser(
+    userId: number,
+    foodPreference: string
+  ): Promise<{ type: "not_found" } | { type: "success"; resetRun: ResetRun }> {
+    const run = await this.getResetRunByUserId(userId);
+    if (!run) return { type: "not_found" };
+    run.foodPreference = foodPreference;
+    return { type: "success", resetRun: run };
+  }
+}
+
+export const storage: IStorage = process.env.DATABASE_URL
+  ? new DatabaseStorage()
+  : new MemStorage();

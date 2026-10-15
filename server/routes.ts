@@ -4,7 +4,12 @@ import { storage } from "./storage";
 import { insertSubscriberSchema, users } from "@shared/schema";
 import { setupAuth, hashPassword } from "./auth";
 import { z, ZodError } from "zod";
-import { sendEmail, sendWelcomeEmail, sendPurchaseWelcomeEmail } from "./utils/sendgrid";
+import {
+  sendEmail,
+  sendWelcomeEmail,
+  sendPurchaseWelcomeEmail,
+  sendWelcomeEmailWithCredentials,
+} from "./utils/sendgrid";
 import { emailService } from "./utils/emailService";
 import Stripe from "stripe";
 import express from "express";
@@ -20,13 +25,21 @@ import { delayRequestSchema } from "./reset/delay-schema";
 import { AdvanceResetResult } from "./storage";
 import { quizSubmissionSchema, generateQuizDiagnostic } from "./quiz";
 
-if (!process.env.STRIPE_SECRET_KEY) {
+if (!process.env.STRIPE_SECRET_KEY && process.env.NODE_ENV === "production") {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
 }
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-03-31.basil",
-});
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.warn(
+    "Warning: STRIPE_SECRET_KEY is not set. Using local dev payment simulation until STRIPE_SECRET_KEY is configured."
+  );
+}
+
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2025-03-31.basil",
+    })
+  : (null as unknown as Stripe);
 
 // Helper function to generate unique username
 function generateUsername(): string {
@@ -49,7 +62,113 @@ function generateSecurePassword(): string {
 }
 
 // Store credentials temporarily for successful payments
-const paymentCredentials = new Map<string, { username: string; password: string; timestamp: number }>();
+const paymentCredentials = new Map<
+  string,
+  { username: string; password: string; email?: string | null; timestamp: number }
+>();
+
+// Prevent concurrent duplicate user creation between webhook and self-healing GET /api/payment-success
+const provisioningLocks = new Map<
+  string,
+  Promise<{ username: string; password?: string; email: string | null }>
+>();
+
+async function provisionPaidUser(
+  paymentIntent: Stripe.PaymentIntent
+): Promise<{ username: string; password?: string; email: string | null }> {
+  const paymentIntentId = paymentIntent.id;
+
+  const existingLock = provisioningLocks.get(paymentIntentId);
+  if (existingLock) {
+    return existingLock;
+  }
+
+  const task = (async () => {
+    const cached = paymentCredentials.get(paymentIntentId);
+    if (cached) {
+      return {
+        username: cached.username,
+        password: cached.password,
+        email: cached.email ?? null,
+      };
+    }
+
+    const customerEmail =
+      paymentIntent.receipt_email ||
+      paymentIntent.metadata?.customer_email ||
+      null;
+
+    // Check if user already exists in PostgreSQL for this paymentIntent.id
+    const existingUser = await storage.getUserByStripeSessionId(paymentIntentId);
+    if (existingUser) {
+      return {
+        username: existingUser.username,
+        email: existingUser.email || customerEmail,
+      };
+    }
+
+    // Generate unique username and password
+    let username = generateUsername();
+    let attempts = 0;
+    while ((await storage.getUserByUsername(username)) && attempts < 10) {
+      username = generateUsername();
+      attempts++;
+    }
+
+    const plainPassword = generateSecurePassword();
+    const hashedPassword = await hashPassword(plainPassword);
+
+    const user = await storage.createUser({
+      username,
+      password: hashedPassword,
+      email: customerEmail,
+      stripeSessionId: paymentIntentId,
+    });
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log(
+        `Provisioned user: ${user.username} (ID: ${user.id}) for payment: ${paymentIntentId}`
+      );
+    }
+
+    paymentCredentials.set(paymentIntentId, {
+      username,
+      password: plainPassword,
+      email: customerEmail,
+      timestamp: Date.now(),
+    });
+
+    if (customerEmail) {
+      const includeOrderBump =
+        paymentIntent.metadata?.includeOrderBump === "true" ||
+        paymentIntent.amount === 3100;
+      sendWelcomeEmailWithCredentials(customerEmail, username, plainPassword, {
+        amountCents: paymentIntent.amount,
+        includeOrderBump,
+      }).catch((emailError) => {
+        if (process.env.NODE_ENV !== "production") {
+          console.error(
+            `Error sending purchase welcome email to ${customerEmail}:`,
+            emailError
+          );
+        }
+      });
+    }
+
+    return {
+      username,
+      password: plainPassword,
+      email: customerEmail,
+    };
+  })();
+
+  provisioningLocks.set(paymentIntentId, task);
+  try {
+    return await task;
+  } finally {
+    provisioningLocks.delete(paymentIntentId);
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
@@ -624,25 +743,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const amount = hasOrderBump ? 31 : 19; // Server-side price calculation: $19 base or $31 with +$12 order bump
+      const amountCents = Math.round(amount * 100); // 1900 or 3100 cents
       const climateContribution = Math.round(amount * 0.005 * 100); // 0.5% for CO₂ removal
-      
+      const metadata = {
+        product: hasOrderBump
+          ? "perfect_day_reset_plus_7day_momentum_kit"
+          : "perfect_day_reset",
+        includeOrderBump: hasOrderBump ? "true" : "false",
+        customer_email: email || receipt_email || "",
+        climate_contribution: `$${(climateContribution / 100).toFixed(2)}`,
+        climate_percentage: "0.5%",
+      };
+
+      if (!stripe && process.env.NODE_ENV !== "production") {
+        const mockId = `pi_dev_${Date.now()}`;
+        return res.json({
+          clientSecret: `${mockId}_secret_local_dev`,
+          amount,
+          amountCents,
+          includeOrderBump: hasOrderBump,
+          metadata,
+          mode: "local_dev_simulation",
+        });
+      }
+
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents (1900 or 3100 cents)
+        amount: amountCents,
         currency: "usd",
         receipt_email: email || receipt_email,
-        metadata: {
-          product: hasOrderBump
-            ? "perfect_day_reset_plus_7day_momentum_kit"
-            : "perfect_day_reset",
-          includeOrderBump: hasOrderBump ? "true" : "false",
-          customer_email: email || receipt_email || "",
-          climate_contribution: `$${(climateContribution / 100).toFixed(2)}`,
-          climate_percentage: "0.5%"
-        }
+        metadata,
       });
       res.json({
         clientSecret: paymentIntent.client_secret,
         amount,
+        amountCents,
         includeOrderBump: hasOrderBump,
       });
     } catch (error: any) {
@@ -744,7 +878,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      event = stripe.webhooks.constructEvent(req.body, sig!, process.env.STRIPE_WEBHOOK_SECRET);
+      const rawPayload = (req as any).rawBody || req.body;
+      event = stripe.webhooks.constructEvent(rawPayload, sig!, process.env.STRIPE_WEBHOOK_SECRET);
       console.log(`Webhook received successfully: ${event.type}`);
     } catch (err: any) {
       console.error(`Webhook signature verification failed:`, err.message);
@@ -765,73 +900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       try {
-        // Check if user already exists for this payment intent
-        const existingUser = await storage.getUserByStripeSessionId(paymentIntent.id);
-        if (existingUser) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.log('User already exists for payment:', paymentIntent.id);
-          }
-          return res.json({ received: true });
-        }
-
-        // Generate unique username and password
-        let username = generateUsername();
-        let attempts = 0;
-        while (await storage.getUserByUsername(username) && attempts < 10) {
-          username = generateUsername();
-          attempts++;
-        }
-
-        const plainPassword = generateSecurePassword();
-        const hashedPassword = await hashPassword(plainPassword);
-        const customerEmail = paymentIntent.receipt_email || paymentIntent.metadata?.customer_email || null;
-
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`Creating user: ${username} for payment: ${paymentIntent.id}`);
-        }
-
-        // Create user account
-        const user = await storage.createUser({
-          username,
-          password: hashedPassword,
-          email: customerEmail,
-          stripeSessionId: paymentIntent.id
-        });
-
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`Successfully created user: ${user.username} with ID: ${user.id}`);
-        }
-
-        // Store credentials temporarily for success page access
-        paymentCredentials.set(paymentIntent.id, {
-          username,
-          password: plainPassword,
-          timestamp: Date.now()
-        });
-
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`Stored credentials for payment: ${paymentIntent.id}`);
-        }
-
-        // Send welcome email with login credentials
-        if (customerEmail) {
-          try {
-            await sendPurchaseWelcomeEmail(customerEmail, username, plainPassword);
-            
-            if (process.env.NODE_ENV !== 'production') {
-              console.log(`Purchase welcome email sent to: ${customerEmail} with credentials`);
-            }
-          } catch (emailError) {
-            if (process.env.NODE_ENV !== 'production') {
-              console.error(`Error sending purchase welcome email to ${customerEmail}:`, emailError);
-            }
-          }
-        } else {
-          if (process.env.NODE_ENV !== 'production') {
-            console.log('No email found in payment intent for user:', username);
-          }
-        }
-
+        await provisionPaidUser(paymentIntent);
       } catch (error) {
         if (process.env.NODE_ENV !== 'production') {
           console.error('Error in webhook processing:', error);
@@ -851,7 +920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const { paymentIntentId } = req.params;
-    const { email } = req.body;
+    const { email, amount } = req.body;
     
     try {
       // Check if user already exists for this payment intent
@@ -878,6 +947,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser({
         username,
         password: hashedPassword,
+        email: email || null,
         stripeSessionId: paymentIntentId
       });
 
@@ -887,6 +957,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       paymentCredentials.set(paymentIntentId, {
         username,
         password: plainPassword,
+        email: email || null,
         timestamp: Date.now()
       });
 
@@ -895,14 +966,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send welcome email if email provided
       if (email) {
         try {
-          await sendPurchaseWelcomeEmail(email, username, plainPassword);
+          await sendWelcomeEmailWithCredentials(email, username, plainPassword, {
+            amountCents: amount === 31 || amount === 3100 ? 3100 : 1900,
+            includeOrderBump: amount === 31 || amount === 3100,
+          });
           console.log(`Test webhook: Purchase welcome email sent to: ${email}`);
         } catch (emailError) {
           console.error(`Test webhook: Error sending email to ${email}:`, emailError);
         }
       }
 
-      res.json({ received: true, username, password: plainPassword });
+      res.json({ received: true, username, password: plainPassword, email: email || null });
     } catch (error) {
       console.error('Test webhook error:', error);
       res.status(500).json({ error: 'Failed to process test webhook' });
@@ -941,16 +1015,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           paymentCredentials.set(paymentIntentId, {
             username: existingUser.username,
             password: newPassword,
+            email,
             timestamp: Date.now()
           });
 
           // Send email with new credentials
-          await sendPurchaseWelcomeEmail(email, existingUser.username, newPassword);
+          await sendWelcomeEmailWithCredentials(email, existingUser.username, newPassword);
           
           return res.json({ 
             success: true, 
             username: existingUser.username, 
             password: newPassword,
+            email,
             message: "Existing user updated with new password and email sent"
           });
         }
@@ -958,6 +1034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ 
           success: true, 
           username: existingUser.username,
+          email: existingUser.email || email,
           message: "User already exists and credentials stored"
         });
       }
@@ -976,6 +1053,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser({
         username,
         password: hashedPassword,
+        email,
         stripeSessionId: paymentIntentId
       });
 
@@ -983,11 +1061,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       paymentCredentials.set(paymentIntentId, {
         username,
         password: plainPassword,
+        email,
         timestamp: Date.now()
       });
 
       // Send welcome email
-      await sendPurchaseWelcomeEmail(email, username, plainPassword);
+      await sendWelcomeEmailWithCredentials(email, username, plainPassword);
 
       console.log(`Manual processing complete: ${username} for payment: ${paymentIntentId}`);
 
@@ -995,6 +1074,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true, 
         username, 
         password: plainPassword,
+        email,
         message: "Account created and email sent" 
       });
     } catch (error) {
@@ -1012,7 +1092,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Stored credentials keys:`, Array.from(paymentCredentials.keys()));
       }
       
-      // Check if we have stored credentials for this payment
+      // 1. Check if we have stored credentials for this payment
       const storedCredentials = paymentCredentials.get(paymentIntentId);
       if (storedCredentials) {
         if (process.env.NODE_ENV !== 'production') {
@@ -1021,11 +1101,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({
           username: storedCredentials.username,
           password: storedCredentials.password,
+          email: storedCredentials.email ?? null,
           message: "Account created successfully!"
         });
       }
 
-      // Fallback: check if user exists (for webhook-processed payments)
+      // 2. Self-healing provisioning: if webhook hasn't fired or is unreachable (e.g., localhost or disabled webhook),
+      // verify the PaymentIntent directly with Stripe and provision on the spot if succeeded.
+      if (paymentIntentId && paymentIntentId.startsWith("pi_")) {
+        try {
+          const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+          if (paymentIntent.status === "succeeded") {
+            const provisioned = await provisionPaidUser(paymentIntent);
+            if (provisioned.password) {
+              return res.json({
+                username: provisioned.username,
+                password: provisioned.password,
+                email: provisioned.email,
+                message: "Account created successfully!"
+              });
+            }
+            return res.json({
+              username: provisioned.username,
+              email: provisioned.email,
+              message: "Account created successfully! Check your email for password."
+            });
+          }
+        } catch (stripeError: any) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn(`Self-healing Stripe retrieve warning for ${paymentIntentId}:`, stripeError?.message);
+          }
+        }
+      }
+
+      // 3. Fallback: check if user exists in database
       const user = await storage.getUserByStripeSessionId(paymentIntentId);
       if (!user) {
         if (process.env.NODE_ENV !== 'production') {
@@ -1038,9 +1147,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Found user in database for ${paymentIntentId}: ${user.username}`);
       }
 
-      // Return username only since password is hashed
+      // Return username and email since password is already hashed in DB
       res.json({ 
         username: user.username,
+        email: user.email ?? null,
         message: "Account created successfully! Check your email for password."
       });
     } catch (error) {

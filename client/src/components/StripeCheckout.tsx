@@ -238,24 +238,6 @@ export default function StripeCheckout({
     }
   }, [includeOrderBump]);
 
-  // Handle missing Stripe configuration
-  if (!stripePublicKey) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-6">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-center text-red-600">Payment Configuration Error</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-gray-600">
-              Payment processing is temporarily unavailable. Please contact support.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   const createPaymentIntent = async () => {
     if (!email || !email.includes("@")) {
       toast({
@@ -348,60 +330,92 @@ export default function StripeCheckout({
           disabled={isInitializingIntent}
         />
 
-        <Elements
-          key={clientSecret}
-          stripe={stripePromise}
-          options={{
-            clientSecret,
-            appearance: {
-              theme: "stripe",
-              variables: {
-                colorPrimary: "#4A8B2C",
-                colorBackground: "#ffffff",
-                colorText: "#1f2937",
-                colorDanger: "#ef4444",
-                fontFamily: "system-ui, -apple-system, sans-serif",
-                spacingUnit: "4px",
-                borderRadius: "8px",
-              },
-              rules: {
-                ".Tab": {
-                  border: "1px solid #e5e7eb",
+        {stripePromise && !clientSecret.includes("_secret_local_dev") ? (
+          <Elements
+            key={clientSecret}
+            stripe={stripePromise}
+            options={{
+              clientSecret,
+              appearance: {
+                theme: "stripe",
+                variables: {
+                  colorPrimary: "#4A8B2C",
+                  colorBackground: "#ffffff",
+                  colorText: "#1f2937",
+                  colorDanger: "#ef4444",
+                  fontFamily: "system-ui, -apple-system, sans-serif",
+                  spacingUnit: "4px",
                   borderRadius: "8px",
-                  boxShadow: "none",
-                  padding: "12px 16px",
-                  marginBottom: "8px",
                 },
-                ".Tab:hover": {
-                  borderColor: "#4A8B2C",
-                  backgroundColor: "#f9fafb",
-                },
-                ".Tab--selected": {
-                  borderColor: "#4A8B2C",
-                  backgroundColor: "#f0f9ff",
-                },
-                ".TabIcon": {
-                  height: "24px",
-                },
-                ".Input": {
-                  borderRadius: "8px",
-                  border: "1px solid #d1d5db",
-                  padding: "12px",
-                },
-                ".Label": {
-                  fontWeight: "500",
-                  marginBottom: "6px",
+                rules: {
+                  ".Tab": {
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    boxShadow: "none",
+                    padding: "12px 16px",
+                    marginBottom: "8px",
+                  },
+                  ".Tab:hover": {
+                    borderColor: "#4A8B2C",
+                    backgroundColor: "#f9fafb",
+                  },
+                  ".Tab--selected": {
+                    borderColor: "#4A8B2C",
+                    backgroundColor: "#f0f9ff",
+                  },
+                  ".TabIcon": {
+                    height: "24px",
+                  },
+                  ".Input": {
+                    borderRadius: "8px",
+                    border: "1px solid #d1d5db",
+                    padding: "12px",
+                  },
+                  ".Label": {
+                    fontWeight: "500",
+                    marginBottom: "6px",
+                  },
                 },
               },
-            },
-          }}
-        >
-          <CheckoutForm
-            clientSecret={clientSecret}
-            customerEmail={email}
-            totalAmount={totalAmount}
-          />
-        </Elements>
+            }}
+          >
+            <CheckoutForm
+              clientSecret={clientSecret}
+              customerEmail={email}
+              totalAmount={totalAmount}
+            />
+          </Elements>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              <strong>Local Preview Mode:</strong> Add <code>VITE_STRIPE_PUBLIC_KEY</code> and{" "}
+              <code>STRIPE_SECRET_KEY</code> to <code>.env</code> to mount the live Stripe PaymentElement.
+              You can test the end-to-end provisioning flow below.
+            </div>
+            <Button
+              type="button"
+              onClick={async () => {
+                const piId = clientSecret.split("_secret_")[0] || `pi_dev_${Date.now()}`;
+                try {
+                  await fetch(`/api/test-webhook/${piId}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, amount: totalAmount }),
+                  });
+                  window.location.href = `/payment-success?payment_intent=${piId}`;
+                } catch (err) {
+                  console.error(err);
+                }
+              }}
+              className="w-full bg-gradient-to-r from-primary to-green-500 hover:from-primary/90 hover:to-green-600 text-white py-6 text-lg font-semibold"
+              data-testid="button-complete-payment-dev"
+            >
+              <CreditCard className="mr-2 h-5 w-5" />
+              Complete Purchase — ${totalAmount}.00
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

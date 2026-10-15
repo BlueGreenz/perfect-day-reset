@@ -161,7 +161,7 @@ export default function NavBar() {
       <div
         className={`
           fixed inset-0 z-40 bg-white pt-20 px-4 transition-transform duration-300 transform md:hidden
-          ${mobileMenuOpen ? "translate-x-0" : "translate-x-full"}
+          ${mobileMenuOpen ? "translate-x-0" : "translate-x-full pointer-events-none invisible"}
         `}
       >
         <div className="flex flex-col space-y-5 py-6">
