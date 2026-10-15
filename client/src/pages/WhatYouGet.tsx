@@ -4,7 +4,7 @@ import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
 import SEOHead from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
-import heroImage from "@assets/Täiuslik päeva algus.webp";
+import heroImage from "@assets/16x9_A_vibrant_golden_sunrise_gradual.webp";
 import sunriseImage from "@assets/Hommikune venitamine päikesetõusul.webp";
 import {
   FileText,
@@ -45,15 +45,24 @@ export default function WhatYouGet() {
 
       {/* Top padding for fixed navbar */}
       <div className="pt-16 md:pt-20">
-        {/* HERO IMAGE */}
-        <div className="w-full">
-          <img
-            src={heroImage}
-            alt="Perfect Day Reset Hero Image"
-            decoding="async"
-            className="w-full object-cover"
-            style={{ maxHeight: "80vh" }}
-          />
+        {/* HERO BANNER WITH CLEAN HTML OVERLAY TYPOGRAPHY */}
+        <div
+          className="relative w-full py-20 md:py-28 px-6 bg-cover bg-center flex items-center justify-center text-center overflow-hidden"
+          style={{ backgroundImage: `url(${heroImage})` }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/60 via-slate-900/50 to-slate-950/75" />
+          <div className="relative z-10 max-w-4xl mx-auto text-white">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-amber-200 text-xs sm:text-sm font-semibold uppercase tracking-wider mb-5">
+              <Sparkles className="h-4 w-4 text-amber-300" />
+              Complete 24-Hour Transformation Toolkit
+            </div>
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-5 drop-shadow-sm">
+              Here’s What You’ll Get With The Perfect Day Reset
+            </h1>
+            <p className="text-lg sm:text-xl md:text-2xl text-white/95 max-w-2xl mx-auto font-medium leading-relaxed mb-0">
+              No guesswork. Just results. This is the science-backed toolkit to reclaim your energy, clarity, and confidence in 24 hours.
+            </p>
+          </div>
         </div>
 
         {/* Above-the-fold Hero Value Banner & CTA */}
@@ -64,9 +73,9 @@ export default function WhatYouGet() {
                 <Smartphone className="h-4 w-4" />
                 Works Instantly on Any Phone or Laptop + Printable PDF
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-0">
                 The Complete 24-Hour Reset System — One-Time Access ($19)
-              </h1>
+              </h2>
               <p className="text-slate-300 text-sm sm:text-base mt-1">
                 Includes the Live Interactive Web Companion Portal, 5 Nutrition Modes, 1-Tap Schedule Rescheduler &amp; Printable PDF Kit.
               </p>

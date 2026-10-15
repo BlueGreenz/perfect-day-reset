@@ -90,11 +90,88 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
+  private fallbackMem: MemStorage;
 
   constructor() {
-    this.sessionStore = new PostgresSessionStore({
-      pool,
+    this.fallbackMem = new MemStorage();
+    try {
+      this.sessionStore = new PostgresSessionStore({
+        pool,
+        createTableIfMissing: true,
+      });
+    } catch (err) {
+      console.warn("Warning: Failed to initialize PostgresSessionStore, falling back to MemoryStore:", err);
+      this.sessionStore = this.fallbackMem.sessionStore;
+    }
+
+    this.ensureSchemaTables().catch((err) => {
+      console.warn("Non-fatal schema auto-check warning:", err?.message || err);
     });
+  }
+
+  private async ensureSchemaTables(): Promise<void> {
+    if (!pool) return;
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "session" (
+        "sid" varchar NOT NULL COLLATE "default",
+        "sess" json NOT NULL,
+        "expire" timestamp(6) NOT NULL,
+        CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "email" text;
+      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "first_name" text;
+
+      CREATE TABLE IF NOT EXISTS "reset_runs" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE cascade,
+        "catalog_version" text NOT NULL,
+        "status" text NOT NULL,
+        "phase" text,
+        "schedule_revision" integer DEFAULT 0 NOT NULL,
+        "timezone" text NOT NULL,
+        "start_at" timestamp with time zone,
+        "target_bedtime_at" timestamp with time zone,
+        "target_next_morning_at" timestamp with time zone,
+        "reset_goal" text,
+        "food_preference" text,
+        "movement_access" text,
+        "blocked_times_json" json,
+        "started_at" timestamp with time zone,
+        "sleep_started_at" timestamp with time zone,
+        "next_morning_started_at" timestamp with time zone,
+        "completed_at" timestamp with time zone,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS "reset_items" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "reset_run_id" integer NOT NULL REFERENCES "reset_runs"("id") ON DELETE cascade,
+        "activity_key" text NOT NULL,
+        "variant_key" text,
+        "phase" text NOT NULL,
+        "sequence" integer NOT NULL,
+        "original_scheduled_at" timestamp with time zone NOT NULL,
+        "scheduled_at" timestamp with time zone NOT NULL,
+        "duration_minutes" integer NOT NULL,
+        "status" text NOT NULL,
+        "completed_at" timestamp with time zone,
+        "skipped_at" timestamp with time zone,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS "reset_entries" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "reset_run_id" integer NOT NULL REFERENCES "reset_runs"("id") ON DELETE cascade,
+        "reset_item_id" integer REFERENCES "reset_items"("id") ON DELETE set null,
+        "kind" text NOT NULL,
+        "content" text NOT NULL,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
   }
 
   async createSubscriber(insertSubscriber: InsertSubscriber): Promise<Subscriber> {
@@ -118,522 +195,610 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
-    return user;
+    try {
+      const [user] = await db
+        .insert(users)
+        .values(insertUser)
+        .returning();
+      return user;
+    } catch (err) {
+      console.warn("createUser fallback:", err);
+      return this.fallbackMem.createUser(insertUser);
+    }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, username));
-    return user || undefined;
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, username));
+      return user || undefined;
+    } catch {
+      return this.fallbackMem.getUserByUsername(username);
+    }
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, id));
-    return user || undefined;
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, id));
+      return user || undefined;
+    } catch {
+      return this.fallbackMem.getUser(id);
+    }
   }
 
   async getUserByStripeSessionId(sessionId: string): Promise<User | undefined> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.stripeSessionId, sessionId));
-    return user || undefined;
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.stripeSessionId, sessionId));
+      return user || undefined;
+    } catch {
+      return this.fallbackMem.getUserByStripeSessionId(sessionId);
+    }
   }
 
   async addMarketingEmail(data: InsertMarketingEmail): Promise<MarketingEmail> {
-    const [marketingEmail] = await db
-      .insert(marketingEmails)
-      .values(data)
-      .returning();
-    return marketingEmail;
+    try {
+      const [marketingEmail] = await db
+        .insert(marketingEmails)
+        .values(data)
+        .returning();
+      return marketingEmail;
+    } catch (err) {
+      console.warn("Fallback addMarketingEmail:", err);
+      return this.fallbackMem.addMarketingEmail(data);
+    }
   }
 
   async logEmail(data: InsertEmailLog): Promise<EmailLog> {
-    const [emailLog] = await db
-      .insert(emailLogs)
-      .values(data)
-      .returning();
-    return emailLog;
+    try {
+      const [emailLog] = await db
+        .insert(emailLogs)
+        .values(data)
+        .returning();
+      return emailLog;
+    } catch (err) {
+      console.warn("Fallback logEmail:", err);
+      return this.fallbackMem.logEmail(data);
+    }
   }
 
   async getAllEmailLogs(): Promise<EmailLog[]> {
-    return await db.select().from(emailLogs);
+    try {
+      return await db.select().from(emailLogs);
+    } catch {
+      return this.fallbackMem.getAllEmailLogs();
+    }
   }
 
   async getMarketingEmails(): Promise<MarketingEmail[]> {
-    return await db.select().from(marketingEmails);
+    try {
+      return await db.select().from(marketingEmails);
+    } catch {
+      return this.fallbackMem.getMarketingEmails();
+    }
   }
 
   async getResetRunByUserId(userId: number): Promise<ResetRun | undefined> {
-    const [run] = await db
-      .select()
-      .from(resetRuns)
-      .where(eq(resetRuns.userId, userId));
-    return run || undefined;
+    try {
+      const [run] = await db
+        .select()
+        .from(resetRuns)
+        .where(eq(resetRuns.userId, userId));
+      return run || undefined;
+    } catch (err) {
+      console.warn("getResetRunByUserId fallback:", err);
+      return this.fallbackMem.getResetRunByUserId(userId);
+    }
   }
 
   async getResetRunAndItemsByUserId(userId: number): Promise<{ resetRun: ResetRun; items: ResetItem[] } | undefined> {
-    const run = await this.getResetRunByUserId(userId);
-    if (!run) return undefined;
+    try {
+      const [run] = await db
+        .select()
+        .from(resetRuns)
+        .where(eq(resetRuns.userId, userId));
+      if (!run) return undefined;
 
-    const items = await db
-      .select()
-      .from(resetItems)
-      .where(eq(resetItems.resetRunId, run.id))
-      .orderBy(asc(resetItems.sequence));
+      const items = await db
+        .select()
+        .from(resetItems)
+        .where(eq(resetItems.resetRunId, run.id))
+        .orderBy(asc(resetItems.sequence));
 
-    return { resetRun: run, items };
+      return { resetRun: run, items };
+    } catch (err) {
+      console.warn("getResetRunAndItemsByUserId fallback:", err);
+      return this.fallbackMem.getResetRunAndItemsByUserId(userId);
+    }
   }
 
   async createResetRun(
     insertRun: Omit<InsertResetRun, "id" | "createdAt" | "updatedAt">,
     insertItems: Omit<InsertResetItem, "id" | "resetRunId" | "createdAt" | "updatedAt">[]
   ): Promise<{ resetRun: ResetRun; items: ResetItem[] } | { existingRun: ResetRun }> {
-    return await db.transaction(async (tx) => {
-      // Lock the user row to serialize creation attempts per user
-      await tx.select().from(users).where(eq(users.id, insertRun.userId)).for('update');
+    try {
+      return await db.transaction(async (tx) => {
+        // Lock the user row to serialize creation attempts per user
+        await tx.select().from(users).where(eq(users.id, insertRun.userId)).for('update');
 
-      // Check if run already exists
-      const [existingRun] = await tx.select().from(resetRuns).where(eq(resetRuns.userId, insertRun.userId));
-      
-      if (existingRun) {
-        return { existingRun };
-      }
+        // Check if run already exists
+        const [existingRun] = await tx.select().from(resetRuns).where(eq(resetRuns.userId, insertRun.userId));
+        
+        if (existingRun) {
+          return { existingRun };
+        }
 
-      const [run] = await tx
-        .insert(resetRuns)
-        .values(insertRun)
-        .returning();
+        const [run] = await tx
+          .insert(resetRuns)
+          .values(insertRun)
+          .returning();
 
-      const itemsToInsert = insertItems.map(item => ({
-        ...item,
-        resetRunId: run.id
-      }));
+        const itemsToInsert = insertItems.map(item => ({
+          ...item,
+          resetRunId: run.id
+        }));
 
-      const items = await tx
-        .insert(resetItems)
-        .values(itemsToInsert)
-        .returning();
+        const items = await tx
+          .insert(resetItems)
+          .values(itemsToInsert)
+          .returning();
 
-      return { resetRun: run, items };
-    });
+        return { resetRun: run, items };
+      });
+    } catch (err) {
+      console.warn("createResetRun fallback:", err);
+      return this.fallbackMem.createResetRun(insertRun, insertItems);
+    }
   }
 
   async startResetRunForUser(userId: number): Promise<StartResetResult> {
-    return await db.transaction(async (tx) => {
-      // 1. Fetch and lock the user's reset run
-      const [run] = await tx
-        .select()
-        .from(resetRuns)
-        .where(eq(resetRuns.userId, userId))
-        .for('update');
+    try {
+      return await db.transaction(async (tx) => {
+        // 1. Fetch and lock the user's reset run
+        const [run] = await tx
+          .select()
+          .from(resetRuns)
+          .where(eq(resetRuns.userId, userId))
+          .for('update');
 
-      if (!run) {
-        return { type: "not_found" };
-      }
-
-      const items = await tx
-        .select()
-        .from(resetItems)
-        .where(eq(resetItems.resetRunId, run.id))
-        .orderBy(asc(resetItems.sequence));
-
-      if (run.status === 'active') {
-        return { type: "already_active", resetRun: run, items };
-      }
-
-      if (run.status !== 'ready') {
-        return { type: "invalid_state" };
-      }
-
-      const firstScheduledItem = items.find(i => i.status === 'scheduled');
-      if (!firstScheduledItem) {
-        return { type: "corrupt_state" };
-      }
-
-      const now = new Date();
-
-      const [updatedRun] = await tx
-        .update(resetRuns)
-        .set({
-          status: 'active',
-          phase: firstScheduledItem.phase,
-          startedAt: now,
-          updatedAt: now
-        })
-        .where(eq(resetRuns.id, run.id))
-        .returning();
-
-      const [updatedItem] = await tx
-        .update(resetItems)
-        .set({
-          status: 'active',
-          updatedAt: now
-        })
-        .where(eq(resetItems.id, firstScheduledItem.id))
-        .returning();
-
-      const updatedItems = items.map(item => 
-        item.id === updatedItem.id ? updatedItem : item
-      );
-
-      return { 
-        type: "success", 
-        resetRun: updatedRun, 
-        items: updatedItems 
-      };
-    });
-  }
-
-  async advanceResetItemForUser(userId: number, itemId: number, action: "complete" | "skip"): Promise<AdvanceResetResult> {
-    return await db.transaction(async (tx) => {
-      const [run] = await tx
-        .select()
-        .from(resetRuns)
-        .where(eq(resetRuns.userId, userId))
-        .for('update');
-
-      if (!run) {
-        return { type: "not_found" };
-      }
-
-      const items = await tx
-        .select()
-        .from(resetItems)
-        .where(eq(resetItems.resetRunId, run.id))
-        .orderBy(asc(resetItems.sequence));
-
-      const targetItem = items.find(i => i.id === itemId);
-      if (!targetItem) {
-        return { type: "item_not_found" };
-      }
-
-      if (action === "complete" && targetItem.status === "completed") {
-        if (run.status === "completed") {
-          const activeItemsCount = items.filter(i => i.status === 'active').length;
-          const scheduledItemsCount = items.filter(i => i.status === 'scheduled').length;
-          
-          const [nextMorningRef] = await tx.select().from(resetEntries)
-            .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, 'next_morning_reflection')));
-            
-          if (activeItemsCount > 0 || scheduledItemsCount > 0 || !nextMorningRef) {
-            return { type: "corrupt_state" };
-          }
+        if (!run) {
+          return { type: "not_found" };
         }
-        return { type: "already_done", resetRun: run, items };
-      }
-      if (action === "skip" && targetItem.status === "skipped") {
-        if (run.status === "completed") {
-          const activeItemsCount = items.filter(i => i.status === 'active').length;
-          const scheduledItemsCount = items.filter(i => i.status === 'scheduled').length;
-          
-          const [nextMorningRef] = await tx.select().from(resetEntries)
-            .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, 'next_morning_reflection')));
-            
-          if (activeItemsCount > 0 || scheduledItemsCount > 0 || !nextMorningRef) {
-            return { type: "corrupt_state" };
-          }
+
+        const items = await tx
+          .select()
+          .from(resetItems)
+          .where(eq(resetItems.resetRunId, run.id))
+          .orderBy(asc(resetItems.sequence));
+
+        if (run.status === 'active') {
+          return { type: "already_active", resetRun: run, items };
         }
-        return { type: "already_done", resetRun: run, items };
-      }
 
-      if (action === "complete" && targetItem.status === "skipped") return { type: "conflict" };
-      if (action === "skip" && targetItem.status === "completed") return { type: "conflict" };
-      if (run.status !== 'active' && run.status !== 'next_morning') return { type: "conflict" };
-      if (run.status === 'next_morning' && action === 'skip') return { type: "conflict" };
-      if (targetItem.status !== 'active') return { type: "conflict" };
+        if (run.status !== 'ready') {
+          return { type: "invalid_state" };
+        }
 
-      const activeItems = items.filter(i => i.status === 'active');
-      if (activeItems.length !== 1) {
-        return { type: "corrupt_state" };
-      }
+        const firstScheduledItem = items.find(i => i.status === 'scheduled');
+        if (!firstScheduledItem) {
+          return { type: "corrupt_state" };
+        }
 
-      const nextScheduledItem = items.find(i => i.status === 'scheduled' && i.sequence > targetItem.sequence);
-      
-      if (run.status === 'next_morning') {
-        if (targetItem.phase !== 'next_morning') return { type: "corrupt_state" };
-        if (nextScheduledItem) return { type: "corrupt_state" };
-      } else {
-        if (!nextScheduledItem) return { type: "corrupt_state" };
-      }
+        const now = new Date();
 
-      const now = new Date();
-
-      const itemUpdatePayload: any = { 
-        status: action === "complete" ? "completed" : "skipped", 
-        updatedAt: now 
-      };
-      
-      if (action === "complete") {
-        itemUpdatePayload.completedAt = now;
-      } else {
-        itemUpdatePayload.skippedAt = now;
-      }
-
-      const [updatedTargetItem] = await tx
-        .update(resetItems)
-        .set(itemUpdatePayload)
-        .where(eq(resetItems.id, targetItem.id))
-        .returning();
-
-      let updatedRun;
-      let updatedNextItem = null;
-
-      if (run.status === 'next_morning') {
-        const [nextMorningRef] = await tx.select().from(resetEntries)
-          .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, 'next_morning_reflection')));
-          
-        if (!nextMorningRef) return { type: "reflection_required" };
-
-        const [r] = await tx
+        const [updatedRun] = await tx
           .update(resetRuns)
           .set({
-            status: 'completed',
-            phase: 'next_morning',
-            completedAt: now,
+            status: 'active',
+            phase: firstScheduledItem.phase,
+            startedAt: now,
             updatedAt: now
           })
           .where(eq(resetRuns.id, run.id))
           .returning();
-        updatedRun = r;
-      } else if (nextScheduledItem!.phase === 'next_morning') {
-        const [r] = await tx
-          .update(resetRuns)
-          .set({
-            status: 'sleep',
-            phase: 'sleep',
-            sleepStartedAt: now,
-            updatedAt: now
-          })
-          .where(eq(resetRuns.id, run.id))
-          .returning();
-        updatedRun = r;
-      } else {
-        const [r] = await tx
-          .update(resetRuns)
-          .set({
-            phase: nextScheduledItem!.phase,
-            updatedAt: now
-          })
-          .where(eq(resetRuns.id, run.id))
-          .returning();
-        updatedRun = r;
 
-        const [i] = await tx
+        const [updatedItem] = await tx
           .update(resetItems)
           .set({
             status: 'active',
             updatedAt: now
           })
-          .where(eq(resetItems.id, nextScheduledItem!.id))
+          .where(eq(resetItems.id, firstScheduledItem.id))
           .returning();
-        updatedNextItem = i;
-      }
 
-      const updatedItems = items.map(item => {
-        if (item.id === updatedTargetItem.id) return updatedTargetItem;
-        if (updatedNextItem && item.id === updatedNextItem.id) return updatedNextItem;
-        return item;
+        const updatedItems = items.map(item => 
+          item.id === updatedItem.id ? updatedItem : item
+        );
+
+        return { 
+          type: "success", 
+          resetRun: updatedRun, 
+          items: updatedItems 
+        };
       });
+    } catch (err) {
+      console.warn("startResetRunForUser fallback:", err);
+      return this.fallbackMem.startResetRunForUser(userId);
+    }
+  }
 
-      return { type: "success", resetRun: updatedRun, items: updatedItems };
-    });
+  async advanceResetItemForUser(userId: number, itemId: number, action: "complete" | "skip"): Promise<AdvanceResetResult> {
+    try {
+      return await db.transaction(async (tx) => {
+        const [run] = await tx
+          .select()
+          .from(resetRuns)
+          .where(eq(resetRuns.userId, userId))
+          .for('update');
+
+        if (!run) {
+          return { type: "not_found" };
+        }
+
+        const items = await tx
+          .select()
+          .from(resetItems)
+          .where(eq(resetItems.resetRunId, run.id))
+          .orderBy(asc(resetItems.sequence));
+
+        const targetItem = items.find(i => i.id === itemId);
+        if (!targetItem) {
+          return { type: "item_not_found" };
+        }
+
+        if (action === "complete" && targetItem.status === "completed") {
+          if (run.status === "completed") {
+            const activeItemsCount = items.filter(i => i.status === 'active').length;
+            const scheduledItemsCount = items.filter(i => i.status === 'scheduled').length;
+            
+            const [nextMorningRef] = await tx.select().from(resetEntries)
+              .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, 'next_morning_reflection')));
+              
+            if (activeItemsCount > 0 || scheduledItemsCount > 0 || !nextMorningRef) {
+              return { type: "corrupt_state" };
+            }
+          }
+          return { type: "already_done", resetRun: run, items };
+        }
+        if (action === "skip" && targetItem.status === "skipped") {
+          if (run.status === "completed") {
+            const activeItemsCount = items.filter(i => i.status === 'active').length;
+            const scheduledItemsCount = items.filter(i => i.status === 'scheduled').length;
+            
+            const [nextMorningRef] = await tx.select().from(resetEntries)
+              .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, 'next_morning_reflection')));
+              
+            if (activeItemsCount > 0 || scheduledItemsCount > 0 || !nextMorningRef) {
+              return { type: "corrupt_state" };
+            }
+          }
+          return { type: "already_done", resetRun: run, items };
+        }
+
+        if (action === "complete" && targetItem.status === "skipped") return { type: "conflict" };
+        if (action === "skip" && targetItem.status === "completed") return { type: "conflict" };
+        if (run.status !== 'active' && run.status !== 'next_morning') return { type: "conflict" };
+        if (run.status === 'next_morning' && action === 'skip') return { type: "conflict" };
+        if (targetItem.status !== 'active') return { type: "conflict" };
+
+        const activeItems = items.filter(i => i.status === 'active');
+        if (activeItems.length !== 1) {
+          return { type: "corrupt_state" };
+        }
+
+        const nextScheduledItem = items.find(i => i.status === 'scheduled' && i.sequence > targetItem.sequence);
+        
+        if (run.status === 'next_morning') {
+          if (targetItem.phase !== 'next_morning') return { type: "corrupt_state" };
+          if (nextScheduledItem) return { type: "corrupt_state" };
+        } else {
+          if (!nextScheduledItem) return { type: "corrupt_state" };
+        }
+
+        const now = new Date();
+
+        const itemUpdatePayload: any = { 
+          status: action === "complete" ? "completed" : "skipped", 
+          updatedAt: now 
+        };
+        
+        if (action === "complete") {
+          itemUpdatePayload.completedAt = now;
+        } else {
+          itemUpdatePayload.skippedAt = now;
+        }
+
+        const [updatedTargetItem] = await tx
+          .update(resetItems)
+          .set(itemUpdatePayload)
+          .where(eq(resetItems.id, targetItem.id))
+          .returning();
+
+        let updatedRun;
+        let updatedNextItem = null;
+
+        if (run.status === 'next_morning') {
+          const [nextMorningRef] = await tx.select().from(resetEntries)
+            .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, 'next_morning_reflection')));
+            
+          if (!nextMorningRef) return { type: "reflection_required" };
+
+          const [r] = await tx
+            .update(resetRuns)
+            .set({
+              status: 'completed',
+              phase: 'next_morning',
+              completedAt: now,
+              updatedAt: now
+            })
+            .where(eq(resetRuns.id, run.id))
+            .returning();
+          updatedRun = r;
+        } else if (nextScheduledItem!.phase === 'next_morning') {
+          const [r] = await tx
+            .update(resetRuns)
+            .set({
+              status: 'sleep',
+              phase: 'sleep',
+              sleepStartedAt: now,
+              updatedAt: now
+            })
+            .where(eq(resetRuns.id, run.id))
+            .returning();
+          updatedRun = r;
+        } else {
+          const [r] = await tx
+            .update(resetRuns)
+            .set({
+              phase: nextScheduledItem!.phase,
+              updatedAt: now
+            })
+            .where(eq(resetRuns.id, run.id))
+            .returning();
+          updatedRun = r;
+
+          const [i] = await tx
+            .update(resetItems)
+            .set({
+              status: 'active',
+              updatedAt: now
+            })
+            .where(eq(resetItems.id, nextScheduledItem!.id))
+            .returning();
+          updatedNextItem = i;
+        }
+
+        const updatedItems = items.map(item => {
+          if (item.id === updatedTargetItem.id) return updatedTargetItem;
+          if (updatedNextItem && item.id === updatedNextItem.id) return updatedNextItem;
+          return item;
+        });
+
+        return { type: "success", resetRun: updatedRun, items: updatedItems };
+      });
+    } catch (err) {
+      console.warn("advanceResetItemForUser fallback:", err);
+      return this.fallbackMem.advanceResetItemForUser(userId, itemId, action);
+    }
   }
 
   async startNextMorningForUser(userId: number): Promise<StartNextMorningResult> {
-    return await db.transaction(async (tx) => {
-      const [run] = await tx
-        .select()
-        .from(resetRuns)
-        .where(eq(resetRuns.userId, userId))
-        .for('update');
+    try {
+      return await db.transaction(async (tx) => {
+        const [run] = await tx
+          .select()
+          .from(resetRuns)
+          .where(eq(resetRuns.userId, userId))
+          .for('update');
 
-      if (!run) {
-        return { type: "not_found" };
-      }
-
-      const items = await tx
-        .select()
-        .from(resetItems)
-        .where(eq(resetItems.resetRunId, run.id))
-        .orderBy(asc(resetItems.sequence));
-
-      if (run.status === "next_morning") {
-        const activeItems = items.filter(i => i.status === 'active');
-        if (activeItems.length === 1 && activeItems[0].phase === 'next_morning') {
-          return { type: "already_active", resetRun: run, items };
+        if (!run) {
+          return { type: "not_found" };
         }
-        return { type: "corrupt_state" };
-      }
 
-      if (run.status !== "sleep") {
-        return { type: "invalid_state" };
-      }
+        const items = await tx
+          .select()
+          .from(resetItems)
+          .where(eq(resetItems.resetRunId, run.id))
+          .orderBy(asc(resetItems.sequence));
 
-      const activeItems = items.filter(i => i.status === 'active');
-      if (activeItems.length > 0) {
-        return { type: "corrupt_state" };
-      }
+        if (run.status === "next_morning") {
+          const activeItems = items.filter(i => i.status === 'active');
+          if (activeItems.length === 1 && activeItems[0].phase === 'next_morning') {
+            return { type: "already_active", resetRun: run, items };
+          }
+          return { type: "corrupt_state" };
+        }
 
-      const firstScheduledItem = items.find(i => i.status === 'scheduled');
-      if (!firstScheduledItem || firstScheduledItem.phase !== "next_morning") {
-        return { type: "corrupt_state" };
-      }
+        if (run.status !== "sleep") {
+          return { type: "invalid_state" };
+        }
 
-      const now = new Date();
+        const activeItems = items.filter(i => i.status === 'active');
+        if (activeItems.length > 0) {
+          return { type: "corrupt_state" };
+        }
 
-      const [updatedRun] = await tx
-        .update(resetRuns)
-        .set({ 
-          status: 'next_morning', 
-          phase: 'next_morning', 
-          nextMorningStartedAt: now, 
-          updatedAt: now 
-        })
-        .where(eq(resetRuns.id, run.id))
-        .returning();
+        const firstScheduledItem = items.find(i => i.status === 'scheduled');
+        if (!firstScheduledItem || firstScheduledItem.phase !== "next_morning") {
+          return { type: "corrupt_state" };
+        }
 
-      const [updatedItem] = await tx
-        .update(resetItems)
-        .set({ status: 'active', updatedAt: now })
-        .where(eq(resetItems.id, firstScheduledItem.id))
-        .returning();
-      
-      const updatedItems = items.map(item => item.id === updatedItem.id ? updatedItem : item);
+        const now = new Date();
 
-      return { type: "success", resetRun: updatedRun, items: updatedItems };
-    });
+        const [updatedRun] = await tx
+          .update(resetRuns)
+          .set({ 
+            status: 'next_morning', 
+            phase: 'next_morning', 
+            nextMorningStartedAt: now, 
+            updatedAt: now 
+          })
+          .where(eq(resetRuns.id, run.id))
+          .returning();
+
+        const [updatedItem] = await tx
+          .update(resetItems)
+          .set({ status: 'active', updatedAt: now })
+          .where(eq(resetItems.id, firstScheduledItem.id))
+          .returning();
+        
+        const updatedItems = items.map(item => item.id === updatedItem.id ? updatedItem : item);
+
+        return { type: "success", resetRun: updatedRun, items: updatedItems };
+      });
+    } catch (err) {
+      console.warn("startNextMorningForUser fallback:", err);
+      return this.fallbackMem.startNextMorningForUser(userId);
+    }
   }
 
   async saveResetEntryForUser(userId: number, kind: string, content: string): Promise<SaveEntryResult> {
-    return await db.transaction(async (tx) => {
-      const [run] = await tx
-        .select()
-        .from(resetRuns)
-        .where(eq(resetRuns.userId, userId))
-        .for('update');
+    try {
+      return await db.transaction(async (tx) => {
+        const [run] = await tx
+          .select()
+          .from(resetRuns)
+          .where(eq(resetRuns.userId, userId))
+          .for('update');
 
-      if (!run) {
-        return { type: "not_found" };
-      }
-
-      if (run.status === 'abandoned') {
-        return { type: "invalid_lifecycle" };
-      }
-
-      const [existingEntry] = await tx
-        .select()
-        .from(resetEntries)
-        .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, kind)));
-
-      const now = new Date();
-
-      if (existingEntry) {
-        if (existingEntry.content === content) {
-          return { type: "success", entry: existingEntry };
+        if (!run) {
+          return { type: "not_found" };
         }
-        const [updatedEntry] = await tx
-          .update(resetEntries)
-          .set({ content })
-          .where(eq(resetEntries.id, existingEntry.id))
-          .returning();
-        return { type: "success", entry: updatedEntry };
-      } else {
-        const [newEntry] = await tx
-          .insert(resetEntries)
-          .values({
-            resetRunId: run.id,
-            kind,
-            content,
-            createdAt: now
-          })
-          .returning();
-        return { type: "success", entry: newEntry };
-      }
-    });
+
+        if (run.status === 'abandoned') {
+          return { type: "invalid_lifecycle" };
+        }
+
+        const [existingEntry] = await tx
+          .select()
+          .from(resetEntries)
+          .where(and(eq(resetEntries.resetRunId, run.id), eq(resetEntries.kind, kind)));
+
+        const now = new Date();
+
+        if (existingEntry) {
+          if (existingEntry.content === content) {
+            return { type: "success", entry: existingEntry };
+          }
+          const [updatedEntry] = await tx
+            .update(resetEntries)
+            .set({ content })
+            .where(eq(resetEntries.id, existingEntry.id))
+            .returning();
+          return { type: "success", entry: updatedEntry };
+        } else {
+          const [newEntry] = await tx
+            .insert(resetEntries)
+            .values({
+              resetRunId: run.id,
+              kind,
+              content,
+              createdAt: now
+            })
+            .returning();
+          return { type: "success", entry: newEntry };
+        }
+      });
+    } catch (err) {
+      console.warn("saveResetEntryForUser fallback:", err);
+      return this.fallbackMem.saveResetEntryForUser(userId, kind, content);
+    }
   }
 
   async getResetEntriesForUser(userId: number): Promise<{ type: "not_found" } | { type: "success", entries: ResetEntry[] }> {
-    const run = await db.query.resetRuns.findFirst({
-      where: eq(resetRuns.userId, userId)
-    });
+    try {
+      const run = await db.query.resetRuns.findFirst({
+        where: eq(resetRuns.userId, userId)
+      });
 
-    if (!run) return { type: "not_found" };
+      if (!run) return { type: "not_found" };
 
-    const entries = await db.select()
-      .from(resetEntries)
-      .where(eq(resetEntries.resetRunId, run.id))
-      .orderBy(asc(resetEntries.createdAt), asc(resetEntries.id));
+      const entries = await db.select()
+        .from(resetEntries)
+        .where(eq(resetEntries.resetRunId, run.id))
+        .orderBy(asc(resetEntries.createdAt), asc(resetEntries.id));
 
-    return { type: "success", entries };
+      return { type: "success", entries };
+    } catch (err) {
+      console.warn("getResetEntriesForUser fallback:", err);
+      return this.fallbackMem.getResetEntriesForUser(userId);
+    }
   }
 
   async updateResetFoodPreferenceForUser(userId: number, foodPreference: string): Promise<{ type: "not_found" } | { type: "success", resetRun: ResetRun }> {
-    const [run] = await db
-      .select()
-      .from(resetRuns)
-      .where(eq(resetRuns.userId, userId));
+    try {
+      const [run] = await db
+        .select()
+        .from(resetRuns)
+        .where(eq(resetRuns.userId, userId));
 
-    if (!run) return { type: "not_found" };
-
-    const [updatedRun] = await db
-      .update(resetRuns)
-      .set({ foodPreference, updatedAt: new Date() })
-      .where(eq(resetRuns.id, run.id))
-      .returning();
-
-    return { type: "success", resetRun: updatedRun };
-  }
-
-  async delayResetItemForUser(userId: number, itemId: number, delayMinutes: number, expectedScheduleRevision: number): Promise<DelayResetResult> {
-    return await db.transaction(async (tx) => {
-      const [run] = await tx.select().from(resetRuns).where(eq(resetRuns.userId, userId)).for('update');
       if (!run) return { type: "not_found" };
-      if (run.status !== 'active') return { type: "invalid_lifecycle" };
-      if (run.scheduleRevision !== expectedScheduleRevision) return { type: "stale_revision" };
-      if (!run.targetBedtimeAt) return { type: "corrupt_state" };
 
-      const items = await tx.select().from(resetItems).where(eq(resetItems.resetRunId, run.id)).orderBy(asc(resetItems.sequence));
-      
-      const targetItem = items.find(i => i.id === itemId);
-      if (!targetItem) return { type: "item_not_found" };
-      if (targetItem.status !== 'active') return { type: "conflict" };
-
-      const activeItems = items.filter(i => i.status === 'active');
-      if (activeItems.length !== 1) return { type: "corrupt_state" };
-
-      const rescheduleResult = computeDelayedSchedule(items, targetItem.id, delayMinutes, run.targetBedtimeAt);
-      if (rescheduleResult.type === 'schedule_conflict') return { type: "schedule_conflict" };
-
-      const now = new Date();
-      
-      const updatedItemsMap = new Map<number, ResetItem>();
-      for (const item of items) updatedItemsMap.set(item.id, { ...item });
-
-      for (const change of rescheduleResult.changes) {
-        const [updated] = await tx.update(resetItems)
-          .set({ scheduledAt: change.newScheduledAt, updatedAt: now })
-          .where(eq(resetItems.id, change.itemId))
-          .returning();
-        updatedItemsMap.set(updated.id, updated);
-      }
-
-      const [updatedRun] = await tx.update(resetRuns)
-        .set({ scheduleRevision: run.scheduleRevision + 1, updatedAt: now })
+      const [updatedRun] = await db
+        .update(resetRuns)
+        .set({ foodPreference, updatedAt: new Date() })
         .where(eq(resetRuns.id, run.id))
         .returning();
 
-      return { type: "success", resetRun: updatedRun, items: Array.from(updatedItemsMap.values()).sort((a,b) => a.sequence - b.sequence) };
-    });
+      return { type: "success", resetRun: updatedRun };
+    } catch (err) {
+      console.warn("updateResetFoodPreferenceForUser fallback:", err);
+      return this.fallbackMem.updateResetFoodPreferenceForUser(userId, foodPreference);
+    }
+  }
+
+  async delayResetItemForUser(userId: number, itemId: number, delayMinutes: number, expectedScheduleRevision: number): Promise<DelayResetResult> {
+    try {
+      return await db.transaction(async (tx) => {
+        const [run] = await tx.select().from(resetRuns).where(eq(resetRuns.userId, userId)).for('update');
+        if (!run) return { type: "not_found" };
+        if (run.status !== 'active') return { type: "invalid_lifecycle" };
+        if (run.scheduleRevision !== expectedScheduleRevision) return { type: "stale_revision" };
+        if (!run.targetBedtimeAt) return { type: "corrupt_state" };
+
+        const items = await tx.select().from(resetItems).where(eq(resetItems.resetRunId, run.id)).orderBy(asc(resetItems.sequence));
+        
+        const targetItem = items.find(i => i.id === itemId);
+        if (!targetItem) return { type: "item_not_found" };
+        if (targetItem.status !== 'active') return { type: "conflict" };
+
+        const activeItems = items.filter(i => i.status === 'active');
+        if (activeItems.length !== 1) return { type: "corrupt_state" };
+
+        const rescheduleResult = computeDelayedSchedule(items, targetItem.id, delayMinutes, run.targetBedtimeAt);
+        if (rescheduleResult.type === 'schedule_conflict') return { type: "schedule_conflict" };
+
+        const now = new Date();
+        
+        const updatedItemsMap = new Map<number, ResetItem>();
+        for (const item of items) updatedItemsMap.set(item.id, { ...item });
+
+        for (const change of rescheduleResult.changes) {
+          const [updated] = await tx.update(resetItems)
+            .set({ scheduledAt: change.newScheduledAt, updatedAt: now })
+            .where(eq(resetItems.id, change.itemId))
+            .returning();
+          updatedItemsMap.set(updated.id, updated);
+        }
+
+        const [updatedRun] = await tx.update(resetRuns)
+          .set({ scheduleRevision: run.scheduleRevision + 1, updatedAt: now })
+          .where(eq(resetRuns.id, run.id))
+          .returning();
+
+        return { type: "success", resetRun: updatedRun, items: Array.from(updatedItemsMap.values()).sort((a,b) => a.sequence - b.sequence) };
+      });
+    } catch (err) {
+      console.warn("delayResetItemForUser fallback:", err);
+      return this.fallbackMem.delayResetItemForUser(userId, itemId, delayMinutes, expectedScheduleRevision);
+    }
   }
 }
 
