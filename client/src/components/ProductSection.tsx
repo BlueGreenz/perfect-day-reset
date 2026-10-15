@@ -14,8 +14,10 @@ export default function ProductSection() {
         <div className="flex flex-col md:flex-row gap-12 items-start">
           <div className="md:w-1/2 md:mt-24">
             <img 
-              src="/sunrise-stretching.png" 
+              src="/sunrise-stretching.webp" 
               alt="Man stretching at sunrise" 
+              loading="lazy"
+              decoding="async"
               className="rounded-lg shadow-md w-full object-cover h-[400px] md:h-[500px]"
             />
           </div>

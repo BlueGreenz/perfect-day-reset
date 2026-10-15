@@ -1,104 +1,157 @@
 import { Button } from "@/components/ui/button";
-import { X, Check, TrendingUp, Sprout, RotateCw, Users, Gauge, SlidersHorizontal, BarChart2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { X, Check, ArrowRight, Sparkles, Clock, SlidersHorizontal, Utensils, Smartphone } from "lucide-react";
+import { Link } from "wouter";
 
 export default function ComparisonSection() {
+  const genericChallenges = [
+    "Overwhelming 30-day commitment — 85% of people quit by Day 4",
+    "Rigid schedules that fall apart the moment a meeting runs 15 minutes late",
+    "Restrictive one-size-fits-all meal rules that ignore your food preferences",
+    "Static wall-of-text PDFs that sit unopened in your downloads folder",
+    "Weeks of grinding before you feel a noticeable shift in clarity or mood",
+  ];
+
+  const perfectDayReset = [
+    "Just 24 focused hours — 100% achievable on any weekend or reset day",
+    "Adaptive 1-Tap Delay Rescheduler (+5m to +30m) recalculates your day automatically",
+    "5 customizable nutrition modes (Omnivore, Vegetarian, Keto, Paleo, Vegan) + grocery lists",
+    "Interactive Web Companion on any phone or laptop + Printable PDF & 7-Day Tracker",
+    "Tangible mental clarity, calmer nervous system, and restored momentum in 1 single day",
+  ];
+
   return (
-    <section className="section bg-gray-50">
-      <div className="container mx-auto px-6">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Vacations don't work.<br />You need a real reset.</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">The problem with traditional approaches is they don't create lasting change. Our system rebuilds your daily habits from the ground up.</p>
+    <section className="py-20 bg-gray-50" id="why-24-hours">
+      <div className="container mx-auto px-4 max-w-6xl">
+        <div className="text-center mb-14">
+          <Badge className="bg-orange-100 text-orange-800 border-orange-200 mb-4 px-4 py-1 text-sm font-semibold">
+            Why 24 Hours Works Better
+          </Badge>
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-gray-900">
+            Why 30-Day Challenges Fail — And Why 24 Hours Changes Everything
+          </h2>
+          <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
+            When you're burned out, the last thing you need is another exhausting 30-day homework assignment. You need one structured, victorious day that resets your biology and proves you're back in control.
+          </p>
         </div>
-        
-        <div className="flex flex-col md:flex-row justify-center items-center gap-8 md:gap-16 mb-12">
-          <div className="text-center">
-            <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 border-2 border-red-400">
-              <X className="text-red-400 text-2xl h-8 w-8" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 items-stretch">
+          {/* Left Column: Typical 30-Day Challenges / Generic PDFs */}
+          <Card className="border border-red-100 bg-white shadow-sm">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-red-600">
+                    The Old Way
+                  </span>
+                  <h3 className="text-2xl font-bold text-gray-800 mt-1">
+                    Typical 30-Day Challenges &amp; Generic PDFs
+                  </h3>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+                  <X className="h-6 w-6 text-red-500" />
+                </div>
+              </div>
+
+              <ul className="space-y-4">
+                {genericChallenges.map((point, idx) => (
+                  <li key={idx} className="flex items-start gap-3 text-gray-600">
+                    <div className="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center mt-0.5 flex-shrink-0">
+                      <X className="h-4 w-4 text-red-500" />
+                    </div>
+                    <span className="leading-relaxed">{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* Right Column: The Perfect Day Reset ($19) */}
+          <Card className="border-2 border-primary bg-gradient-to-br from-white via-emerald-50/30 to-emerald-50/60 shadow-xl relative overflow-hidden">
+            <div className="bg-primary text-white text-xs font-bold uppercase tracking-wider px-4 py-1.5 text-center">
+              Science-Backed 1-Day Interactive Protocol
             </div>
-            <p className="text-gray-700 font-medium">Temporary Escape</p>
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-emerald-100">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                    The Smarter Reset
+                  </span>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">
+                    The Perfect Day Reset ($19)
+                  </h3>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+
+              <ul className="space-y-4">
+                {perfectDayReset.map((point, idx) => (
+                  <li key={idx} className="flex items-start gap-3 text-gray-800 font-medium">
+                    <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center mt-0.5 flex-shrink-0">
+                      <Check className="h-4 w-4 text-primary" />
+                    </div>
+                    <span className="leading-relaxed">{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Highlight Pillars */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-start gap-3">
+            <Clock className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-gray-900 text-sm">1-Tap Delay Engine</h4>
+              <p className="text-xs text-gray-600 mt-1">Running late? Shift your schedule by 5–30 mins in one tap.</p>
+            </div>
           </div>
-          
-          <div className="hidden md:block border-t-2 border-gray-300 w-32"></div>
-          
-          <div className="text-center">
-            <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 border-2 border-green-400">
-              <Check className="text-green-400 text-2xl h-8 w-8" />
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-start gap-3">
+            <Utensils className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-gray-900 text-sm">5 Nutrition Tracks</h4>
+              <p className="text-xs text-gray-600 mt-1">Omnivore, Vegetarian, Keto, Paleo &amp; Vegan recipes included.</p>
             </div>
-            <p className="text-gray-700 font-medium">Lasting Change</p>
           </div>
-          
-          <div className="hidden md:block border-t-2 border-gray-300 w-32"></div>
-          
-          <div className="text-center">
-            <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 border-2 border-primary">
-              <TrendingUp className="text-primary text-2xl h-8 w-8" />
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-start gap-3">
+            <Smartphone className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-gray-900 text-sm">Web App + Printable PDF</h4>
+              <p className="text-xs text-gray-600 mt-1">Use the live interactive companion or print for 100% offline use.</p>
             </div>
-            <p className="text-gray-700 font-medium">Continuous Growth</p>
+          </div>
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-start gap-3">
+            <SlidersHorizontal className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-gray-900 text-sm">Repeat Unlimited Times</h4>
+              <p className="text-xs text-gray-600 mt-1">One-time $19 payment for lifetime access whenever you need a reset.</p>
+            </div>
           </div>
         </div>
-        
-        <div className="bg-white p-8 rounded-lg shadow-sm mb-12">
-          <h3 className="text-xl font-semibold mb-6 text-center">What's different about our program?</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
-            <div className="flex items-start">
-              <Sprout className="text-primary text-xl mt-1 mr-4 h-6 w-6" />
-              <div>
-                <h4 className="font-medium mb-1">Habit Science</h4>
-                <p className="text-gray-600 text-sm">Based on behavioral psychology and habit formation research.</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start">
-              <RotateCw className="text-primary text-xl mt-1 mr-4 h-6 w-6" />
-              <div>
-                <h4 className="font-medium mb-1">Daily Implementation</h4>
-                <p className="text-gray-600 text-sm">Builds consistent practices that fit into your actual life.</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start">
-              <Users className="text-primary text-xl mt-1 mr-4 h-6 w-6" />
-              <div>
-                <h4 className="font-medium mb-1">Community Support</h4>
-                <p className="text-gray-600 text-sm">Connect with others on the same journey for accountability.</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start">
-              <Gauge className="text-primary text-xl mt-1 mr-4 h-6 w-6" />
-              <div>
-                <h4 className="font-medium mb-1">Incremental Progress</h4>
-                <p className="text-gray-600 text-sm">Small, sustainable changes that compound over time.</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start">
-              <SlidersHorizontal className="text-primary text-xl mt-1 mr-4 h-6 w-6" />
-              <div>
-                <h4 className="font-medium mb-1">Personalized Approach</h4>
-                <p className="text-gray-600 text-sm">Adaptable to your unique circumstances and goals.</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start">
-              <BarChart2 className="text-primary text-xl mt-1 mr-4 h-6 w-6" />
-              <div>
-                <h4 className="font-medium mb-1">Measurable Results</h4>
-                <p className="text-gray-600 text-sm">Track progress and see real changes in productivity and wellbeing.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="text-center">
-          <a 
-            href="/what-you-get"
-          >
-            <Button className="cta-button bg-primary text-white font-medium px-8 py-3 rounded-full hover:bg-green-600 transition">
-              Get the Perfect Day Reset – $19
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link href="/checkout">
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-semibold px-8 py-6 rounded-full text-lg shadow-lg w-full sm:w-auto"
+            >
+              Start My 24-Hour Reset — $19
+              <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-          </a>
+          </Link>
+          <Link href="/what-you-get">
+            <Button
+              variant="outline"
+              size="lg"
+              className="border-gray-300 text-gray-800 hover:bg-white font-medium px-8 py-6 rounded-full text-lg w-full sm:w-auto"
+            >
+              See Full Program Breakdown
+            </Button>
+          </Link>
         </div>
       </div>
     </section>

@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Award, Download, Share2, Instagram, Camera } from "lucide-react";
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import logoPath from "@assets/1x1_logo_for_website_which_sells_dig.png";
+import logoPath from "@assets/1x1_logo_for_website_which_sells_dig.webp";
 
 // Convert logo to base64 for high quality rendering
 const getLogoBase64 = async (): Promise<string> => {

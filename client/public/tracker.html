@@ -211,5 +211,14 @@
   </div>
 
   <!-- Add 5 more copies (for a total of 7 days) with page breaks in between -->
+  <script>
+    if (window.location.search.includes('print=1')) {
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          window.print();
+        }, 250);
+      });
+    }
+  </script>
 </body>
 </html>

@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertSubscriberSchema, users } from "@shared/schema";
 import { setupAuth, hashPassword } from "./auth";
 import { z, ZodError } from "zod";
-import { sendWelcomeEmail, sendPurchaseWelcomeEmail } from "./utils/sendgrid";
+import { sendEmail, sendWelcomeEmail, sendPurchaseWelcomeEmail } from "./utils/sendgrid";
 import { emailService } from "./utils/emailService";
 import Stripe from "stripe";
 import express from "express";
@@ -18,6 +18,7 @@ import { createResetSchema } from "./reset/setup-schema";
 import { allowedEntryKinds, resetEntrySchema } from "./reset/entry-schema";
 import { delayRequestSchema } from "./reset/delay-schema";
 import { AdvanceResetResult } from "./storage";
+import { quizSubmissionSchema, generateQuizDiagnostic } from "./quiz";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -66,8 +67,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     keysToDelete.forEach(key => paymentCredentials.delete(key));
   }, 10 * 60 * 1000); // Clean up every 10 minutes
 
-  // Test email endpoint
+  // Test email endpoint (development only)
   app.post("/api/test-email", async (req, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(404).json({ message: "Not found" });
+    }
     try {
       const success = await sendWelcomeEmail("reikokevvai@gmail.com");
       
@@ -129,6 +133,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       return res.status(500).json({ 
         message: "An error occurred while subscribing. Please try again." 
+      });
+    }
+  });
+
+  // 60-Second AI + Deterministic Reset Diagnostic Quiz endpoint
+  app.post("/api/quiz/diagnose", async (req, res) => {
+    try {
+      const validatedData = quizSubmissionSchema.parse(req.body);
+      const report = await generateQuizDiagnostic(validatedData);
+
+      const cleanEmail = validatedData.email?.trim();
+      if (cleanEmail) {
+        try {
+          const existingSubscriber = await storage.getSubscriberByEmail(cleanEmail);
+          if (!existingSubscriber) {
+            await storage.createSubscriber({ email: cleanEmail });
+            sendWelcomeEmail(cleanEmail).catch((err) => {
+              if (process.env.NODE_ENV !== "production") {
+                console.error(`Quiz welcome email error for ${cleanEmail}:`, err);
+              }
+            });
+          }
+        } catch (subErr) {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("Non-fatal quiz subscriber upsert warning:", subErr);
+          }
+        }
+
+        try {
+          await storage.addMarketingEmail({
+            email: cleanEmail,
+            firstName: validatedData.firstName || null,
+          });
+        } catch {
+          // Ignore duplicate marketing_emails constraint if email already exists
+        }
+
+        try {
+          if (req.isAuthenticated() && req.user?.id) {
+            await storage.logEmail({
+              email: cleanEmail,
+              emailType: "quiz_diagnostic",
+              subject: `Quiz Diagnostic: ${report.archetype.name} (${report.severityScore}/100)`,
+              status: "sent",
+              userId: req.user.id,
+            });
+          }
+        } catch {
+          // Non-fatal if user_id FK or email_logs is unavailable
+        }
+      }
+
+      return res.status(200).json({
+        report,
+        leadCaptured: Boolean(cleanEmail),
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          message: "Invalid quiz submission data",
+          errors: error.errors,
+        });
+      }
+      console.error("Error generating quiz diagnostic:", error);
+      return res.status(500).json({
+        message: "Failed to generate diagnostic report",
       });
     }
   });
@@ -396,6 +466,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update Reset Run Preferences (e.g., foodPreference)
+  app.patch("/api/reset-runs/current/preferences", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { foodPreference } = req.body || {};
+    if (
+      typeof foodPreference !== "string" ||
+      ![
+        "omni",
+        "veg",
+        "vegetarian",
+        "vegan",
+        "paleo",
+        "gluten-free",
+        "keto",
+        "fasting",
+        "Regular",
+        "Keto",
+        "Vegetarian",
+      ].includes(foodPreference)
+    ) {
+      return res.status(400).json({ message: "Invalid foodPreference value" });
+    }
+
+    try {
+      const result = await storage.updateResetFoodPreferenceForUser(
+        req.user.id,
+        foodPreference
+      );
+      if (result.type === "not_found") {
+        return res.status(404).json({ message: "No Reset found" });
+      }
+      return res.status(200).json({ resetRun: result.resetRun });
+    } catch (error) {
+      console.error("Error updating reset preferences:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Reset Run Creation
   app.post("/api/reset-runs", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -492,27 +603,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Stripe payment intent creation
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
-      const { email, receipt_email } = req.body;
-      const amount = 19; // Fixed price: $19
+      const { email, receipt_email, includeOrderBump } = req.body || {};
+      const checkoutEmail = (email || receipt_email || "").trim().toLowerCase();
+      const hasOrderBump = Boolean(includeOrderBump);
+
+      if (checkoutEmail) {
+        try {
+          const parsed = insertSubscriberSchema.safeParse({ email: checkoutEmail });
+          if (parsed.success) {
+            const existingSubscriber = await storage.getSubscriberByEmail(parsed.data.email);
+            if (!existingSubscriber) {
+              await storage.createSubscriber(parsed.data);
+            }
+          }
+        } catch (subErr) {
+          if (process.env.NODE_ENV !== "production") {
+            console.error("Non-fatal error capturing checkout subscriber email:", subErr);
+          }
+        }
+      }
+
+      const amount = hasOrderBump ? 31 : 19; // Server-side price calculation: $19 base or $31 with +$12 order bump
       const climateContribution = Math.round(amount * 0.005 * 100); // 0.5% for CO₂ removal
       
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents ($19 = 1900 cents)
+        amount: Math.round(amount * 100), // Convert to cents (1900 or 3100 cents)
         currency: "usd",
         receipt_email: email || receipt_email,
         metadata: {
-          product: "perfect_day_reset",
+          product: hasOrderBump
+            ? "perfect_day_reset_plus_7day_momentum_kit"
+            : "perfect_day_reset",
+          includeOrderBump: hasOrderBump ? "true" : "false",
           customer_email: email || receipt_email || "",
           climate_contribution: `$${(climateContribution / 100).toFixed(2)}`,
           climate_percentage: "0.5%"
         }
       });
-      res.json({ clientSecret: paymentIntent.client_secret });
+      res.json({
+        clientSecret: paymentIntent.client_secret,
+        amount,
+        includeOrderBump: hasOrderBump,
+      });
     } catch (error: any) {
       res.status(500).json({ 
         message: "Error creating payment intent: " + error.message 
       });
     }
+  });
+
+  // Read-only AI Marketing Agent & Content Feed Export Endpoint
+  app.get("/api/marketing/agent-brief", (_req, res) => {
+    return res.status(200).json({
+      brand: {
+        name: "Perfect Day Reset",
+        domain: "https://perfectdayreset.com",
+        positioning:
+          "Science-backed 24-hour lifestyle & nervous system reboot combining a Live Interactive Web Companion Portal (with 1-Tap Delay Rescheduler and 5 Nutrition Modes) + Printable PDF Blueprint.",
+        socialImpact: "Every purchase donates $1 to children's programs and 0.5% to Stripe Climate CO2 removal.",
+        guarantee: "30-Day 100% Money-Back Satisfaction Guarantee",
+      },
+      founder: {
+        name: "Reiko Kevvai",
+        credentials: "Ex Head of Sales for Inchcape Motors BMW • 35+ Years in Competitive Sports & High-Performance Recovery",
+        originHook:
+          "Built after corporate burnout hit at full speed—because exhausted high performers don't need another rigid 30-day challenge that 85% quit by Day 4; they need one engineered 24-hour reset day.",
+      },
+      offers: {
+        coreOffer: {
+          name: "The Perfect Day Reset (24-Hour Protocol)",
+          priceUsd: 19,
+          deliverables: [
+            "Interactive Hour-by-Hour Web Companion Portal (Prep, Morning Activation, Midday Recharge, Evening Decompression & Next-Morning Check-In)",
+            "Live 1-Tap Delay Rescheduler (recalculates the remaining day automatically when running 15–45 mins late)",
+            "5 Customizable Nutrition Modes (Omnivore, Vegetarian, Keto, Paleo, Vegan) with 1-Click Grocery Lists",
+            "Interactive Hydration Calculator, Digital Detox Checklist & 5-Prompt Cognitive Unload Reflection Journal",
+            "Printable 24-Hour Reset PDF Blueprint & Personalized Certificate of Completion",
+          ],
+        },
+        orderBump: {
+          name: "7-Day Momentum & Emergency 2-Hour Workday Reset Kit",
+          priceUsd: 12,
+          bundleTotalUsd: 31,
+          deliverables: [
+            "The Emergency 2-Hour Mid-Week Reset Protocol (120-minute triage checklist for chaotic Tuesday/Wednesday workdays)",
+            "Interactive 7-Day Post-Reset Habit & Energy Tracker",
+            "High-Stress Executive Travel & Dining-Out Cheat Sheet (across all 5 nutrition tracks)",
+          ],
+        },
+      },
+      overwhelmArchetypes: [
+        {
+          id: "cortisol_spiked",
+          name: "Cortisol-Spiked High Performer",
+          bottleneck: "Inverted Cortisol-Melatonin Rhythm",
+          symptomHook: "Sluggish, foggy mornings paired with a 'tired but wired' racing mind after 9:30 PM.",
+        },
+        {
+          id: "dopamine_depleted",
+          name: "Dopamine-Depleted Multitasker",
+          bottleneck: "Prefrontal Dopamine Receptor Fatigue",
+          symptomHook: "Checking notifications within 5 minutes of waking and battling fragmented attention all day.",
+        },
+        {
+          id: "metabolic_crasher",
+          name: "Metabolic Midday Crasher",
+          bottleneck: "Post-Prandial Glucose & Electrolyte Dip",
+          symptomHook: "Powering through the morning on caffeine only to hit a wall of brain fog at 2:00 PM.",
+        },
+        {
+          id: "systemic_burnout",
+          name: "Systemic Burnout Recovery",
+          bottleneck: "HPA-Axis & Autonomic Exhaustion",
+          symptomHook: "Running on willpower for months with flatlined energy and unrefreshing sleep.",
+        },
+      ],
+      targetHooks: [
+        "Why 85% of high performers quit 30-day wellness challenges by Day 4—and why 24 intentional hours works instead.",
+        "Running 15 minutes late shouldn't ruin your reset day: Meet the 1-Tap Delay Rescheduler.",
+        "Take the free 60-Second Burnout & Reset Diagnostic to see your custom wake-time schedule and nutrition track.",
+      ],
+      funnelUrls: {
+        home: "https://perfectdayreset.com/",
+        diagnosticQuiz: "https://perfectdayreset.com/quiz",
+        salesBreakdown: "https://perfectdayreset.com/what-you-get",
+        checkout: "https://perfectdayreset.com/checkout",
+        founderStory: "https://perfectdayreset.com/about",
+      },
+    });
   });
 
   // Stripe webhook for automatic user creation
@@ -566,6 +784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const plainPassword = generateSecurePassword();
         const hashedPassword = await hashPassword(plainPassword);
+        const customerEmail = paymentIntent.receipt_email || paymentIntent.metadata?.customer_email || null;
 
         if (process.env.NODE_ENV !== 'production') {
           console.log(`Creating user: ${username} for payment: ${paymentIntent.id}`);
@@ -575,6 +794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const user = await storage.createUser({
           username,
           password: hashedPassword,
+          email: customerEmail,
           stripeSessionId: paymentIntent.id
         });
 
@@ -594,7 +814,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Send welcome email with login credentials
-        const customerEmail = paymentIntent.receipt_email || paymentIntent.metadata?.customer_email;
         if (customerEmail) {
           try {
             await sendPurchaseWelcomeEmail(customerEmail, username, plainPassword);
@@ -836,6 +1055,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get all subscribers (admin endpoint)
   app.get("/api/subscribers", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    if (
+      process.env.NODE_ENV === "production" &&
+      (!process.env.ADMIN_USERNAME || req.user?.username !== process.env.ADMIN_USERNAME)
+    ) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
     try {
       const subscribers = await storage.getAllSubscribers();
       return res.status(200).json({ subscribers });
@@ -866,8 +1095,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test email endpoint for demonstration
+  // Test email endpoint for demonstration (development only)
   app.post("/api/test-welcome-email", async (req, res) => {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(404).json({ message: "Not found" });
+    }
+
     try {
       const { email } = req.body;
       
@@ -913,6 +1146,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         emailType: 'contact_form',
         subject: `Contact Form: ${subject}`,
         status: 'received'
+      });
+
+      // Send notification email to support@perfectdayreset.com
+      const supportEmail = "support@perfectdayreset.com";
+      const fromEmail = process.env.SMTP_FROM || supportEmail;
+      sendEmail({
+        to: supportEmail,
+        from: fromEmail,
+        subject: `Contact Form: ${subject}`,
+        text: `New contact form submission:\n\nName: ${name}\nEmail: ${email}\nSubject: ${subject}\n\nMessage:\n${message}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #4A8B2C;">New Contact Form Submission</h2>
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Subject:</strong> ${subject}</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 16px 0;" />
+            <p style="white-space: pre-wrap;">${message}</p>
+          </div>
+        `,
+      }).catch((err) => {
+        console.error("Failed to send contact form notification email:", err);
       });
 
       console.log(`Contact form submission from ${name} (${email}): ${subject}`);

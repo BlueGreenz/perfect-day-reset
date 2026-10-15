@@ -24,7 +24,7 @@ import {
   Youtube
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import beachExerciseImage from "@assets/16x9_A_vibrant_array_of_modern_sports.png";
+import beachExerciseImage from "@assets/16x9_A_vibrant_array_of_modern_sports.webp";
 import { useCurrentReset, useCompleteItem, useSkipItem, useDelayItem } from "@/lib/reset-api";
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/queryClient";
@@ -44,6 +44,13 @@ export default function ProductPage3() {
 
   // State that would normally be passed from previous pages
   const [selectedDiet, setSelectedDiet] = useState<string>("omni");
+
+  useEffect(() => {
+    const pref = currentReset?.resetRun?.foodPreference;
+    if (pref) {
+      setSelectedDiet(pref === "paleo" ? "gluten-free" : pref);
+    }
+  }, [currentReset?.resetRun?.foodPreference]);
   const [activeTaskPanel, setActiveTaskPanel] = useState<string | null>(null);
   const [activeMovementPanel, setActiveMovementPanel] = useState<string | null>(null);
   

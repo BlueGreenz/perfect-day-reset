@@ -138,3 +138,70 @@ export function useDelayItem() {
     }
   });
 }
+
+export type ResetEntryKind = "midday_reflection" | "evening_reflection" | "next_morning_reflection";
+
+export interface ResetEntry {
+  id: number;
+  resetRunId: number;
+  kind: ResetEntryKind;
+  content: string;
+  createdAt: string;
+}
+
+export interface ResetEntriesResponse {
+  entries: ResetEntry[];
+}
+
+export function useResetEntries() {
+  return useQuery<ResetEntriesResponse, Error>({
+    queryKey: ["/api/reset-runs/current/entries"],
+    retry: false,
+  });
+}
+
+export function useSaveResetEntry() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ kind, content }: { kind: ResetEntryKind; content: string }) => {
+      const res = await apiRequest("PUT", `/api/reset-runs/current/entries/${kind}`, { content });
+      return (await res.json()) as { entry: ResetEntry };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reset-runs/current/entries"] });
+    },
+  });
+}
+
+export function useStartNextMorning() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/reset-runs/current/next-morning");
+      return (await res.json()) as CurrentResetResponse;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/reset-runs/current"], data);
+    },
+  });
+}
+
+export function useUpdateFoodPreference() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (foodPreference: string) => {
+      const res = await apiRequest("PATCH", "/api/reset-runs/current/preferences", { foodPreference });
+      return (await res.json()) as { resetRun: ResetRun };
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData<CurrentResetResponse | undefined>(
+        ["/api/reset-runs/current"],
+        (prev) => (prev ? { ...prev, resetRun: data.resetRun } : prev)
+      );
+    },
+  });
+}
+

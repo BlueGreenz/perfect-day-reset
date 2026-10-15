@@ -4,9 +4,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Heart, Target, Users, Lightbulb, ArrowRight } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
-import heroBackground from "@assets/16x9_the_morning_sun_on_a_plant_fille.png";
+import NavBar from "@/components/NavBar";
+import Footer from "@/components/Footer";
+import heroBackground from "@assets/16x9_the_morning_sun_on_a_plant_fille.webp";
 import founderPhoto from "@assets/unnamed.jpg";
-import logoImage from "@assets/1x1_logo_for_website_which_sells_dig.png";
+import logoImage from "@assets/1x1_logo_for_website_which_sells_dig.webp";
 
 export default function About() {
   useEffect(() => {
@@ -21,10 +23,11 @@ export default function About() {
         canonical="https://perfectdayreset.com/about"
         ogTitle="About Perfect Day Reset – Transform Your Daily Routine"
         ogDescription="Discover how Perfect Day Reset helps busy professionals reclaim their energy and focus through proven daily transformation protocols."
-        ogImage="https://perfectdayreset.com/logo.png"
+        ogImage="https://perfectdayreset.com/og-image.png"
         twitterTitle="About Perfect Day Reset – Daily Transformation"
         twitterDescription="Science-backed protocols to transform your energy, focus, and well-being in just one day."
       />
+      <NavBar />
       {/* Hero Section */}
       <section 
         className="relative min-h-screen flex items-center justify-center text-white"
@@ -44,6 +47,7 @@ export default function About() {
               <img 
                 src={logoImage} 
                 alt="Perfect Day Reset Logo" 
+                decoding="async"
                 className="w-full h-full object-contain rounded-2xl"
               />
             </div>
@@ -92,6 +96,8 @@ export default function About() {
                 <img 
                   src={founderPhoto} 
                   alt="Reiko Kevvai, Founder of Perfect Day Reset" 
+                  loading="lazy"
+                  decoding="async"
                   className="w-80 h-80 rounded-2xl object-cover shadow-2xl mx-auto mb-6"
                 />
                 <div className="bg-gradient-to-r from-orange-500 to-pink-500 text-white p-4 rounded-xl shadow-lg text-center max-w-sm mx-auto">
@@ -281,6 +287,7 @@ export default function About() {
           </a>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }

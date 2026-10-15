@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { useState } from "react";
-import logoPath from "@assets/1x1_logo_for_website_which_sells_dig.png";
+import logoPath from "@assets/1x1_logo_for_website_which_sells_dig.webp";
 
 export default function PerfectDayResetPDF() {
   const [isGenerating, setIsGenerating] = useState(false);

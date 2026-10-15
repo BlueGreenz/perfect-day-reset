@@ -81,6 +81,7 @@ export interface IStorage {
   startNextMorningForUser(userId: number): Promise<StartNextMorningResult>;
   saveResetEntryForUser(userId: number, kind: string, content: string): Promise<SaveEntryResult>;
   getResetEntriesForUser(userId: number): Promise<{ type: "not_found" } | { type: "success", entries: ResetEntry[] }>;
+  updateResetFoodPreferenceForUser(userId: number, foodPreference: string): Promise<{ type: "not_found" } | { type: "success", resetRun: ResetRun }>;
 
   sessionStore: session.Store;
 }
@@ -523,12 +524,8 @@ export class DatabaseStorage implements IStorage {
         return { type: "not_found" };
       }
 
-      if (kind === "next_morning_reflection") {
-        if (run.status !== 'next_morning') return { type: "invalid_lifecycle" };
-      } else {
-        if (run.status !== 'active' && run.status !== 'sleep' && run.status !== 'next_morning') {
-          return { type: "invalid_lifecycle" };
-        }
+      if (run.status === 'abandoned') {
+        return { type: "invalid_lifecycle" };
       }
 
       const [existingEntry] = await tx
@@ -576,6 +573,23 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(resetEntries.createdAt), asc(resetEntries.id));
 
     return { type: "success", entries };
+  }
+
+  async updateResetFoodPreferenceForUser(userId: number, foodPreference: string): Promise<{ type: "not_found" } | { type: "success", resetRun: ResetRun }> {
+    const [run] = await db
+      .select()
+      .from(resetRuns)
+      .where(eq(resetRuns.userId, userId));
+
+    if (!run) return { type: "not_found" };
+
+    const [updatedRun] = await db
+      .update(resetRuns)
+      .set({ foodPreference, updatedAt: new Date() })
+      .where(eq(resetRuns.id, run.id))
+      .returning();
+
+    return { type: "success", resetRun: updatedRun };
   }
 
   async delayResetItemForUser(userId: number, itemId: number, delayMinutes: number, expectedScheduleRevision: number): Promise<DelayResetResult> {

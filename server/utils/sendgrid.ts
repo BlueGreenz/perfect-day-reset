@@ -1,11 +1,13 @@
 import { MailService } from '@sendgrid/mail';
 
-if (!process.env.SENDGRID_API_KEY_PERFECTDAYRESET) {
-  throw new Error("SENDGRID_API_KEY_PERFECTDAYRESET environment variable must be set");
-}
+const sendGridApiKey = process.env.SENDGRID_API_KEY_PERFECTDAYRESET || process.env.SENDGRID_API_KEY;
 
 const mailService = new MailService();
-mailService.setApiKey(process.env.SENDGRID_API_KEY_PERFECTDAYRESET);
+if (sendGridApiKey) {
+  mailService.setApiKey(sendGridApiKey);
+} else {
+  console.warn("Warning: Neither SENDGRID_API_KEY_PERFECTDAYRESET nor SENDGRID_API_KEY is set. SendGrid email delivery is disabled.");
+}
 
 interface EmailParams {
   to: string;
@@ -19,6 +21,10 @@ interface EmailParams {
  * Send an email using SendGrid API
  */
 export async function sendEmail(params: EmailParams): Promise<boolean> {
+  if (!sendGridApiKey) {
+    console.warn(`SendGrid API key not configured; skipping email to ${params.to}`);
+    return false;
+  }
   try {
     await mailService.send({
       to: params.to,

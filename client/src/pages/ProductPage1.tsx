@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -25,6 +25,7 @@ import { Link, useLocation } from "wouter";
 import { toast } from "@/hooks/use-toast";
 import PerfectDayResetPDF from "@/components/PerfectDayResetPDF";
 import { useCurrentReset, useCreateReset, useStartReset } from "@/lib/reset-api";
+import { loadQuizProfile } from "@/lib/quiz-profile";
 import { Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -33,16 +34,37 @@ function toDatetimeLocal(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-const defaultStart = new Date();
-defaultStart.setDate(defaultStart.getDate() + 1);
-defaultStart.setHours(7, 0, 0, 0);
+function getInitialScheduleFromWakeTime(wakeTime: string = "07:00") {
+  const [hStr, mStr] = wakeTime.split(":");
+  const wakeHour = Number.isFinite(parseInt(hStr, 10)) ? parseInt(hStr, 10) : 7;
+  const wakeMin = Number.isFinite(parseInt(mStr, 10)) ? parseInt(mStr, 10) : 0;
 
-const defaultBedtime = new Date(defaultStart);
-defaultBedtime.setHours(22, 0, 0, 0);
+  const start = new Date();
+  start.setDate(start.getDate() + 1);
+  start.setHours(wakeHour, wakeMin, 0, 0);
 
-const defaultNextMorning = new Date(defaultStart);
-defaultNextMorning.setDate(defaultNextMorning.getDate() + 1);
-defaultNextMorning.setHours(7, 0, 0, 0);
+  // Target bedtime is 15 hours after wake time
+  const bedtime = new Date(start.getTime() + 15 * 60 * 60 * 1000);
+
+  // Next morning check-in is 24 hours after wake time
+  const nextMorning = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+  return {
+    startAt: toDatetimeLocal(start),
+    targetBedtimeAt: toDatetimeLocal(bedtime),
+    targetNextMorningAt: toDatetimeLocal(nextMorning),
+  };
+}
+
+function mapFoodPreferenceToPortalTab(pref?: string | null): string {
+  if (!pref) return "omni";
+  const normalized = pref.toLowerCase();
+  if (normalized === "veg" || normalized === "vegetarian") return "vegetarian";
+  if (normalized === "paleo" || normalized === "gluten-free") return "gluten-free";
+  if (normalized === "keto") return "keto";
+  if (normalized === "vegan") return "vegan";
+  return "omni";
+}
 
 export default function ProductPage1() {
   const [, setLocation] = useLocation();
@@ -50,14 +72,27 @@ export default function ProductPage1() {
   const createReset = useCreateReset();
   const startReset = useStartReset();
 
-  const [startAt, setStartAt] = useState(toDatetimeLocal(defaultStart));
-  const [targetBedtimeAt, setTargetBedtimeAt] = useState(toDatetimeLocal(defaultBedtime));
-  const [targetNextMorningAt, setTargetNextMorningAt] = useState(toDatetimeLocal(defaultNextMorning));
-  const [resetGoal, setResetGoal] = useState("");
+  const initialQuizProfile = loadQuizProfile();
+  const initialTimes = getInitialScheduleFromWakeTime(initialQuizProfile?.wakeTime || "07:00");
+
+  const [startAt, setStartAt] = useState(initialTimes.startAt);
+  const [targetBedtimeAt, setTargetBedtimeAt] = useState(initialTimes.targetBedtimeAt);
+  const [targetNextMorningAt, setTargetNextMorningAt] = useState(initialTimes.targetNextMorningAt);
+  const [resetGoal, setResetGoal] = useState(initialQuizProfile?.recommendedGoal || "");
   const [movementAccess, setMovementAccess] = useState("bodyweight");
   const [blockedTimes, setBlockedTimes] = useState("");
 
-  const [selectedDiet, setSelectedDiet] = useState<string>("omni");
+  const [selectedDiet, setSelectedDiet] = useState<string>(() =>
+    mapFoodPreferenceToPortalTab(
+      initialQuizProfile?.portalDietCode || initialQuizProfile?.foodPreference || "omni"
+    )
+  );
+
+  useEffect(() => {
+    if (currentReset?.resetRun?.foodPreference) {
+      setSelectedDiet(mapFoodPreferenceToPortalTab(currentReset.resetRun.foodPreference));
+    }
+  }, [currentReset?.resetRun?.foodPreference]);
   const [waterCalc, setWaterCalc] = useState({
     weight: "",
     height: "",
@@ -547,7 +582,7 @@ export default function ProductPage1() {
         <div 
           className="absolute inset-0 z-0 bg-cover bg-center"
           style={{ 
-            backgroundImage: 'url("/assets/serene-tree.png")',
+            backgroundImage: 'url("/assets/serene-tree.webp")',
             backgroundSize: 'cover'
           }}
         >

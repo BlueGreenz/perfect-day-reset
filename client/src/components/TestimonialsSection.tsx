@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Star, Quote, ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 import CountdownTimer from "./CountdownTimer";
-import successGroupImage from "@assets/21x9_A_diverse_group_of_confident_pro.png";
+import successGroupImage from "@assets/21x9_A_diverse_group_of_confident_pro.webp";
 import { Link } from "wouter";
 
 const testimonials = [
@@ -226,6 +226,8 @@ export default function TestimonialsSection() {
                 <img 
                   src={testimonial.image} 
                   alt={`${testimonial.name} profile photo`} 
+                  loading="lazy"
+                  decoding="async"
                   className="w-12 h-12 rounded-full object-cover mr-4"
                 />
                 <div>
@@ -275,26 +277,32 @@ export default function TestimonialsSection() {
             <p className="text-gray-700 mb-6">
               Join our community of satisfied users who have discovered the power of the Perfect Day Reset. One structured day can change everything.
             </p>
-            <Link href="/what-you-get">
-              <Button 
-                size="lg" 
-                className="cta-button bg-primary text-white font-medium px-8 py-6 rounded-full hover:bg-green-600 transition text-lg"
-                onClick={() => {
-                  setTimeout(() => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }, 100);
-                }}
-              >
-                Get the Perfect Day Reset – $19
-              </Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <Link href="/checkout">
+                <Button 
+                  size="lg" 
+                  className="cta-button bg-primary text-white font-semibold px-8 py-6 rounded-full hover:bg-green-600 transition text-lg w-full sm:w-auto"
+                >
+                  Start My 24-Hour Reset — $19
+                </Button>
+              </Link>
+              <Link href="/what-you-get">
+                <Button 
+                  variant="outline"
+                  size="lg" 
+                  className="border-gray-300 text-gray-800 hover:bg-white font-medium px-6 py-6 rounded-full transition text-base w-full sm:w-auto"
+                >
+                  See Full Program Breakdown
+                </Button>
+              </Link>
+            </div>
           </div>
           
           <div>
             <CountdownTimer 
               endDate={expireDate}
-              title="Launch Special"
-              description="For our website launch: Get 30% off with all bonus materials!"
+              title="Launch Special — $19"
+              description="Instant access to the Web Companion Portal + Printable PDF Kit!"
             />
           </div>
         </div>

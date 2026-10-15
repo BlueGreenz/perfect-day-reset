@@ -10,6 +10,8 @@ export default function Footer() {
               <img 
                 src="/logo.png" 
                 alt="Perfect Day Reset Logo" 
+                loading="lazy"
+                decoding="async"
                 className="h-14 md:h-16 inline-block bg-white rounded-xl p-2"
               />
             </div>
@@ -44,7 +46,7 @@ export default function Footer() {
                 { name: 'Welcome & Prep', path: '/product/reset/welcome' },
                 { name: 'Morning Routine', path: '/product/reset/morning' },
                 { name: 'Midday Recharge', path: '/product/reset/midday' },
-                { name: 'Evening Wind Down', path: '/product/reset/evening' },
+                { name: 'Evening Wind Down', path: '/product/reset/afternoon' },
                 { name: 'Final Reflection', path: '/product/reset/reflection' }
               ].map((item, i) => (
                 <li key={i}>

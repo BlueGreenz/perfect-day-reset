@@ -19,6 +19,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import NavBar from "@/components/NavBar";
+import Footer from "@/components/Footer";
+import SEOHead from "@/components/SEOHead";
 
 const contactFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -73,6 +76,17 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-pink-50">
+      <SEOHead
+        title="Contact & Support – Perfect Day Reset"
+        description="Have questions about your Perfect Day Reset journey? Contact our support team and we'll get back to you within 24 hours."
+        canonical="https://perfectdayreset.com/contact"
+        ogTitle="Contact & Support – Perfect Day Reset"
+        ogDescription="Get in touch with the Perfect Day Reset team for questions, technical support, or feedback."
+        ogImage="https://perfectdayreset.com/og-image.png"
+        twitterTitle="Contact Perfect Day Reset"
+        twitterDescription="We're here to help you succeed on your 24-hour reset journey."
+      />
+      <NavBar />
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-orange-500 to-pink-500 text-white py-20">
         <div className="container mx-auto px-6 text-center">
@@ -253,6 +267,7 @@ export default function Contact() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

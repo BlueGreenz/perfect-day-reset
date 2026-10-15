@@ -18,6 +18,7 @@ interface UserCredentials {
 
 export default function PaymentSuccess() {
   const [credentials, setCredentials] = useState<UserCredentials | null>(null);
+  const [pollingTimedOut, setPollingTimedOut] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState<{ username: boolean; password: boolean }>({ username: false, password: false });
   const [email, setEmail] = useState("");
@@ -51,33 +52,58 @@ export default function PaymentSuccess() {
     // Get payment intent ID from URL search params
     const urlParams = new URLSearchParams(window.location.search);
     const paymentIntentId = urlParams.get('payment_intent');
-    
-    if (paymentIntentId) {
-      // Fetch real user credentials from backend
-      const fetchCredentials = async () => {
-        try {
-          const response = await fetch(`/api/payment-success/${paymentIntentId}`);
-          if (response.ok) {
-            const data = await response.json();
+
+    if (!paymentIntentId) {
+      setPollingTimedOut(true);
+      return;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 12; // 12 attempts * 2000ms = 24 seconds
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const pollCredentials = async () => {
+      if (cancelled) return;
+      attempts += 1;
+
+      try {
+        const response = await fetch(`/api/payment-success/${paymentIntentId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (!cancelled) {
             setCredentials({
               username: data.username,
-              password: data.password || "Check your email for login details"
+              password: data.password || "Check your email for login details",
             });
-          } else {
-            throw new Error('Failed to fetch user credentials');
           }
-        } catch (error) {
-          console.error('Error fetching credentials:', error);
-          toast({
-            title: "Account Processing",
-            description: "Your account is being created. Please check your email for login details.",
-          });
+          return;
         }
-      };
-      
-      // Add delay to ensure webhook has processed
-      setTimeout(fetchCredentials, 2000);
-    }
+      } catch (error) {
+        console.error('Error fetching credentials:', error);
+      }
+
+      if (cancelled) return;
+
+      if (attempts < maxAttempts) {
+        timeoutId = setTimeout(pollCredentials, 2000);
+      } else {
+        setPollingTimedOut(true);
+        toast({
+          title: "Account Processing",
+          description: "Your account is still being finalized. Please check your email for your login details.",
+        });
+      }
+    };
+
+    timeoutId = setTimeout(pollCredentials, 2000);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [toast]);
 
   const generateDemoUsername = () => {
@@ -118,12 +144,12 @@ export default function PaymentSuccess() {
     }
   };
 
-  if (!credentials) {
+  if (!credentials && !pollingTimedOut) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-600">Processing your payment...</p>
+          <p className="text-gray-600">Processing your payment and setting up your account...</p>
         </div>
       </div>
     );
@@ -204,56 +230,72 @@ export default function PaymentSuccess() {
           <CardContent className="p-8">
             <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Your Login Credentials</h2>
             
-            <div className="space-y-6">
-              {/* Username */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 p-3 bg-gray-50 rounded-lg font-mono text-lg">
-                    {credentials.username}
+            {credentials ? (
+              <>
+                <div className="space-y-6">
+                  {/* Username */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 p-3 bg-gray-50 rounded-lg font-mono text-lg">
+                        {credentials.username}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(credentials.username, 'username')}
+                        className={copied.username ? 'bg-green-50 text-green-600' : ''}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(credentials.username, 'username')}
-                    className={copied.username ? 'bg-green-50 text-green-600' : ''}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+
+                  {/* Password */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 p-3 bg-gray-50 rounded-lg font-mono text-lg">
+                        {showPassword ? credentials.password : '••••••••••••'}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(credentials.password, 'password')}
+                        className={copied.password ? 'bg-green-50 text-green-600' : ''}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Important:</strong> Please save these credentials safely. You'll need them to access your Perfect Day Reset program.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="text-center space-y-4">
+                <div className="p-6 bg-blue-50 rounded-lg border border-blue-200 text-blue-900">
+                  <Mail className="h-8 w-8 text-blue-600 mx-auto mb-3" />
+                  <p className="font-semibold text-lg mb-2">
+                    Check Your Email for Your Login Details
+                  </p>
+                  <p className="text-sm text-blue-800 leading-relaxed">
+                    Your payment is confirmed and your account is being finalized. We've sent your username and password to your checkout email address. If you don't see it within a couple of minutes, please check your spam or promotions folder.
+                  </p>
                 </div>
               </div>
-
-              {/* Password */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 p-3 bg-gray-50 rounded-lg font-mono text-lg">
-                    {showPassword ? credentials.password : '••••••••••••'}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(credentials.password, 'password')}
-                    className={copied.password ? 'bg-green-50 text-green-600' : ''}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-              <p className="text-sm text-yellow-800">
-                <strong>Important:</strong> Please save these credentials safely. You'll need them to access your Perfect Day Reset program.
-              </p>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

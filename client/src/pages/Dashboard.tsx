@@ -148,6 +148,32 @@ export default function Dashboard() {
           </Card>
         </div>
 
+        {/* 4th Card/Banner: 7-Day Momentum & 2-Hour Workday Reset Toolkit */}
+        <Card className="bg-gradient-to-r from-slate-900 via-gray-900 to-slate-800 text-white border border-amber-400/40 shadow-xl mb-12 overflow-hidden">
+          <CardContent className="p-6 sm:p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div>
+              <div className="inline-flex items-center gap-1.5 bg-amber-400/20 text-amber-300 border border-amber-400/30 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-2.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                Post-Reset Sustainment &amp; Mid-Week Triage
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                7-Day Momentum &amp; 2-Hour Workday Reset Toolkit
+              </h3>
+              <p className="text-gray-300 text-sm sm:text-base max-w-2xl">
+                Access the interactive <strong>120-Minute Emergency Workday Reset Checklist</strong> for chaotic Tuesday/Wednesday schedules, the <strong>Executive Dining &amp; Travel Cheat Sheet</strong> across all 5 nutrition modes, and your <strong>7-Day Habit &amp; Energy Tracker</strong>.
+              </p>
+            </div>
+            <div className="flex-shrink-0 w-full sm:w-auto">
+              <Link href="/daily-reset-tracker" className="block w-full sm:w-auto">
+                <Button className="w-full sm:w-auto bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-bold px-7 py-6 rounded-full h-auto text-base shadow-lg">
+                  Open 7-Day &amp; 2-Hour Toolkit
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* PDF Download Section */}
         <Card className="bg-gradient-to-br from-emerald-50 to-blue-50 border-emerald-200 mb-12">
           <CardHeader className="text-center">

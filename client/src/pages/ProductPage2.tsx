@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowRight, ArrowDown, Clock, Coffee, Utensils, Pill, Sunrise, Wind, Heart, CheckCircle2, Youtube, Sun, TreePine, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import morningImage from "@assets/16x9_the_morning_sun_on_a_plant_fille.png";
+import morningImage from "@assets/16x9_the_morning_sun_on_a_plant_fille.webp";
 import { useCurrentReset, useCompleteItem, useSkipItem, useDelayItem } from "@/lib/reset-api";
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/queryClient";
@@ -22,6 +22,13 @@ export default function ProductPage2() {
   }, []);
   // This will come from the previous page in a real implementation
   const [selectedDiet, setSelectedDiet] = useState<string>("omni");
+
+  useEffect(() => {
+    const pref = currentReset?.resetRun?.foodPreference;
+    if (pref) {
+      setSelectedDiet(pref === "paleo" ? "gluten-free" : pref);
+    }
+  }, [currentReset?.resetRun?.foodPreference]);
   
   // Function to scroll to meal plan section
   const scrollToMealPlan = () => {

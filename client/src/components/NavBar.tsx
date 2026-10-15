@@ -1,24 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
-import { Menu, X, ChevronRight } from "lucide-react";
+import { Menu, X, ChevronRight, Sparkles } from "lucide-react";
 
 export default function NavBar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location] = useLocation();
-  
-  // Force white navbar for specific pages like what-you-get
-  const forceWhitePages = ['/what-you-get'];
+
+  const forceWhitePages = ["/what-you-get", "/quiz", "/checkout", "/about", "/contact"];
   const shouldForceWhite = forceWhitePages.includes(location);
 
   useEffect(() => {
-    // If we're on a page that should force white navbar, set scrolled to always true
     if (shouldForceWhite) {
       setScrolled(true);
       return;
     }
-    
+
     const handleScroll = () => {
       if (window.scrollY > 50) {
         setScrolled(true);
@@ -27,10 +25,10 @@ export default function NavBar() {
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    
+    window.addEventListener("scroll", handleScroll);
+
     return () => {
-      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener("scroll", handleScroll);
     };
   }, [shouldForceWhite]);
 
@@ -38,106 +36,108 @@ export default function NavBar() {
     setMobileMenuOpen(!mobileMenuOpen);
   };
 
-  const navItems = [
-    { label: "About", href: "/about" },
-    { label: "Journey", href: "#journey" },
-    { label: "Program", href: "#program" },
-    { label: "Contact", href: "/contact" }
-  ];
-
   return (
     <>
-      <nav 
+      <nav
         className={`
-          fixed w-full z-50 transition-all duration-300
-          ${scrolled || shouldForceWhite ? 'bg-white shadow-md py-1 md:py-2' : 'bg-white py-1 md:py-2'}
+          fixed w-full z-50 transition-all duration-300 bg-white
+          ${scrolled || shouldForceWhite ? "shadow-md py-1 md:py-2" : "shadow-sm py-1 md:py-2"}
         `}
       >
         <div className="container px-3 md:px-6 flex justify-between items-center">
           <Link href="/">
             <div className="flex items-center">
               <div className="flex items-center gap-2">
-                <img 
-                  src="/logo.png" 
-                  alt="Perfect Day Reset Logo" 
+                <img
+                  src="/logo.png"
+                  alt="Perfect Day Reset Logo"
                   className="h-10 md:h-12 rounded-lg"
-                  style={{ 
-                    background: "white", 
+                  style={{
+                    background: "white",
                     padding: "3px",
-                    imageRendering: "crisp-edges"
+                    imageRendering: "crisp-edges",
                   }}
                 />
               </div>
             </div>
           </Link>
-          
+
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link href="/about" className={`hover:text-primary transition-colors ${
-              scrolled || shouldForceWhite ? 'text-gray-700' : 'text-white'
-            }`}>
+          <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
+            <Link
+              href="/quiz"
+              className="inline-flex items-center gap-1.5 text-orange-600 hover:text-orange-700 font-semibold text-sm bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3.5 py-1.5 rounded-full transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Free 60s Diagnostic
+            </Link>
+
+            <Link
+              href="/about"
+              className="text-gray-700 hover:text-primary transition-colors font-medium"
+            >
               About
             </Link>
-            <Link href="/what-you-get" className={`hover:text-primary transition-colors ${
-              scrolled || shouldForceWhite ? 'text-gray-700' : 'text-white'
-            }`}>
+            <Link
+              href="/what-you-get"
+              className="text-gray-700 hover:text-primary transition-colors font-medium"
+            >
               How It Works
             </Link>
-            <Link href="/" className={`hover:text-primary transition-colors ${
-              scrolled || shouldForceWhite ? 'text-gray-700' : 'text-white'
-            }`} onClick={(e) => {
-              if (window.location.pathname === '/') {
-                e.preventDefault();
-                document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' });
-              } else {
-                setTimeout(() => {
-                  document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' });
-                }, 100);
-              }
-            }}>
+            <Link
+              href="/"
+              className="text-gray-700 hover:text-primary transition-colors font-medium"
+              onClick={(e) => {
+                if (window.location.pathname === "/") {
+                  e.preventDefault();
+                  document.getElementById("testimonials")?.scrollIntoView({ behavior: "smooth" });
+                } else {
+                  setTimeout(() => {
+                    document.getElementById("testimonials")?.scrollIntoView({ behavior: "smooth" });
+                  }, 100);
+                }
+              }}
+            >
               Testimonials
             </Link>
-            <Link href="/contact" className={`hover:text-primary transition-colors ${
-              scrolled || shouldForceWhite ? 'text-gray-700' : 'text-white'
-            }`}>
+            <Link
+              href="/contact"
+              className="text-gray-700 hover:text-primary transition-colors font-medium"
+            >
               Contact
             </Link>
-            
+
             <Link href="/login">
-              <Button 
+              <Button
                 variant="outline"
-                className={`font-medium px-4 py-2 rounded-full transition-all hover:scale-105 ${
-                  scrolled || shouldForceWhite 
-                    ? 'border-gray-300 text-gray-700 hover:bg-gray-50' 
-                    : 'border-white/30 text-white hover:bg-white/10'
-                }`}
+                className="font-medium px-4 py-2 rounded-full transition-all hover:scale-105 border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 Login
               </Button>
             </Link>
-            
-            <Link 
-              href="/what-you-get"
-            >
-              <Button 
-                className={`font-medium px-6 py-2 rounded-full transition-all hover:scale-105 ${
-                  scrolled || shouldForceWhite 
-                    ? 'bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white' 
-                    : 'bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border-white/30'
-                }`}
-              >
-                Start Now
+
+            <Link href="/checkout">
+              <Button className="font-medium px-6 py-2 rounded-full transition-all hover:scale-105 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white">
+                Start Now — $19
               </Button>
             </Link>
           </div>
-          
+
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center">
-            <Link 
-              href="/what-you-get"
-              className="mr-3"
-            >
-              <Button 
+          <div className="md:hidden flex items-center gap-2">
+            <Link href="/quiz">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100 h-8 px-2.5 text-xs font-semibold"
+              >
+                <Sparkles className="h-3 w-3 mr-1" />
+                Free Quiz
+              </Button>
+            </Link>
+
+            <Link href="/checkout">
+              <Button
                 variant="outline"
                 size="sm"
                 className="border-primary text-primary hover:bg-primary/10 h-8 px-2 text-xs font-medium"
@@ -145,30 +145,39 @@ export default function NavBar() {
                 $19
               </Button>
             </Link>
-            
+
             <button
               onClick={toggleMobileMenu}
+              aria-label="Toggle Menu"
               className="p-2 text-gray-700 rounded-md focus:outline-none"
             >
-              {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
       </nav>
-      
+
       {/* Mobile Menu */}
-      <div 
+      <div
         className={`
           fixed inset-0 z-40 bg-white pt-20 px-4 transition-transform duration-300 transform md:hidden
-          ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}
+          ${mobileMenuOpen ? "translate-x-0" : "translate-x-full"}
         `}
       >
-        <div className="flex flex-col space-y-6 py-8">
-          <Link 
+        <div className="flex flex-col space-y-5 py-6">
+          <Link
+            href="/quiz"
+            className="text-orange-600 hover:text-orange-700 text-xl font-bold py-2.5 px-4 bg-orange-50 rounded-xl flex items-center justify-between border border-orange-200"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <span className="inline-flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Free 60s Diagnostic
+            </span>
+            <ChevronRight className="h-5 w-5 text-orange-500" />
+          </Link>
+
+          <Link
             href="/about"
             className="text-gray-900 hover:text-primary text-xl font-medium py-2 flex items-center justify-between border-b border-gray-100"
             onClick={() => setMobileMenuOpen(false)}
@@ -176,8 +185,8 @@ export default function NavBar() {
             About
             <ChevronRight className="h-5 w-5 text-gray-400" />
           </Link>
-          
-          <Link 
+
+          <Link
             href="/what-you-get"
             className="text-gray-900 hover:text-primary text-xl font-medium py-2 flex items-center justify-between border-b border-gray-100"
             onClick={() => setMobileMenuOpen(false)}
@@ -185,18 +194,18 @@ export default function NavBar() {
             How It Works
             <ChevronRight className="h-5 w-5 text-gray-400" />
           </Link>
-          
-          <Link 
+
+          <Link
             href="/"
             className="text-gray-900 hover:text-primary text-xl font-medium py-2 flex items-center justify-between border-b border-gray-100"
             onClick={(e) => {
               setMobileMenuOpen(false);
-              if (window.location.pathname === '/') {
+              if (window.location.pathname === "/") {
                 e.preventDefault();
-                document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' });
+                document.getElementById("testimonials")?.scrollIntoView({ behavior: "smooth" });
               } else {
                 setTimeout(() => {
-                  document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' });
+                  document.getElementById("testimonials")?.scrollIntoView({ behavior: "smooth" });
                 }, 100);
               }
             }}
@@ -204,8 +213,8 @@ export default function NavBar() {
             Testimonials
             <ChevronRight className="h-5 w-5 text-gray-400" />
           </Link>
-          
-          <Link 
+
+          <Link
             href="/contact"
             className="text-gray-900 hover:text-primary text-xl font-medium py-2 flex items-center justify-between border-b border-gray-100"
             onClick={() => setMobileMenuOpen(false)}
@@ -213,30 +222,28 @@ export default function NavBar() {
             Contact
             <ChevronRight className="h-5 w-5 text-gray-400" />
           </Link>
-          
-          <div className="pt-6">
-            <Link 
+
+          <div className="pt-4">
+            <Link
               href="/login"
               className="w-full block mb-4"
               onClick={() => setMobileMenuOpen(false)}
             >
-              <Button 
+              <Button
                 variant="outline"
                 className="w-full border-primary text-primary hover:bg-primary/10 font-medium py-3 rounded-full transition-all"
               >
                 Login
               </Button>
             </Link>
-            
-            <Link 
-              href="/what-you-get"
+
+            <Link
+              href="/checkout"
               className="w-full block mt-4"
               onClick={() => setMobileMenuOpen(false)}
             >
-              <Button 
-                className="cta-button bg-primary text-white font-medium py-3 rounded-full hover:bg-green-600 transition-all w-full"
-              >
-                Get Started – $19
+              <Button className="cta-button bg-primary text-white font-medium py-3 rounded-full hover:bg-green-600 transition-all w-full">
+                Start My 24-Hour Reset – $19
               </Button>
             </Link>
           </div>

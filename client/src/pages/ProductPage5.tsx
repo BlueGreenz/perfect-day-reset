@@ -10,77 +10,166 @@ import {
 } from "@/components/ui/card";
 import PerfectDayResetPDF from "@/components/PerfectDayResetPDF";
 import CertificateOfCompletion from "@/components/CertificateOfCompletion";
-import { 
+import {
   ArrowRight,
   FileDown,
   Calendar,
-  Award,
   Sparkles,
   CheckCircle,
   Download,
   BookOpen,
   Phone,
   Music,
-  Clock,
-  MessageSquare,
   Share2,
   UserPlus,
-  Mail
+  Loader2,
 } from "lucide-react";
 import { Link } from "wouter";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import sunriseBackground from "@assets/16x9_A_vibrant_golden_sunrise_gradual.png";
+import sunriseBackground from "@assets/16x9_A_vibrant_golden_sunrise_gradual.webp";
+import {
+  useCurrentReset,
+  useResetEntries,
+  useSaveResetEntry,
+  useStartNextMorning,
+  useCompleteItem,
+} from "@/lib/reset-api";
+import { useToast } from "@/hooks/use-toast";
+
+interface ReflectionFields {
+  surprised: string;
+  phoneDetox: string;
+  mostAlive: string;
+  keepHabit: string;
+  sharePerson: string;
+}
 
 export default function ProductPage5() {
-  const [reflections, setReflections] = useState({
+  const { toast } = useToast();
+  const { data: currentReset } = useCurrentReset();
+  const { data: entriesData, isLoading: isLoadingEntries } = useResetEntries();
+  const saveResetEntry = useSaveResetEntry();
+  const startNextMorning = useStartNextMorning();
+  const completeItem = useCompleteItem();
+
+  const [reflections, setReflections] = useState<ReflectionFields>({
     surprised: "",
     phoneDetox: "",
     mostAlive: "",
     keepHabit: "",
-    sharePerson: ""
+    sharePerson: "",
   });
+  const [hasLoadedSavedReflections, setHasLoadedSavedReflections] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
+  useEffect(() => {
+    if (!entriesData?.entries || hasLoadedSavedReflections) return;
+    const eveningEntry =
+      entriesData.entries.find((e) => e.kind === "evening_reflection") ||
+      entriesData.entries.find((e) => e.kind === "next_morning_reflection");
 
-  const handleChange = (field: string, value: string) => {
-    setReflections(prev => ({
+    if (eveningEntry?.content) {
+      try {
+        const parsed = JSON.parse(eveningEntry.content);
+        if (parsed && typeof parsed === "object") {
+          setReflections({
+            surprised: parsed.surprised || "",
+            phoneDetox: parsed.phoneDetox || "",
+            mostAlive: parsed.mostAlive || "",
+            keepHabit: parsed.keepHabit || "",
+            sharePerson: parsed.sharePerson || "",
+          });
+        } else {
+          setReflections((prev) => ({ ...prev, surprised: eveningEntry.content }));
+        }
+      } catch {
+        setReflections((prev) => ({ ...prev, surprised: eveningEntry.content }));
+      }
+      setLastSavedAt(
+        new Date(eveningEntry.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+      setHasLoadedSavedReflections(true);
+    }
+  }, [entriesData, hasLoadedSavedReflections]);
+
+  const handleChange = (field: keyof ReflectionFields, value: string) => {
+    setReflections((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    // This would normally connect to a backend to save the email
-    setSubscribed(true);
+  const handleSaveReflections = async () => {
+    const hasAnyContent = Object.values(reflections).some((v) => v.trim().length > 0);
+    if (!hasAnyContent) {
+      toast({
+        title: "Write a reflection first",
+        description: "Please fill in at least one reflection prompt before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const payload = JSON.stringify(reflections);
+
+    try {
+      await saveResetEntry.mutateAsync({
+        kind: "evening_reflection",
+        content: payload,
+      });
+
+      // Also complete the Reset Run lifecycle if currently in sleep or next_morning
+      if (currentReset?.resetRun) {
+        let latestReset = currentReset;
+        if (latestReset.resetRun.status === "sleep") {
+          try {
+            latestReset = await startNextMorning.mutateAsync();
+          } catch {
+            // Ignore if already transitioned
+          }
+        }
+        if (latestReset.resetRun.status === "next_morning") {
+          try {
+            await saveResetEntry.mutateAsync({
+              kind: "next_morning_reflection",
+              content: payload,
+            });
+            const checkinItem = latestReset.items.find(
+              (i) => i.activityKey === "next_morning_checkin" && i.status === "active"
+            );
+            if (checkinItem) {
+              await completeItem.mutateAsync(checkinItem.id);
+            }
+          } catch {
+            // Non-fatal if already completed
+          }
+        }
+      }
+
+      const nowStr = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setLastSavedAt(nowStr);
+      toast({
+        title: "Reflections Saved!",
+        description: "Your closing reflections have been saved to your Perfect Day Reset journal.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Could not save reflections",
+        description:
+          err?.message || "Make sure you have started a Perfect Day Reset session first.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const downloadables = [
-    {
-      title: "The Perfect Day Reset PDF",
-      description: "Complete full-day guide with all activities, timelines, and instructions.",
-      icon: <CheckCircle className="h-6 w-6 text-primary" />
-    },
-    {
-      title: "Meal Plan Recipes PDF",
-      description: "Detailed recipes and shopping lists for all diet types.",
-      icon: <FileDown className="h-6 w-6 text-primary" />
-    },
-    {
-      title: "Phone Detox Wallpaper Pack",
-      description: "Inspiring quotes to use as lockscreen reminders for digital wellness.",
-      icon: <Phone className="h-6 w-6 text-primary" />
-    },
-    {
-      title: "Focus Playlist",
-      description: "Curated music to enhance concentration and flow states.",
-      icon: <Music className="h-6 w-6 text-primary" />
-    }
-  ];
+  const isSaving =
+    saveResetEntry.isPending || startNextMorning.isPending || completeItem.isPending;
 
   // Scroll to top when component mounts
   useEffect(() => {
@@ -119,6 +208,11 @@ export default function ProductPage5() {
             <p className="text-center text-gray-700 max-w-2xl mx-auto">
               Your mind changed today. Let's make it permanent.
             </p>
+            {lastSavedAt && (
+              <p className="text-center text-sm text-emerald-700 font-medium mt-2">
+                ✓ Saved to your Reset journal ({lastSavedAt})
+              </p>
+            )}
           </div>
           
           <div className="max-w-3xl mx-auto space-y-6">
@@ -130,6 +224,7 @@ export default function ProductPage5() {
                 <Textarea 
                   placeholder="I was surprised by..."
                   className="min-h-[100px]"
+                  disabled={isLoadingEntries}
                   value={reflections.surprised || ""}
                   onChange={(e) => handleChange('surprised', e.target.value)}
                 />
@@ -144,6 +239,7 @@ export default function ProductPage5() {
                 <Textarea 
                   placeholder="Without my phone, I felt..."
                   className="min-h-[100px]"
+                  disabled={isLoadingEntries}
                   value={reflections.phoneDetox || ""}
                   onChange={(e) => handleChange('phoneDetox', e.target.value)}
                 />
@@ -158,6 +254,7 @@ export default function ProductPage5() {
                 <Textarea 
                   placeholder="I felt most alive when..."
                   className="min-h-[100px]"
+                  disabled={isLoadingEntries}
                   value={reflections.mostAlive || ""}
                   onChange={(e) => handleChange('mostAlive', e.target.value)}
                 />
@@ -172,6 +269,7 @@ export default function ProductPage5() {
                 <Textarea 
                   placeholder="I want to keep..."
                   className="min-h-[100px]"
+                  disabled={isLoadingEntries}
                   value={reflections.keepHabit || ""}
                   onChange={(e) => handleChange('keepHabit', e.target.value)}
                 />
@@ -186,11 +284,12 @@ export default function ProductPage5() {
                 <Textarea 
                   placeholder="I think [name] would benefit because..."
                   className="min-h-[100px]"
+                  disabled={isLoadingEntries}
                   value={reflections.sharePerson || ""}
                   onChange={(e) => handleChange('sharePerson', e.target.value)}
                 />
               </CardContent>
-              <CardFooter className="flex justify-between">
+              <CardFooter className="flex flex-col sm:flex-row gap-3 justify-between">
                 <a 
                   href="/assets/reflection-journal.html" 
                   target="_blank" 
@@ -200,8 +299,17 @@ export default function ProductPage5() {
                     <Download className="h-4 w-4 mr-2" /> Download Reflection Journal (PDF)
                   </Button>
                 </a>
-                <Button>
-                  Save My Reflections <ArrowRight className="ml-2 h-4 w-4" />
+                <Button onClick={handleSaveReflections} disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      Save My Reflections <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               </CardFooter>
             </Card>
@@ -325,6 +433,74 @@ export default function ProductPage5() {
       {/* Momentum Section */}
       <section className="bg-primary/5">
         <div className="container max-w-4xl">
+          {/* Hour-24 Ascension Card */}
+          <Card className="mb-12 border-2 border-emerald-500 bg-gradient-to-br from-emerald-950 via-slate-900 to-teal-950 text-white shadow-xl overflow-hidden">
+            <CardContent className="p-6 md:p-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold uppercase tracking-wider mb-4">
+                <Sparkles className="h-3.5 w-3.5" />
+                Hour 24 Unlocked • Next Step
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
+                What Happens Tomorrow? Your Next 7 Days of Momentum
+              </h2>
+              <p className="text-emerald-100/90 text-base md:text-lg mb-6 max-w-2xl leading-relaxed">
+                Don't let your Hour-24 clarity fade when work starts tomorrow. Launch your interactive{" "}
+                <strong className="text-white">7-Day Momentum &amp; Emergency 2-Hour Workday Reset Toolkit</strong>{" "}
+                to lock in your habits, Rescue chaotic Tuesday/Wednesday workdays in 120 minutes, and use the Executive Dining-Out Cheat Sheet.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 text-sm">
+                <div className="bg-white/10 border border-white/10 rounded-lg p-3">
+                  <p className="font-semibold text-emerald-300 mb-0.5">⚡ 2-Hour Workday Triage</p>
+                  <p className="text-xs text-slate-200">8-step interactive checklist for chaotic workdays when you don't have 24 hours.</p>
+                </div>
+                <div className="bg-white/10 border border-white/10 rounded-lg p-3">
+                  <p className="font-semibold text-emerald-300 mb-0.5">🍽️ Executive Cheat Sheet</p>
+                  <p className="text-xs text-slate-200">Restaurant, airport &amp; back-to-back meeting protocols for all 5 diet tracks.</p>
+                </div>
+                <div className="bg-white/10 border border-white/10 rounded-lg p-3">
+                  <p className="font-semibold text-emerald-300 mb-0.5">📅 7-Day Habit Tracker</p>
+                  <p className="text-xs text-slate-200">Interactive + printable daily energy &amp; habit scorecard for the week ahead.</p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <Link href="/daily-reset-tracker">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold shadow-lg"
+                    data-testid="button-launch-momentum-toolkit"
+                  >
+                    Launch 7-Day Momentum &amp; 2-Hour Workday Toolkit
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => {
+                    const shareText = `I just completed the 24-Hour Perfect Day Reset and reclaimed my energy and focus! Check it out: ${window.location.origin}/quiz`;
+                    if (navigator.share) {
+                      navigator.share({
+                        title: "Perfect Day Reset - 24-Hour Protocol",
+                        text: shareText,
+                        url: `${window.location.origin}/quiz`,
+                      });
+                    } else {
+                      navigator.clipboard.writeText(shareText);
+                      toast({
+                        title: "Invite link copied!",
+                        description: "Share the 60-Second Reset Diagnostic Quiz with a friend.",
+                      });
+                    }
+                  }}
+                  className="border-emerald-400/50 bg-white/5 text-white hover:bg-white/15"
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share Reset with a Friend
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="section-heading">
             <h2>How to Keep the Momentum</h2>
             <p className="text-center text-gray-700 max-w-2xl mx-auto">
@@ -405,7 +581,10 @@ export default function ProductPage5() {
                     } else {
                       // Fallback for browsers without native sharing
                       navigator.clipboard.writeText(`I just completed the Perfect Day Reset and it was transformative! This 24-hour protocol combines mindful movement, digital detox, and energy optimization. Check it out: ${window.location.origin}`);
-                      alert('Link copied to clipboard! Share it with your friend.');
+                      toast({
+                        title: "Link copied to clipboard!",
+                        description: "Share it with a friend to invite them to the Reset.",
+                      });
                     }
                   }}
                   className="w-full bg-primary hover:bg-primary/90 text-white"
@@ -483,17 +662,31 @@ export default function ProductPage5() {
                       })
                       .then(response => {
                         if (response.ok) {
-                          alert('Thank you for subscribing to our newsletter!');
+                          toast({
+                            title: "Subscribed!",
+                            description: "Thank you for joining our transformation community.",
+                          });
                           emailInput.value = '';
                         } else if (response.status === 409) {
-                          alert('This email is already subscribed to our newsletter.');
+                          toast({
+                            title: "Already subscribed",
+                            description: "This email is already subscribed to our community updates.",
+                          });
                         } else {
-                          alert('There was an error subscribing to the newsletter. Please try again.');
+                          toast({
+                            title: "Subscription error",
+                            description: "There was an error subscribing. Please try again.",
+                            variant: "destructive",
+                          });
                         }
                       })
                       .catch(error => {
                         console.error('Error:', error);
-                        alert('There was an error subscribing to the newsletter. Please try again.');
+                        toast({
+                          title: "Subscription error",
+                          description: "There was an error subscribing. Please try again.",
+                          variant: "destructive",
+                        });
                       });
                     }
                   }}
