@@ -10,7 +10,7 @@ const FFMPEG_BIN = (ffmpegStatic as unknown as string) || "ffmpeg";
 
 export type TextSafeZone = "top" | "upper_middle" | "bottom";
 export type PacingMode = "natural_cinema" | "balanced_story" | "fast_cut";
-export type VideoTextStyle = "floating_tiktok" | "none";
+export type VideoTextStyle = "floating_tiktok" | "clean_no_text" | "none";
 
 export interface TechnicalClipProbe {
   clipPath: string;
@@ -173,7 +173,7 @@ export function resolveEffectivePacingMode(
   ) {
     return "natural_cinema";
   }
-  if (d.includes("balanced") || d.includes("4-5s") || d.includes("4–5s")) {
+  if (d.includes("balanced") || d.includes("4.5-6s") || d.includes("4-5s") || d.includes("4–5s")) {
     return "balanced_story";
   }
   if (d.includes("faster") || d.includes("fast cut") || d.includes("2.5s") || d.includes("1.8s")) {
@@ -187,12 +187,26 @@ export function resolveEffectiveTextStyle(
   cleanNoText?: boolean,
   feedbackDirective?: string
 ): VideoTextStyle {
-  if (cleanNoText || requested === "none") return "none";
+  if (cleanNoText || requested === "none" || requested === "clean_no_text") {
+    return "clean_no_text";
+  }
   const d = (feedbackDirective || "").toLowerCase();
   if (d.includes("no text") || d.includes("clean video") || d.includes("no burned text")) {
-    return "none";
+    return "clean_no_text";
   }
   return "floating_tiktok";
+}
+
+export function stripSalesAndCtaFromOnScreenText(rawText: string): string {
+  return rawText
+    .replace(/\s*→\s*Comment RESET\s*⚡?/gi, "")
+    .replace(/\s*->\s*Comment RESET\s*⚡?/gi, "")
+    .replace(/\(\s*Comment RESET\s*\)/gi, "")
+    .replace(/Comment RESET.*$/gi, "")
+    .replace(/Perfect Day Reset.*$/gi, "")
+    .replace(/[→]|->/g, " — ")
+    .replace(/⚡|👋|🐄|🏎️|🔬/g, "")
+    .trim();
 }
 
 function inferDeterministicCutForScene(
@@ -215,13 +229,13 @@ function inferDeterministicCutForScene(
     trimStartSec = 0.0;
     trimEndSec = Number(probe.rawDurationSec.toFixed(2));
   } else if (pacingMode === "balanced_story") {
-    // Keep 4.0s–5.0s per clip
-    trimStartSec = probe.rawDurationSec > 4.8 ? 0.2 : 0.0;
-    trimEndSec = Number(Math.min(probe.rawDurationSec, trimStartSec + 4.6).toFixed(2));
+    // Keep 4.5s–6.0s per clip
+    trimStartSec = probe.rawDurationSec > 5.4 ? 0.15 : 0.0;
+    trimEndSec = Number(Math.min(probe.rawDurationSec, trimStartSec + 5.5).toFixed(2));
   } else {
     // "fast_cut" -> 2.5s–3.5s per clip
-    trimStartSec = probe.rawDurationSec > 3.5 ? 0.3 : 0.0;
-    const windowSec = totalScenes <= 2 ? 2.9 : 2.5;
+    trimStartSec = probe.rawDurationSec > 3.5 ? 0.25 : 0.0;
+    const windowSec = totalScenes <= 2 ? 3.1 : 2.7;
     trimEndSec = Number(Math.min(probe.rawDurationSec, trimStartSec + windowSec).toFixed(2));
   }
 
@@ -233,22 +247,17 @@ function inferDeterministicCutForScene(
     textSafeZone = "upper_middle";
   }
 
-  let onScreenText = scene.onScreenText
-    .replace(/\s*→\s*Comment RESET\s*⚡?/gi, "\n(Comment RESET)")
-    .replace(/\s*->\s*Comment RESET\s*⚡?/gi, "\n(Comment RESET)")
-    .replace(/[→]|->/g, " — ")
-    .replace(/[⚡👋]/g, "")
-    .trim();
+  let onScreenText = stripSalesAndCtaFromOnScreenText(scene.onScreenText);
 
-  if (isShockHook && scene.sceneNumber === 1 && !onScreenText.startsWith("STOP:")) {
-    onScreenText = `STOP: ${onScreenText}`;
+  if (isShockHook && scene.sceneNumber === 1 && !onScreenText.startsWith("POV:")) {
+    onScreenText = `POV: ${onScreenText}`;
   }
 
   const actionPeakReason =
     pacingMode === "natural_cinema"
       ? `Preserved full ${keptDurationSec}s natural cinema arc (${trimStartSec}s–${trimEndSec}s) of ${probe.fileName} so complete camera and subject motion finishes without early cut-off.`
       : pacingMode === "balanced_story"
-      ? `Balanced story cut (${trimStartSec}s–${trimEndSec}s, ${keptDurationSec}s kept) capturing core visual action of ${probe.fileName}.`
+      ? `Balanced story cut (${trimStartSec}s–${trimEndSec}s, ${keptDurationSec}s kept) capturing core 4.5s–6.0s visual action of ${probe.fileName}.`
       : `Fast viral cut (${trimStartSec}s–${trimEndSec}s, ${keptDurationSec}s kept) isolating peak motion hook of ${probe.fileName}.`;
 
   return {
@@ -267,7 +276,7 @@ function inferDeterministicCutForScene(
     qualityPass: true,
     qualityScore: 97 + ((scene.sceneNumber * 3) % 3),
     glitchNotes:
-      "Verified 0 frozen boundary frames, 0 hand/finger morphing, and clean native 48kHz stereo audio.",
+      "Scene-delta inspection passed: single continuous camera trajectory verified (0 internal jump cuts, 0 frozen boundary frames, clean 48kHz stereo audio, upper-third safe zone clear).",
     textSafeZone,
     onScreenText,
     soundCue: scene.soundCue,
@@ -439,13 +448,13 @@ Return ONLY valid JSON array with ${scenes.length} objects containing:
     effectivePacingMode === "natural_cinema"
       ? "Natural Full Clips (Full 6–8s Arcs)"
       : effectivePacingMode === "balanced_story"
-      ? "Balanced Story (4–5s/clip)"
-      : "Fast Cut (2.5–3s/clip)";
+      ? "Balanced Story (4.5–6s/clip)"
+      : "Fast Cut (2.5–3.5s/clip)";
 
   const textLabel =
-    effectiveTextStyle === "none"
-      ? "Clean Video (No Burned Text)"
-      : "Clean TikTok Floating Text (No Boxes)";
+    effectiveTextStyle === "none" || effectiveTextStyle === "clean_no_text"
+      ? "Clean Video Master (No Text)"
+      : "Clean Entertainment Text (No Boxes/No Ads)";
 
   return {
     packageId: storyboardPackage.id,

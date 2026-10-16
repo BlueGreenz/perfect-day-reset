@@ -56,13 +56,17 @@ function escapeFfmpegFilterPath(filePath: string): string {
 }
 
 /**
- * Formats on-screen hook/payoff copy into max 2-3 compact lines for native TikTok/Reels
- * floating typography. Removes arrows (-> / →) and emojis so burned text is 100% clean.
+ * Formats on-screen entertainment hook/payoff copy into max 2-3 compact lines for native TikTok/Reels
+ * floating typography. Strips any accidental CTA ("Comment RESET"), arrows (-> / →), or emojis so
+ * burned text is 100% pure entertainment with zero ads.
  */
 function wrapTextLines(text: string, maxCharsPerLine = 38): string {
   const cleaned = text
-    .replace(/\s*→\s*Comment RESET\s*⚡?/gi, "\n(Comment RESET)")
-    .replace(/\s*->\s*Comment RESET\s*⚡?/gi, "\n(Comment RESET)")
+    .replace(/\s*→\s*Comment RESET\s*⚡?/gi, "")
+    .replace(/\s*->\s*Comment RESET\s*⚡?/gi, "")
+    .replace(/\(\s*Comment RESET\s*\)/gi, "")
+    .replace(/Comment RESET.*$/gi, "")
+    .replace(/Perfect Day Reset.*$/gi, "")
     .replace(/[→]|->/g, " ")
     .replace(/⚡|👋|🐄|🏎️|🔬/g, "")
     .replace(/—/g, " - ")
@@ -97,14 +101,14 @@ function wrapTextLines(text: string, maxCharsPerLine = 38): string {
 }
 
 /**
- * Upper safe zone (y=160..260) so floating text never covers faces, hands, oak desk, or balcony action
+ * Upper safe zone (y=185..235) so floating text never covers faces, hands, oak desk, or balcony action
  */
 function safeZoneYCoordinate(zone: TextSafeZone): number {
   switch (zone) {
     case "upper_middle":
       return 235;
     case "bottom":
-      return 250;
+      return 235;
     case "top":
     default:
       return 185;
@@ -132,7 +136,7 @@ export interface RenderedVideoArtifact {
 /**
  * Renders a 9:16 vertical (1080x1920) multi-scene H.264 + AAC MP4 video using FFmpeg
  * guided by the Multimodal AI Video Director's SceneCutPlan.
- * - Zero rectangular boxes, zero green footer bars, zero internal "SCENE X" labels.
+ * - Zero rectangular boxes, zero green footer bars, zero internal "SCENE X" labels, zero sales CTAs.
  * - Preserves full natural clip durations in "natural_cinema" mode (e.g. full 6s+6s=12s).
  * - Preserves and crossfades native 48kHz stereo audio from dropped Flow Ultra clips.
  */
@@ -151,6 +155,8 @@ export async function renderStoryVideoWithDirector(
     options.cleanNoText,
     options.feedbackDirective
   );
+  const isCleanNoText =
+    effectiveTextStyle === "none" || effectiveTextStyle === "clean_no_text";
 
   const shouldSwapOrder =
     Boolean(options.swapSceneOrder) ||
@@ -163,7 +169,7 @@ export async function renderStoryVideoWithDirector(
   const directorReport = await analyzeSceneClips(rawDropClips, pkg, {
     pacingMode: effectivePacingMode,
     textStyle: effectiveTextStyle,
-    cleanNoText: effectiveTextStyle === "none",
+    cleanNoText: isCleanNoText,
     swapSceneOrder: shouldSwapOrder,
     feedbackDirective: options.feedbackDirective,
   });
@@ -242,16 +248,19 @@ export async function renderStoryVideoWithDirector(
         vfSteps.push(`fade=t=out:st=${fadeOutStart}:d=0.18`);
       }
 
-      // Optional Clean TikTok/Reels Floating Typography (NO boxes, NO green banners, NO scene labels)
-      if (effectiveTextStyle !== "none" && cut.onScreenText.trim()) {
-        const bodyFile = path.join(tmpDir, `body-${i}.txt`);
-        fs.writeFileSync(bodyFile, wrapTextLines(cut.onScreenText, 38), "utf8");
-        const bodyPathEsc = escapeFfmpegFilterPath(bodyFile);
-        const textY = safeZoneYCoordinate(cut.textSafeZone);
+      // Optional Clean TikTok/Reels Floating Typography (NO boxes, NO green banners, NO scene labels, NO ads)
+      if (!isCleanNoText && cut.onScreenText.trim()) {
+        const wrappedBody = wrapTextLines(cut.onScreenText, 38);
+        if (wrappedBody) {
+          const bodyFile = path.join(tmpDir, `body-${i}.txt`);
+          fs.writeFileSync(bodyFile, wrappedBody, "utf8");
+          const bodyPathEsc = escapeFfmpegFilterPath(bodyFile);
+          const textY = safeZoneYCoordinate(cut.textSafeZone);
 
-        vfSteps.push(
-          `drawtext=${fontArg}textfile='${bodyPathEsc}':fontsize=40:fontcolor=white:borderw=3:bordercolor=black@0.85:shadowx=0:shadowy=2:shadowcolor=black@0.6:line_spacing=12:x=(w-text_w)/2:y=${textY}`
-        );
+          vfSteps.push(
+            `drawtext=${fontArg}textfile='${bodyPathEsc}':fontsize=38:fontcolor=white:borderw=3:bordercolor=black@0.9:shadowx=0:shadowy=2:shadowcolor=black@0.7:line_spacing=12:x=(w-text_w)/2:y=${textY}`
+          );
+        }
       }
 
       const vfChain = vfSteps.join(",");
@@ -471,11 +480,6 @@ let seedPromise: Promise<void> | null = null;
  * and populates agent_videos so the Approval Queue is immediately testable.
  */
 export async function ensureSampleAgentVideosSeeded(): Promise<AgentVideo[]> {
-  const existing = await storage.getAgentVideos();
-  if (existing.length >= 4) {
-    return existing;
-  }
-
   if (seedPromise) {
     await seedPromise;
     return storage.getAgentVideos();
@@ -515,12 +519,38 @@ export async function ensureSampleAgentVideosSeeded(): Promise<AgentVideo[]> {
     ];
 
     const currentVideos = await storage.getAgentVideos();
-    const existingPackageIds = new Set(currentVideos.map((v) => v.packageId));
+    const existingByPackageId = new Map<string, AgentVideo>();
+    for (const v of currentVideos) {
+      if (!existingByPackageId.has(v.packageId)) {
+        existingByPackageId.set(v.packageId, v);
+      }
+    }
 
     for (const cfg of sampleConfigs) {
-      if (existingPackageIds.has(cfg.packageId)) continue;
       const pkg = getFlowUltraPackageById(cfg.packageId);
       if (!pkg) continue;
+
+      const existingRow = existingByPackageId.get(cfg.packageId);
+      if (existingRow) {
+        if (
+          existingRow.hookText !== pkg.onScreenTextHook.hook0to3s ||
+          existingRow.caption !== pkg.caption ||
+          existingRow.title !== pkg.angleTitle
+        ) {
+          const clips = cfg.useWatchClips ? discoverWatchFolderClips() : [];
+          const freshReport = await analyzeSceneClips(clips, pkg, {
+            pacingMode: "natural_cinema",
+            textStyle: "floating_tiktok",
+          });
+          await storage.updateAgentVideo(existingRow.id, {
+            title: pkg.angleTitle,
+            caption: pkg.caption,
+            hookText: pkg.onScreenTextHook.hook0to3s,
+            directorReport: JSON.stringify(freshReport),
+          });
+        }
+        continue;
+      }
 
       const outFile = path.resolve(
         process.cwd(),

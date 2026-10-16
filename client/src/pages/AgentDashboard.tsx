@@ -37,8 +37,24 @@ interface FlowUltraScene {
   timeRange: string;
   shotType: string;
   flowUltraPrompt: string;
+  whatWeWant: string;
+  whatWeDontWant: string;
+  negativePrompt: string;
   onScreenText: string;
   soundCue: string;
+}
+
+interface FlowSceneBible {
+  cast: string;
+  wardrobe: string;
+  lens: string;
+  lightDirection: string;
+}
+
+interface FlowCaptionParts {
+  hookContinuation: string;
+  educationalBridge: string;
+  committedCta: string;
 }
 
 interface FlowUltraPackage {
@@ -54,6 +70,8 @@ interface FlowUltraPackage {
   psychologicalAngle: string;
   aspectRatio: string;
   cameraSpec: string;
+  sceneBible: FlowSceneBible;
+  flowAgentPrompt: string;
   flowUltraPrompt: string;
   scenes: FlowUltraScene[];
   onScreenTextHook: {
@@ -61,6 +79,7 @@ interface FlowUltraPackage {
     payoff3to8s: string;
     ctaEndCard: string;
   };
+  captionParts: FlowCaptionParts;
   caption: string;
   commentAutoReply: string;
   dmOpeningMessage: string;
@@ -68,6 +87,7 @@ interface FlowUltraPackage {
 
 interface FlowUltraBatchResponse {
   totalPackages: number;
+  flowAgentConstitution: string;
   productionSpecs: {
     model: string;
     aspectRatio: string;
@@ -197,9 +217,10 @@ export default function AgentDashboard() {
   const [pacingMode, setPacingMode] = useState<
     "natural_cinema" | "balanced_story" | "fast_cut"
   >("natural_cinema");
-  const [textStyle, setTextStyle] = useState<"floating_tiktok" | "none">(
+  const [textStyle, setTextStyle] = useState<"floating_tiktok" | "clean_no_text" | "none">(
     "floating_tiktok"
   );
+  const [showConstitution, setShowConstitution] = useState<boolean>(false);
   const [expandedReports, setExpandedReports] = useState<Record<number, boolean>>({});
   const [renderingPackageId, setRenderingPackageId] = useState<string | null>(null);
 
@@ -270,17 +291,20 @@ export default function AgentDashboard() {
     mutationFn: async (payload: {
       packageId: string;
       pacingMode?: "natural_cinema" | "balanced_story" | "fast_cut";
-      textStyle?: "floating_tiktok" | "none";
+      textStyle?: "floating_tiktok" | "clean_no_text" | "none";
       cleanNoText?: boolean;
       swapSceneOrder?: boolean;
       feedbackDirective?: string;
     }) => {
       setRenderingPackageId(payload.packageId);
+      const effectiveStyle = payload.textStyle ?? textStyle;
       const res = await apiRequest("POST", "/api/agent/videos/generate", {
         packageId: payload.packageId,
         pacingMode: payload.pacingMode ?? pacingMode,
-        textStyle: payload.textStyle ?? textStyle,
-        cleanNoText: payload.cleanNoText ?? textStyle === "none",
+        textStyle: effectiveStyle,
+        cleanNoText:
+          payload.cleanNoText ??
+          (effectiveStyle === "none" || effectiveStyle === "clean_no_text"),
         swapSceneOrder: payload.swapSceneOrder,
         feedbackDirective: payload.feedbackDirective,
       });
@@ -313,17 +337,20 @@ export default function AgentDashboard() {
       declineReason?: string;
       regenerate?: boolean;
       pacingMode?: "natural_cinema" | "balanced_story" | "fast_cut";
-      textStyle?: "floating_tiktok" | "none";
+      textStyle?: "floating_tiktok" | "clean_no_text" | "none";
       cleanNoText?: boolean;
       swapSceneOrder?: boolean;
     }) => {
+      const effectiveStyle = payload.textStyle ?? textStyle;
       const res = await apiRequest("POST", `/api/agent/videos/${payload.id}/review`, {
         action: payload.action,
         declineReason: payload.declineReason,
         regenerate: payload.regenerate,
         pacingMode: payload.pacingMode ?? pacingMode,
-        textStyle: payload.textStyle ?? textStyle,
-        cleanNoText: payload.cleanNoText ?? (payload.textStyle || textStyle) === "none",
+        textStyle: effectiveStyle,
+        cleanNoText:
+          payload.cleanNoText ??
+          (effectiveStyle === "none" || effectiveStyle === "clean_no_text"),
         swapSceneOrder: payload.swapSceneOrder,
       });
       return res.json();
@@ -510,7 +537,7 @@ export default function AgentDashboard() {
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Purple Cow Multi-Scene Storyboards • AI Video Director &amp; FFmpeg Editor • Approval Queue • Two-Way DM/Email Closer
+                3-Layer Viral Funnel (100% Entertain → Educate → Convert) • Official Veo 3.1 6-Block Syntax • AI Video Director &amp; FFmpeg Editor
               </p>
             </div>
           </div>
@@ -613,18 +640,36 @@ export default function AgentDashboard() {
         ============================================================ */}
         {activeTab === "flow-ultra" && (
           <div className="space-y-6">
-            <div className="bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-2xl p-6">
+            <div className="bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-2xl p-6 space-y-5">
+              {/* 3-Layer Viral Funnel Badge */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  3-Layer Viral Funnel:
+                </span>
+                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-800/90 text-white border border-slate-700">
+                  1. Video = 100% Entertain (Zero Ads / Zero CTA on Screen)
+                </span>
+                <span className="text-slate-500 font-bold">→</span>
+                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-800/90 text-sky-300 border border-slate-700">
+                  2. Caption = Educate (BMW Story + Physiology Bridge)
+                </span>
+                <span className="text-slate-500 font-bold">→</span>
+                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  3. Comment RESET = Convert (ManyChat Auto-DM)
+                </span>
+              </div>
+
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1">
                     <Film className="w-3.5 h-3.5" />
-                    Google Flow Ultra (Veo 3.1) Multi-Scene Storyboard Engine
+                    Google Flow Ultra (Veo 3.1) 6-Block Single-Shot Storyboard Engine
                   </span>
                   <h2 className="text-xl sm:text-2xl font-bold text-white">
-                    12 Scroll-Stopping Viral Storyboards: Purple Cow Loops &amp; BMW Trojan Horse Narratives
+                    12 Scroll-Stopping Viral Storyboards: Dark Corporate Comedy &amp; BMW Trojan Horse Stories
                   </h2>
                   <p className="text-sm text-slate-300 mt-1 max-w-3xl">
-                    Built on 4 high-retention viral architectures: <strong>Purple Cow Visual Anomaly Loops (6–8s)</strong>, <strong>BMW Trojan Horse 5-Scene Narratives (26–28s)</strong>, <strong>A/B Split-Timeline Experiments (24–25s)</strong>, and <strong>Forensic Curiosity Hooks (19–22s)</strong>. Click <strong>Render Video with AI Director</strong> on any storyboard to run the Multimodal Clip Analyzer + FFmpeg Viral Editor.
+                    Every shot uses the official <strong>6-Block Veo 3.1 Prompt Syntax</strong> front-loaded with <code>One continuous unbroken 9:16 vertical shot, no cuts.</code>, zero quotation marks <code>""</code> to prevent hallucinated text, and upper-third safe-zone headroom.
                   </p>
                 </div>
 
@@ -660,8 +705,71 @@ export default function AgentDashboard() {
                 </div>
               </div>
 
+              {/* 1-Click Google Flow Built-In Agent Constitution Banner */}
+              {flowBatch?.flowAgentConstitution && (
+                <div className="bg-slate-950/95 border border-emerald-500/40 rounded-xl p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[11px] font-bold uppercase tracking-wider">
+                          Step 0 • Paste Once into Google Flow
+                        </span>
+                        <h3 className="text-sm font-bold text-white">
+                          Google Flow Built-In Agent Constitution (5 Veo 3.1 Single-Shot &amp; Safe-Zone Rules)
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Copy and paste this instruction block into Google Flow&apos;s Agent / System Instructions panel so every generated clip obeys Scene Bible continuity, single-action physics, and upper-third caption headroom.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowConstitution((prev) => !prev)}
+                        className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition"
+                      >
+                        {showConstitution ? (
+                          <>
+                            <ChevronUp className="w-3.5 h-3.5" />
+                            Hide Rules
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="w-3.5 h-3.5" />
+                            Preview 5 Rules
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyToClipboard(
+                            flowBatch.flowAgentConstitution,
+                            "flow-agent-constitution",
+                            "Google Flow Built-In Agent Constitution"
+                          )
+                        }
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow transition"
+                      >
+                        {copiedKey === "flow-agent-constitution" ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                        Copy Google Flow Agent Constitution
+                      </button>
+                    </div>
+                  </div>
+                  {showConstitution && (
+                    <pre className="text-xs text-slate-200 font-mono bg-slate-900/90 border border-slate-800 rounded-lg p-3.5 whitespace-pre-wrap leading-relaxed">
+                      {flowBatch.flowAgentConstitution}
+                    </pre>
+                  )}
+                </div>
+              )}
+
               {/* Viral Format Filter Pills */}
-              <div className="flex flex-wrap items-center gap-2 mt-5 pt-4 border-t border-slate-800">
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
                   Viral Format:
                 </span>
@@ -688,7 +796,7 @@ export default function AgentDashboard() {
               </div>
 
               {/* Archetype Filter Pills */}
-              <div className="flex flex-wrap items-center gap-2 mt-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
                   Archetype:
                 </span>
@@ -715,7 +823,7 @@ export default function AgentDashboard() {
               </div>
 
               {/* Pacing Mode & Text Style Controls */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-800">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-4 border-t border-slate-800">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mr-1">
                     Pacing Mode:
@@ -723,15 +831,15 @@ export default function AgentDashboard() {
                   {[
                     {
                       id: "natural_cinema" as const,
-                      label: "Natural Full Clips (Keep Full 6–8s Arcs)",
+                      label: "Natural Full Clips [Default] (Full 6–8s Arcs)",
                     },
                     {
                       id: "balanced_story" as const,
-                      label: "Balanced (4–5s/clip)",
+                      label: "Balanced (4.5–6s/clip)",
                     },
                     {
                       id: "fast_cut" as const,
-                      label: "Fast Cut (2.5s/clip)",
+                      label: "Fast Cut (2.5–3.5s/clip)",
                     },
                   ].map((pm) => (
                     <button
@@ -756,11 +864,11 @@ export default function AgentDashboard() {
                   {[
                     {
                       id: "floating_tiktok" as const,
-                      label: "Clean TikTok Floating Text (No Boxes)",
+                      label: "Clean Entertainment Text [No Boxes/No Ads]",
                     },
                     {
-                      id: "none" as const,
-                      label: "No Burned Text (Clean Video Only)",
+                      id: "clean_no_text" as const,
+                      label: "Clean Video Master [No Text]",
                     },
                   ].map((ts) => (
                     <button
@@ -768,7 +876,8 @@ export default function AgentDashboard() {
                       type="button"
                       onClick={() => setTextStyle(ts.id)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                        textStyle === ts.id
+                        textStyle === ts.id ||
+                        (ts.id === "clean_no_text" && textStyle === "none")
                           ? "bg-sky-400 text-slate-950 shadow"
                           : "bg-slate-800 text-slate-300 hover:bg-slate-700"
                       }`}
@@ -815,6 +924,27 @@ export default function AgentDashboard() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        {pkg.flowAgentPrompt && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copyToClipboard(
+                                pkg.flowAgentPrompt,
+                                `${pkg.id}-flow-agent-master`,
+                                "Flow Agent Master Brief (Scene Bible + All Shot Cards)"
+                              )
+                            }
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold border border-amber-500/40 transition"
+                          >
+                            {copiedKey === `${pkg.id}-flow-agent-master` ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                            Copy Flow Agent Master Prompt
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() =>
@@ -822,7 +952,7 @@ export default function AgentDashboard() {
                               (pkg.scenes || [])
                                 .map(
                                   (s) =>
-                                    `=== SCENE ${s.sceneNumber} (${s.timeRange} • ${s.shotType}) ===\nPrompt: ${s.flowUltraPrompt}\nOn-Screen Text: ${s.onScreenText}\nSound Cue: ${s.soundCue}`
+                                    `=== SCENE ${s.sceneNumber} (${s.timeRange} • ${s.shotType}) ===\n6-Block Veo 3.1 Prompt: ${s.flowUltraPrompt}\nWhat We Want: ${s.whatWeWant}\nWhat We Don't Want: ${s.whatWeDontWant}\nEntertainment On-Screen Text: ${s.onScreenText}\nSound Cue: ${s.soundCue}`
                                 )
                                 .join("\n\n"),
                               `${pkg.id}-all-scenes`,
@@ -865,11 +995,41 @@ export default function AgentDashboard() {
                       </div>
                     </div>
 
+                    {/* Scene Bible Continuity Strip */}
+                    {pkg.sceneBible && (
+                      <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                        <div>
+                          <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                            Scene Bible • Cast
+                          </span>
+                          <span className="text-slate-200">{pkg.sceneBible.cast}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                            Wardrobe Anchor
+                          </span>
+                          <span className="text-slate-200">{pkg.sceneBible.wardrobe}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                            Camera &amp; Lens Lock
+                          </span>
+                          <span className="text-slate-200">{pkg.sceneBible.lens}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                            Lighting &amp; Grade Lock
+                          </span>
+                          <span className="text-slate-200">{pkg.sceneBible.lightDirection}</span>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Scene-by-Scene Cut Sheet */}
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-                          Scene-by-Scene Google Flow Ultra (Veo 3.1) Cut Sheet ({pkg.scenes?.length || 0} Shots)
+                          Scene-by-Scene Google Flow Ultra (Veo 3.1) 6-Block Cut Sheet ({pkg.scenes?.length || 0} Unbroken Shots)
                         </span>
                         <span className="text-[11px] text-slate-400">
                           {pkg.cameraSpec}
@@ -901,7 +1061,7 @@ export default function AgentDashboard() {
                                     copyToClipboard(
                                       scene.flowUltraPrompt,
                                       `${pkg.id}-scene-${scene.sceneNumber}`,
-                                      `Scene ${scene.sceneNumber} Flow Ultra Prompt`
+                                      `Scene ${scene.sceneNumber} 6-Block Veo 3.1 Prompt`
                                     )
                                   }
                                   className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 shrink-0"
@@ -911,7 +1071,7 @@ export default function AgentDashboard() {
                                   ) : (
                                     <Copy className="w-3.5 h-3.5" />
                                   )}
-                                  Copy Prompt
+                                  Copy 6-Block Prompt
                                 </button>
                               </div>
 
@@ -920,13 +1080,29 @@ export default function AgentDashboard() {
                               </p>
                             </div>
 
-                            <div className="pt-2.5 border-t border-slate-800/80 space-y-1 text-xs">
+                            <div className="pt-2.5 border-t border-slate-800/80 space-y-1.5 text-xs">
                               <p className="text-white">
                                 <span className="text-amber-400 font-semibold">
-                                  On-Screen Text:
+                                  🎭 Entertainment On-Screen Text (Zero Ads):
                                 </span>{" "}
                                 “{scene.onScreenText}”
                               </p>
+                              {scene.whatWeWant && (
+                                <p className="text-emerald-300/90">
+                                  <span className="font-semibold text-emerald-400">
+                                    ✅ What We Want (Single Continuous Shot):
+                                  </span>{" "}
+                                  {scene.whatWeWant}
+                                </p>
+                              )}
+                              {scene.whatWeDontWant && (
+                                <p className="text-rose-300/90">
+                                  <span className="font-semibold text-rose-400">
+                                    🚫 What We Don&apos;t Want (Negative Prompt):
+                                  </span>{" "}
+                                  {scene.whatWeDontWant}
+                                </p>
+                              )}
                               <p className="text-slate-400">
                                 <span className="text-sky-400 font-semibold">
                                   Audio / SFX Cue:
@@ -939,12 +1115,12 @@ export default function AgentDashboard() {
                       </div>
                     </div>
 
-                    {/* Founder Caption & DM Closer */}
+                    {/* 3-Layer Caption Breakdown & Auto-DM Closer */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-2 border-t border-slate-800">
-                      <div className="lg:col-span-8 bg-slate-950/90 border border-slate-800 rounded-xl p-3.5">
-                        <div className="flex items-center justify-between mb-1">
+                      <div className="lg:col-span-8 bg-slate-950/90 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                        <div className="flex items-center justify-between">
                           <span className="text-[11px] font-bold uppercase tracking-wider text-sky-400">
-                            Founder-Voice Caption (Ends with “Comment RESET”)
+                            Layer 2 &amp; 3: Educate &amp; Convert Caption (Ends with “Comment RESET”)
                           </span>
                           <button
                             type="button"
@@ -952,7 +1128,7 @@ export default function AgentDashboard() {
                               copyToClipboard(
                                 pkg.caption,
                                 `${pkg.id}-caption`,
-                                "Caption"
+                                "3-Layer Viral Caption"
                               )
                             }
                             className="inline-flex items-center gap-1 text-xs font-semibold text-sky-400 hover:text-sky-300"
@@ -962,12 +1138,36 @@ export default function AgentDashboard() {
                             ) : (
                               <Copy className="w-3.5 h-3.5" />
                             )}
-                            Copy Caption
+                            Copy Full Caption
                           </button>
                         </div>
-                        <p className="text-xs text-slate-300 leading-relaxed">
-                          {pkg.caption}
-                        </p>
+
+                        {pkg.captionParts ? (
+                          <div className="space-y-1.5 text-xs">
+                            <p className="text-slate-200">
+                              <span className="font-bold text-amber-300">
+                                1. Hook Continuation:
+                              </span>{" "}
+                              {pkg.captionParts.hookContinuation}
+                            </p>
+                            <p className="text-slate-300">
+                              <span className="font-bold text-sky-300">
+                                2. Educational Bridge (BMW Story + Physiology):
+                              </span>{" "}
+                              {pkg.captionParts.educationalBridge}
+                            </p>
+                            <p className="text-emerald-300 font-medium">
+                              <span className="font-bold text-emerald-400">
+                                3. Committed CTA:
+                              </span>{" "}
+                              {pkg.captionParts.committedCta}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line">
+                            {pkg.caption}
+                          </p>
+                        )}
                       </div>
 
                       <div className="lg:col-span-4 bg-slate-950/90 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between">
@@ -1025,7 +1225,7 @@ export default function AgentDashboard() {
                     Human-in-the-Loop Video Approval Queue ({pendingVideos.length} Pending Review • {approvedVideos.length} Approved)
                   </h2>
                   <p className="text-sm text-slate-300 mt-1 max-w-3xl">
-                    Preserves full natural 6–8s Google Flow Ultra clip arcs (`pacingMode: "natural_cinema"`), native 48kHz stereo audio with smooth crossfades, and clean floating TikTok/Reels typography with zero ugly boxes or footer banners.
+                    Preserves full natural 6–8s Google Flow Ultra clip arcs (<code>pacingMode: &quot;natural_cinema&quot;</code>), native 48kHz stereo audio with smooth crossfades, and 100% entertainment-only floating typography in the upper safe zone with zero ads or boxes.
                   </p>
                 </div>
 
@@ -1038,7 +1238,8 @@ export default function AgentDashboard() {
                         packageId: "cortisol-1-ocean-desk-purple-cow",
                         pacingMode,
                         textStyle,
-                        cleanNoText: textStyle === "none",
+                        cleanNoText:
+                          textStyle === "none" || textStyle === "clean_no_text",
                       })
                     }
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition disabled:opacity-50"
@@ -1067,15 +1268,15 @@ export default function AgentDashboard() {
                   {[
                     {
                       id: "natural_cinema" as const,
-                      label: "Natural Full Clips (Keep Full 6–8s Arcs)",
+                      label: "Natural Full Clips [Default] (Full 6–8s Arcs)",
                     },
                     {
                       id: "balanced_story" as const,
-                      label: "Balanced (4–5s/clip)",
+                      label: "Balanced (4.5–6s/clip)",
                     },
                     {
                       id: "fast_cut" as const,
-                      label: "Fast Cut (2.5s/clip)",
+                      label: "Fast Cut (2.5–3.5s/clip)",
                     },
                   ].map((pm) => (
                     <button
@@ -1100,11 +1301,11 @@ export default function AgentDashboard() {
                   {[
                     {
                       id: "floating_tiktok" as const,
-                      label: "Clean TikTok Floating Text (No Boxes)",
+                      label: "Clean Entertainment Text [No Boxes/No Ads]",
                     },
                     {
-                      id: "none" as const,
-                      label: "No Burned Text (Clean Video Only)",
+                      id: "clean_no_text" as const,
+                      label: "Clean Video Master [No Text]",
                     },
                   ].map((ts) => (
                     <button
@@ -1112,7 +1313,8 @@ export default function AgentDashboard() {
                       type="button"
                       onClick={() => setTextStyle(ts.id)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                        textStyle === ts.id
+                        textStyle === ts.id ||
+                        (ts.id === "clean_no_text" && textStyle === "none")
                           ? "bg-sky-400 text-slate-950 shadow"
                           : "bg-slate-800 text-slate-300 hover:bg-slate-700"
                       }`}
