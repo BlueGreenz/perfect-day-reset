@@ -31,7 +31,11 @@ import {
   sendNextNurtureEmailForLead,
 } from "./agent/email-nurture";
 import { generateAutonomousReply } from "./agent/reply-agent";
-import { getFlowUltraBatch } from "./agent/flow-ultra-factory";
+import { getFlowUltraBatch, getFlowUltraPackageById, FLOW_ULTRA_PACKAGES } from "./agent/flow-ultra-factory";
+import {
+  ensureSampleAgentVideosSeeded,
+  renderStoryVideoWithDirector,
+} from "./agent/video-renderer";
 
 if (!process.env.STRIPE_SECRET_KEY && process.env.NODE_ENV === "production") {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -1571,8 +1575,197 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Google Flow Ultra 9:16 Viral Video Prompt & Hook Batch Endpoint
   app.get("/api/agent/flow-ultra-batch", (req, res) => {
     const archetype = req.query.archetype ? String(req.query.archetype) : undefined;
-    const batch = getFlowUltraBatch(archetype);
+    const viralFormat = req.query.viralFormat ? String(req.query.viralFormat) : undefined;
+    const batch = getFlowUltraBatch(archetype, viralFormat);
     return res.status(200).json(batch);
+  });
+
+  // AI Video Director & Approval Queue Endpoints
+  app.get("/api/agent/videos", async (_req, res) => {
+    try {
+      const videos = await ensureSampleAgentVideosSeeded();
+      return res.status(200).json({ videos });
+    } catch (error: any) {
+      console.error("Error in GET /api/agent/videos:", error);
+      return res.status(500).json({ message: "Failed to load agent video queue", error: error?.message });
+    }
+  });
+
+  app.post("/api/agent/videos/generate", async (req, res) => {
+    try {
+      const packageId = String(req.body?.packageId || FLOW_ULTRA_PACKAGES[0].id);
+      const feedbackDirective = req.body?.feedbackDirective
+        ? String(req.body.feedbackDirective)
+        : undefined;
+
+      const pkg = getFlowUltraPackageById(packageId) || FLOW_ULTRA_PACKAGES[0];
+      const rendered = await renderStoryVideoWithDirector({
+        packageId: pkg.id,
+        feedbackDirective,
+      });
+
+      const created = await storage.createAgentVideo({
+        packageId: pkg.id,
+        title: pkg.angleTitle,
+        archetypeId: pkg.archetypeId,
+        viralFormat: pkg.viralFormat,
+        status: "pending_review",
+        videoUrl: rendered.videoUrl,
+        caption: pkg.caption,
+        hookText: pkg.onScreenTextHook.hook0to3s,
+        directorReport: JSON.stringify(rendered.directorReport),
+        declineReason: null,
+      });
+
+      return res.status(201).json({
+        success: true,
+        video: created,
+        directorReport: rendered.directorReport,
+      });
+    } catch (error: any) {
+      console.error("Error in POST /api/agent/videos/generate:", error);
+      return res.status(500).json({
+        message: "Failed to analyze and render video with AI Director",
+        error: error?.message,
+      });
+    }
+  });
+
+  app.post("/api/agent/videos/:id/review", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid video ID" });
+      }
+
+      const existing = await storage.getAgentVideoById(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+
+      const action = req.body?.action === "approve" ? "approve" : "decline";
+      const declineReason = req.body?.declineReason ? String(req.body.declineReason) : null;
+      const regenerate = Boolean(req.body?.regenerate);
+
+      if (action === "approve") {
+        const updated = await storage.updateAgentVideo(id, {
+          status: "approved",
+          declineReason: null,
+        });
+        return res.status(200).json({
+          success: true,
+          action: "approved",
+          video: updated,
+        });
+      }
+
+      // If declined and regenerate=true, re-run AI Video Director + FFmpeg Assembler with the declineReason directive
+      if (regenerate) {
+        const pkg = getFlowUltraPackageById(existing.packageId) || FLOW_ULTRA_PACKAGES[0];
+        const rendered = await renderStoryVideoWithDirector({
+          packageId: pkg.id,
+          feedbackDirective: declineReason || "Cut Faster & Tighten Hook",
+        });
+
+        const updated = await storage.updateAgentVideo(id, {
+          status: "pending_review",
+          videoUrl: rendered.videoUrl,
+          directorReport: JSON.stringify(rendered.directorReport),
+          declineReason,
+        });
+
+        return res.status(200).json({
+          success: true,
+          action: "regenerated",
+          video: updated,
+          directorReport: rendered.directorReport,
+        });
+      }
+
+      const updated = await storage.updateAgentVideo(id, {
+        status: "declined",
+        declineReason,
+      });
+
+      return res.status(200).json({
+        success: true,
+        action: "declined",
+        video: updated,
+      });
+    } catch (error: any) {
+      console.error("Error in POST /api/agent/videos/:id/review:", error);
+      return res.status(500).json({
+        message: "Failed to review or re-cut video",
+        error: error?.message,
+      });
+    }
+  });
+
+  app.post("/api/agent/videos/:id/publish", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid video ID" });
+      }
+
+      const existing = await storage.getAgentVideoById(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+
+      let webhookDispatched = false;
+      const webhookUrl = process.env.SOCIAL_AUTOPOST_WEBHOOK_URL;
+      if (webhookUrl) {
+        try {
+          const resp = await fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              videoId: existing.id,
+              packageId: existing.packageId,
+              title: existing.title,
+              videoUrl: `https://perfectdayreset.com${existing.videoUrl}`,
+              caption: existing.caption,
+              hookText: existing.hookText,
+              ctaKeyword: "RESET",
+            }),
+          });
+          webhookDispatched = resp.ok;
+        } catch (err) {
+          console.warn("Non-fatal auto-post webhook warning:", err);
+        }
+      }
+
+      const updated = await storage.updateAgentVideo(id, {
+        status: "published",
+      });
+
+      await storage.createAgentInteraction({
+        channel: "comment_reply",
+        senderIdentifier: "social_autoposter",
+        inboundMessage: `Publish approved video #${existing.id}: ${existing.title}`,
+        agentReply: webhookDispatched
+          ? `Dispatched 9:16 MP4 (${existing.videoUrl}) + caption to SOCIAL_AUTOPOST_WEBHOOK_URL.`
+          : `Marked video #${existing.id} (${existing.videoUrl}) as Published (ready for Make.com / Postiz webhook or manual upload).`,
+        metadata: JSON.stringify({
+          videoId: existing.id,
+          videoUrl: existing.videoUrl,
+          webhookDispatched,
+        }),
+      });
+
+      return res.status(200).json({
+        success: true,
+        webhookDispatched,
+        video: updated,
+      });
+    } catch (error: any) {
+      console.error("Error in POST /api/agent/videos/:id/publish:", error);
+      return res.status(500).json({
+        message: "Failed to publish video",
+        error: error?.message,
+      });
+    }
   });
 
   // Live Overview Endpoint for /admin/agent Command Center

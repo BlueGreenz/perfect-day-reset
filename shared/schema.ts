@@ -123,6 +123,22 @@ export const agentInteractions = pgTable("agent_interactions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const agentVideos = pgTable("agent_videos", {
+  id: serial("id").primaryKey(),
+  packageId: text("package_id").notNull(),
+  title: text("title").notNull(),
+  archetypeId: text("archetype_id").notNull(),
+  viralFormat: text("viral_format").notNull(),
+  status: text("status").default("pending_review").notNull(), // 'analyzing' | 'rendering' | 'pending_review' | 'approved' | 'declined' | 'published'
+  videoUrl: text("video_url").notNull(),
+  caption: text("caption").notNull(),
+  hookText: text("hook_text").notNull(),
+  directorReport: text("director_report").notNull(),
+  declineReason: text("decline_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const insertSubscriberSchema = createInsertSchema(subscribers).pick({
   email: true,
 });
@@ -177,9 +193,17 @@ export const insertAgentInteractionSchema = createInsertSchema(agentInteractions
   id: true,
   createdAt: true,
 });
+export const insertAgentVideoSchema = createInsertSchema(agentVideos).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 
 export type InsertAgentLead = z.infer<typeof insertAgentLeadSchema>;
 export type AgentLead = typeof agentLeads.$inferSelect;
 export type InsertAgentInteraction = z.infer<typeof insertAgentInteractionSchema>;
 export type AgentInteraction = typeof agentInteractions.$inferSelect;
+export type InsertAgentVideo = z.infer<typeof insertAgentVideoSchema>;
+export type AgentVideo = typeof agentVideos.$inferSelect;
+
 

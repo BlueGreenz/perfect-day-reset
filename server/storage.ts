@@ -4,8 +4,9 @@ import {
   type MarketingEmail, type InsertMarketingEmail, type EmailLog, type InsertEmailLog,
   type ResetRun, type InsertResetRun, type ResetItem, type InsertResetItem,
   type ResetEntry, type InsertResetEntry, resetEntries,
-  agentLeads, agentInteractions,
-  type AgentLead, type InsertAgentLead, type AgentInteraction, type InsertAgentInteraction
+  agentLeads, agentInteractions, agentVideos,
+  type AgentLead, type InsertAgentLead, type AgentInteraction, type InsertAgentInteraction,
+  type AgentVideo, type InsertAgentVideo
 } from "@shared/schema";
 import session from "express-session";
 import { db, pool, ensureProductionTables } from "./db";
@@ -98,6 +99,12 @@ export interface IStorage {
   unsubscribeAgentLead(email: string): Promise<AgentLead | undefined>;
   createAgentInteraction(data: InsertAgentInteraction): Promise<AgentInteraction>;
   getRecentAgentInteractions(limit?: number): Promise<AgentInteraction[]>;
+
+  // Agent Videos (AI Video Director & Approval Queue)
+  getAgentVideos(): Promise<AgentVideo[]>;
+  getAgentVideoById(id: number): Promise<AgentVideo | undefined>;
+  createAgentVideo(data: InsertAgentVideo): Promise<AgentVideo>;
+  updateAgentVideo(id: number, data: Partial<InsertAgentVideo>): Promise<AgentVideo | undefined>;
 
   sessionStore: session.Store;
 }
@@ -960,6 +967,61 @@ export class DatabaseStorage implements IStorage {
       return this.fallbackMem.getRecentAgentInteractions(limit);
     }
   }
+
+  async getAgentVideos(): Promise<AgentVideo[]> {
+    try {
+      const rows = await db
+        .select()
+        .from(agentVideos)
+        .orderBy(desc(agentVideos.createdAt), desc(agentVideos.id));
+      if (rows.length > 0) return rows;
+      return this.fallbackMem.getAgentVideos();
+    } catch {
+      return this.fallbackMem.getAgentVideos();
+    }
+  }
+
+  async getAgentVideoById(id: number): Promise<AgentVideo | undefined> {
+    try {
+      const [row] = await db
+        .select()
+        .from(agentVideos)
+        .where(eq(agentVideos.id, id));
+      if (row) return row;
+      return this.fallbackMem.getAgentVideoById(id);
+    } catch {
+      return this.fallbackMem.getAgentVideoById(id);
+    }
+  }
+
+  async createAgentVideo(data: InsertAgentVideo): Promise<AgentVideo> {
+    try {
+      const [created] = await db
+        .insert(agentVideos)
+        .values(data)
+        .returning();
+      return created;
+    } catch {
+      return this.fallbackMem.createAgentVideo(data);
+    }
+  }
+
+  async updateAgentVideo(id: number, data: Partial<InsertAgentVideo>): Promise<AgentVideo | undefined> {
+    try {
+      const [updated] = await db
+        .update(agentVideos)
+        .set({
+          ...data,
+          updatedAt: new Date(),
+        })
+        .where(eq(agentVideos.id, id))
+        .returning();
+      if (updated) return updated;
+      return this.fallbackMem.updateAgentVideo(id, data);
+    } catch {
+      return this.fallbackMem.updateAgentVideo(id, data);
+    }
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -973,6 +1035,7 @@ export class MemStorage implements IStorage {
   private entriesList: ResetEntry[] = [];
   private agentLeadsList: AgentLead[] = [];
   private agentInteractionsList: AgentInteraction[] = [];
+  private agentVideosList: AgentVideo[] = [];
   private nextId = 1;
 
   constructor() {
@@ -1391,9 +1454,61 @@ export class MemStorage implements IStorage {
   async getRecentAgentInteractions(limit: number = 50): Promise<AgentInteraction[]> {
     return this.agentInteractionsList.slice(0, limit);
   }
+
+  async getAgentVideos(): Promise<AgentVideo[]> {
+    return [...this.agentVideosList].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id
+    );
+  }
+
+  async getAgentVideoById(id: number): Promise<AgentVideo | undefined> {
+    return this.agentVideosList.find((v) => v.id === id);
+  }
+
+  async createAgentVideo(data: InsertAgentVideo): Promise<AgentVideo> {
+    const now = new Date();
+    const created: AgentVideo = {
+      id: this.nextId++,
+      packageId: data.packageId,
+      title: data.title,
+      archetypeId: data.archetypeId,
+      viralFormat: data.viralFormat,
+      status: data.status ?? "pending_review",
+      videoUrl: data.videoUrl,
+      caption: data.caption,
+      hookText: data.hookText,
+      directorReport: data.directorReport,
+      declineReason: data.declineReason ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.agentVideosList.unshift(created);
+    return created;
+  }
+
+  async updateAgentVideo(
+    id: number,
+    data: Partial<InsertAgentVideo>
+  ): Promise<AgentVideo | undefined> {
+    const video = this.agentVideosList.find((v) => v.id === id);
+    if (!video) return undefined;
+    if (data.packageId !== undefined) video.packageId = data.packageId;
+    if (data.title !== undefined) video.title = data.title;
+    if (data.archetypeId !== undefined) video.archetypeId = data.archetypeId;
+    if (data.viralFormat !== undefined) video.viralFormat = data.viralFormat;
+    if (data.status !== undefined) video.status = data.status;
+    if (data.videoUrl !== undefined) video.videoUrl = data.videoUrl;
+    if (data.caption !== undefined) video.caption = data.caption;
+    if (data.hookText !== undefined) video.hookText = data.hookText;
+    if (data.directorReport !== undefined) video.directorReport = data.directorReport;
+    if (data.declineReason !== undefined) video.declineReason = data.declineReason ?? null;
+    video.updatedAt = new Date();
+    return video;
+  }
 }
 
 export const storage: IStorage = process.env.DATABASE_URL
   ? new DatabaseStorage()
   : new MemStorage();
+
 

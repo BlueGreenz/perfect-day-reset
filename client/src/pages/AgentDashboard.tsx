@@ -24,17 +24,38 @@ import {
   Bot,
   Film,
   Terminal,
+  XCircle,
+  Download,
+  Scissors,
+  ChevronDown,
+  ChevronUp,
+  Clapperboard,
 } from "lucide-react";
+
+interface FlowUltraScene {
+  sceneNumber: number;
+  timeRange: string;
+  shotType: string;
+  flowUltraPrompt: string;
+  onScreenText: string;
+  soundCue: string;
+}
 
 interface FlowUltraPackage {
   id: string;
   archetypeId: string;
   archetypeName: string;
   angleTitle: string;
+  viralFormat: string;
+  viralFormatLabel: string;
+  targetLengthSeconds: number;
   durationSeconds: number;
+  pacingRule: string;
+  psychologicalAngle: string;
   aspectRatio: string;
   cameraSpec: string;
   flowUltraPrompt: string;
+  scenes: FlowUltraScene[];
   onScreenTextHook: {
     hook0to3s: string;
     payoff3to8s: string;
@@ -55,6 +76,64 @@ interface FlowUltraBatchResponse {
   };
   manyChatAutomationConfig: Record<string, unknown>;
   packages: FlowUltraPackage[];
+}
+
+interface SceneCutPlan {
+  sceneNumber: number;
+  matchedSceneNumber: number;
+  sourceClip: string;
+  shotType: string;
+  rawDurationSec: number;
+  trimStartSec: number;
+  trimEndSec: number;
+  keptDurationSec: number;
+  actionPeakReason: string;
+  qualityPass: boolean;
+  qualityScore: number;
+  glitchNotes: string;
+  textSafeZone: "top" | "upper_middle" | "bottom";
+  onScreenText: string;
+  soundCue: string;
+}
+
+interface DirectorCutReport {
+  packageId: string;
+  packageTitle: string;
+  viralFormat: string;
+  analysisEngine: string;
+  analyzedAt: string;
+  overallQualityScore: number;
+  totalOutputDurationSec: number;
+  pacingSummary: string;
+  appliedDirective: string | null;
+  watchFolderStatus: {
+    folderPath: string;
+    discoveredClipsCount: number;
+    mode: string;
+  };
+  sceneCuts: SceneCutPlan[];
+}
+
+interface AgentVideoRecord {
+  id: number;
+  packageId: string;
+  title: string;
+  archetypeId: string;
+  viralFormat: string;
+  status:
+    | "analyzing"
+    | "rendering"
+    | "pending_review"
+    | "approved"
+    | "declined"
+    | "published";
+  videoUrl: string;
+  caption: string;
+  hookText: string;
+  directorReport: string;
+  declineReason: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface NurtureEmailPreview {
@@ -108,12 +187,15 @@ interface AgentOverviewResponse {
 export default function AgentDashboard() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<
-    "flow-ultra" | "simulator" | "nurture" | "webhooks"
+    "flow-ultra" | "video-queue" | "simulator" | "nurture" | "webhooks"
   >("flow-ultra");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Tab 1 state
   const [archetypeFilter, setArchetypeFilter] = useState<string>("all");
+  const [viralFormatFilter, setViralFormatFilter] = useState<string>("all");
+  const [expandedReports, setExpandedReports] = useState<Record<number, boolean>>({});
+  const [renderingPackageId, setRenderingPackageId] = useState<string | null>(null);
 
   // Tab 2 simulator state
   const [simChannel, setSimChannel] = useState<"comment" | "dm" | "email">("comment");
@@ -138,6 +220,14 @@ export default function AgentDashboard() {
 
   const { data: flowBatch, isLoading: loadingFlow } = useQuery<FlowUltraBatchResponse>({
     queryKey: ["/api/agent/flow-ultra-batch"],
+  });
+
+  const {
+    data: videosData,
+    isLoading: loadingVideos,
+    refetch: refetchVideos,
+  } = useQuery<{ videos: AgentVideoRecord[] }>({
+    queryKey: ["/api/agent/videos"],
   });
 
   const {
@@ -169,6 +259,88 @@ export default function AgentDashboard() {
       });
     }
   };
+
+  const generateVideoMutation = useMutation({
+    mutationFn: async (payload: { packageId: string; feedbackDirective?: string }) => {
+      setRenderingPackageId(payload.packageId);
+      const res = await apiRequest("POST", "/api/agent/videos/generate", payload);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setRenderingPackageId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/videos"] });
+      refetchVideos();
+      setActiveTab("video-queue");
+      toast({
+        title: "AI Video Director Rendered 9:16 MP4",
+        description: `Added "${data.video?.title}" to the Video Approval Queue for review.`,
+      });
+    },
+    onError: (err: any) => {
+      setRenderingPackageId(null);
+      toast({
+        title: "Video Render Error",
+        description: err?.message || "Could not render video.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const reviewVideoMutation = useMutation({
+    mutationFn: async (payload: {
+      id: number;
+      action: "approve" | "decline";
+      declineReason?: string;
+      regenerate?: boolean;
+    }) => {
+      const res = await apiRequest("POST", `/api/agent/videos/${payload.id}/review`, {
+        action: payload.action,
+        declineReason: payload.declineReason,
+        regenerate: payload.regenerate,
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/videos"] });
+      refetchVideos();
+      if (data.action === "approved") {
+        toast({
+          title: "✅ Video Approved!",
+          description: "Moved to 'Approved & Ready to Post' queue.",
+        });
+      } else if (data.action === "regenerated") {
+        toast({
+          title: "🎬 AI Director Re-Cut Complete",
+          description: "New 9:16 MP4 rendered with updated cut timings and safe zones.",
+        });
+      } else {
+        toast({
+          title: "Video Declined",
+          description: "Marked as declined in the queue.",
+        });
+      }
+    },
+  });
+
+  const publishVideoMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/agent/videos/${id}/publish`, {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/videos"] });
+      refetchVideos();
+      refetchOverview();
+      toast({
+        title: data.webhookDispatched
+          ? "🚀 Dispatched to Social Auto-Poster!"
+          : "✅ Marked as Published",
+        description: data.webhookDispatched
+          ? "Sent 9:16 MP4 + caption to SOCIAL_AUTOPOST_WEBHOOK_URL."
+          : "Logged in interaction feed and marked as published.",
+      });
+    },
+  });
 
   const simulateReplyMutation = useMutation({
     mutationFn: async () => {
@@ -255,9 +427,19 @@ export default function AgentDashboard() {
     },
   });
 
-  const filteredPackages = (flowBatch?.packages || []).filter(
-    (pkg) => archetypeFilter === "all" || pkg.archetypeId === archetypeFilter
+  const filteredPackages = (flowBatch?.packages || []).filter((pkg) => {
+    const matchArch = archetypeFilter === "all" || pkg.archetypeId === archetypeFilter;
+    const matchFormat =
+      viralFormatFilter === "all" || pkg.viralFormat === viralFormatFilter;
+    return matchArch && matchFormat;
+  });
+
+  const allVideos = videosData?.videos || [];
+  const pendingVideos = allVideos.filter((v) => v.status === "pending_review");
+  const approvedVideos = allVideos.filter(
+    (v) => v.status === "approved" || v.status === "published"
   );
+  const declinedVideos = allVideos.filter((v) => v.status === "declined");
 
   const activeEmailPreview =
     overview?.emailSequencePreview?.find((e) => e.stage === selectedStage) ||
@@ -267,6 +449,18 @@ export default function AgentDashboard() {
     typeof window !== "undefined"
       ? window.location.origin
       : "https://perfectdayreset.com";
+
+  const parseDirectorReport = (raw: string): DirectorCutReport | null => {
+    try {
+      return JSON.parse(raw) as DirectorCutReport;
+    } catch {
+      return null;
+    }
+  };
+
+  const toggleReportExpand = (id: number) => {
+    setExpandedReports((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -280,7 +474,7 @@ export default function AgentDashboard() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                  Autonomous AI Growth &amp; Closer Command Center
+                  Autonomous AI Growth, Video Director &amp; Closer Command Center
                 </h1>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -288,7 +482,7 @@ export default function AgentDashboard() {
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Google Flow Ultra 9:16 Studio • Two-Way DM &amp; Email Closer • 4-Stage Archetype Email Nurture
+                Purple Cow Multi-Scene Storyboards • AI Video Director &amp; FFmpeg Editor • Approval Queue • Two-Way DM/Email Closer
               </p>
             </div>
           </div>
@@ -326,8 +520,25 @@ export default function AgentDashboard() {
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
+            <Clapperboard className="w-4 h-4" />
+            1. Purple Cow Storyboard Studio (12 Multi-Scene Packs)
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("video-queue")}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition ${
+              activeTab === "video-queue"
+                ? "border-emerald-400 text-emerald-300 bg-emerald-500/5"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
             <Video className="w-4 h-4" />
-            1. Google Flow Ultra Content Studio (12 Reels)
+            2. Video Approval Queue (Approve / Decline)
+            {pendingVideos.length > 0 && (
+              <span className="ml-1 px-2 py-0.5 text-[11px] font-bold rounded-full bg-amber-500 text-slate-950">
+                {pendingVideos.length} Review
+              </span>
+            )}
           </button>
           <button
             type="button"
@@ -339,7 +550,7 @@ export default function AgentDashboard() {
             }`}
           >
             <MessageSquare className="w-4 h-4" />
-            2. Live Two-Way DM &amp; Email Closer Simulator
+            3. Live Two-Way DM &amp; Email Closer Simulator
           </button>
           <button
             type="button"
@@ -351,7 +562,7 @@ export default function AgentDashboard() {
             }`}
           >
             <Mail className="w-4 h-4" />
-            3. Autonomous 4-Stage Email Nurture Queue
+            4. Autonomous 4-Stage Email Nurture Queue
           </button>
           <button
             type="button"
@@ -363,14 +574,14 @@ export default function AgentDashboard() {
             }`}
           >
             <Webhook className="w-4 h-4" />
-            4. Webhook &amp; ManyChat Connection Guide
+            5. Webhook &amp; ManyChat Connection Guide
           </button>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* ============================================================
-            TAB 1: GOOGLE FLOW ULTRA CONTENT STUDIO
+            TAB 1: GOOGLE FLOW ULTRA MULTI-SCENE STORYBOARD STUDIO
         ============================================================ */}
         {activeTab === "flow-ultra" && (
           <div className="space-y-6">
@@ -379,42 +590,82 @@ export default function AgentDashboard() {
                 <div>
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1">
                     <Film className="w-3.5 h-3.5" />
-                    Google Flow Ultra 9:16 Vertical Production Pack
+                    Google Flow Ultra (Veo 3.1) Multi-Scene Storyboard Engine
                   </span>
                   <h2 className="text-xl sm:text-2xl font-bold text-white">
-                    12 Ready-to-Generate Documentary Reels (3 Per Overwhelm Archetype)
+                    12 Scroll-Stopping Viral Storyboards: Purple Cow Loops &amp; BMW Trojan Horse Narratives
                   </h2>
                   <p className="text-sm text-slate-300 mt-1 max-w-3xl">
-                    Every prompt is engineered for <strong>organic 35mm handheld documentary cinematography</strong>, natural morning or golden-hour window lighting, subtle film grain, shallow depth of field, and tactile real-world textures (linen, ceramic, condensation on glass, warm wood) with zero plastic/CGI look.
+                    Built on 4 high-retention viral architectures: <strong>Purple Cow Visual Anomaly Loops (6–8s)</strong>, <strong>BMW Trojan Horse 5-Scene Narratives (26–28s)</strong>, <strong>A/B Split-Timeline Experiments (24–25s)</strong>, and <strong>Forensic Curiosity Hooks (19–22s)</strong>. Click <strong>Render Video with AI Director</strong> on any storyboard to run the Multimodal Clip Analyzer + FFmpeg Viral Editor.
                   </p>
                 </div>
 
-                {flowBatch?.manyChatAutomationConfig && (
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                   <button
                     type="button"
-                    onClick={() =>
-                      copyToClipboard(
-                        JSON.stringify(flowBatch.manyChatAutomationConfig, null, 2),
-                        "manychat-json",
-                        "ManyChat Comment-to-DM Config JSON"
-                      )
-                    }
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shrink-0 shadow-lg shadow-emerald-950/50 transition"
+                    onClick={() => setActiveTab("video-queue")}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg transition"
                   >
-                    {copiedKey === "manychat-json" ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                    Copy ManyChat Automation JSON
+                    <Video className="w-4 h-4" />
+                    Open Approval Queue ({pendingVideos.length} Pending)
                   </button>
-                )}
+                  {flowBatch?.manyChatAutomationConfig && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyToClipboard(
+                          JSON.stringify(flowBatch.manyChatAutomationConfig, null, 2),
+                          "manychat-json",
+                          "ManyChat Comment-to-DM Config JSON"
+                        )
+                      }
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-lg shadow-emerald-950/50 transition"
+                    >
+                      {copiedKey === "manychat-json" ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                      Copy ManyChat JSON
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Viral Format Filter Pills */}
+              <div className="flex flex-wrap items-center gap-2 mt-5 pt-4 border-t border-slate-800">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+                  Viral Format:
+                </span>
+                {[
+                  { id: "all", label: "All 4 Viral Formats (12)" },
+                  { id: "purple_cow_loop", label: "🐄 Purple Cow Loops (4)" },
+                  { id: "trojan_horse_story", label: "🏎️ BMW Trojan Horse Stories (3)" },
+                  { id: "two_timelines_experiment", label: "⚡ A/B Timeline Experiments (2)" },
+                  { id: "forensic_curiosity_hook", label: "🔬 Forensic Curiosity Hooks (3)" },
+                ].map((fmt) => (
+                  <button
+                    key={fmt.id}
+                    type="button"
+                    onClick={() => setViralFormatFilter(fmt.id)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
+                      viralFormatFilter === fmt.id
+                        ? "bg-amber-400 text-slate-950"
+                        : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                    }`}
+                  >
+                    {fmt.label}
+                  </button>
+                ))}
               </div>
 
               {/* Archetype Filter Pills */}
-              <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-slate-800">
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+                  Archetype:
+                </span>
                 {[
-                  { id: "all", label: "All 12 Video Packages" },
+                  { id: "all", label: "All Archetypes" },
                   { id: "cortisol_spiked", label: "Cortisol-Spiked (3)" },
                   { id: "dopamine_depleted", label: "Dopamine-Depleted (3)" },
                   { id: "metabolic_crasher", label: "Metabolic Crasher (3)" },
@@ -438,106 +689,169 @@ export default function AgentDashboard() {
 
             {loadingFlow ? (
               <div className="text-center py-12 text-slate-400">
-                Loading Google Flow Ultra packages...
+                Loading Google Flow Ultra multi-scene storyboards...
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 {filteredPackages.map((pkg, idx) => (
                   <div
                     key={pkg.id}
-                    className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between space-y-4 hover:border-emerald-500/40 transition"
+                    className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between space-y-5 hover:border-emerald-500/40 transition"
                   >
-                    <div className="space-y-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <span className="inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 mb-1.5">
-                            Reel #{idx + 1} • {pkg.archetypeName}
+                    {/* Storyboard Header + Render Action */}
+                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 border-b border-slate-800 pb-4">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            Storyboard #{idx + 1} • {pkg.archetypeName}
                           </span>
-                          <h3 className="text-base font-bold text-white">
-                            {pkg.angleTitle}
-                          </h3>
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            {pkg.aspectRatio} Vertical ({pkg.durationSeconds}s) • {pkg.cameraSpec}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Flow Ultra Cinematography Prompt */}
-                      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3.5">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
-                            1. Google Flow Ultra Video Prompt
+                          <span className="inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            {pkg.viralFormatLabel} • {pkg.targetLengthSeconds}s ({pkg.scenes?.length || 2} Scenes)
                           </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              copyToClipboard(
-                                pkg.flowUltraPrompt,
-                                `${pkg.id}-prompt`,
-                                "Flow Ultra Prompt"
-                              )
-                            }
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300"
-                          >
-                            {copiedKey === `${pkg.id}-prompt` ? (
-                              <Check className="w-3.5 h-3.5" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                            Copy Prompt
-                          </button>
+                          <span className="inline-block text-[11px] font-medium px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300">
+                            {pkg.pacingRule}
+                          </span>
                         </div>
-                        <p className="text-xs text-slate-300 leading-relaxed font-mono">
-                          {pkg.flowUltraPrompt}
+                        <h3 className="text-lg sm:text-xl font-bold text-white">
+                          {pkg.angleTitle}
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">
+                          <strong className="text-slate-200">Psychological Hook Angle:</strong>{" "}
+                          {pkg.psychologicalAngle}
                         </p>
                       </div>
 
-                      {/* Timed On-Screen Text Hooks */}
-                      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3.5">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
-                            2. Timed On-Screen Text Overlay
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              copyToClipboard(
-                                `[0-3s Hook]: ${pkg.onScreenTextHook.hook0to3s}\n[3-8s Payoff]: ${pkg.onScreenTextHook.payoff3to8s}\n[End Card]: ${pkg.onScreenTextHook.ctaEndCard}`,
-                                `${pkg.id}-hook`,
-                                "On-Screen Text Hook"
-                              )
-                            }
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-amber-400 hover:text-amber-300"
-                          >
-                            {copiedKey === `${pkg.id}-hook` ? (
-                              <Check className="w-3.5 h-3.5" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                            Copy Hooks
-                          </button>
-                        </div>
-                        <div className="space-y-1 text-xs">
-                          <p className="text-white">
-                            <span className="text-amber-400 font-semibold">0–3s Hook:</span>{" "}
-                            “{pkg.onScreenTextHook.hook0to3s}”
-                          </p>
-                          <p className="text-slate-300">
-                            <span className="text-emerald-400 font-semibold">3–8s Payoff:</span>{" "}
-                            “{pkg.onScreenTextHook.payoff3to8s}”
-                          </p>
-                          <p className="text-slate-400">
-                            <span className="text-sky-400 font-semibold">CTA Overlay:</span>{" "}
-                            {pkg.onScreenTextHook.ctaEndCard}
-                          </p>
-                        </div>
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copyToClipboard(
+                              (pkg.scenes || [])
+                                .map(
+                                  (s) =>
+                                    `=== SCENE ${s.sceneNumber} (${s.timeRange} • ${s.shotType}) ===\nPrompt: ${s.flowUltraPrompt}\nOn-Screen Text: ${s.onScreenText}\nSound Cue: ${s.soundCue}`
+                                )
+                                .join("\n\n"),
+                              `${pkg.id}-all-scenes`,
+                              "Complete Multi-Scene Cut Sheet"
+                            )
+                          }
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+                        >
+                          {copiedKey === `${pkg.id}-all-scenes` ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                          Copy All {pkg.scenes?.length || 2} Scene Prompts
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={
+                            generateVideoMutation.isPending && renderingPackageId === pkg.id
+                          }
+                          onClick={() =>
+                            generateVideoMutation.mutate({ packageId: pkg.id })
+                          }
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-lg transition disabled:opacity-50"
+                        >
+                          {generateVideoMutation.isPending &&
+                          renderingPackageId === pkg.id ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              AI Director Analyzing &amp; Rendering...
+                            </>
+                          ) : (
+                            <>
+                              <Scissors className="w-3.5 h-3.5" />
+                              Render Video with AI Director
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Scene-by-Scene Cut Sheet */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                          Scene-by-Scene Google Flow Ultra (Veo 3.1) Cut Sheet ({pkg.scenes?.length || 0} Shots)
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {pkg.cameraSpec}
+                        </span>
                       </div>
 
-                      {/* Founder Caption */}
-                      <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3.5">
-                        <div className="flex items-center justify-between mb-1.5">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        {(pkg.scenes || []).map((scene) => (
+                          <div
+                            key={scene.sceneNumber}
+                            className="bg-slate-950/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-3"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[11px]">
+                                    Scene {scene.sceneNumber}
+                                  </span>
+                                  <span className="text-xs font-semibold text-amber-300">
+                                    {scene.timeRange}
+                                  </span>
+                                  <span className="text-xs text-slate-400 truncate">
+                                    • {scene.shotType}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    copyToClipboard(
+                                      scene.flowUltraPrompt,
+                                      `${pkg.id}-scene-${scene.sceneNumber}`,
+                                      `Scene ${scene.sceneNumber} Flow Ultra Prompt`
+                                    )
+                                  }
+                                  className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 shrink-0"
+                                >
+                                  {copiedKey === `${pkg.id}-scene-${scene.sceneNumber}` ? (
+                                    <Check className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <Copy className="w-3.5 h-3.5" />
+                                  )}
+                                  Copy Prompt
+                                </button>
+                              </div>
+
+                              <p className="text-xs text-slate-300 font-mono leading-relaxed">
+                                {scene.flowUltraPrompt}
+                              </p>
+                            </div>
+
+                            <div className="pt-2.5 border-t border-slate-800/80 space-y-1 text-xs">
+                              <p className="text-white">
+                                <span className="text-amber-400 font-semibold">
+                                  On-Screen Text:
+                                </span>{" "}
+                                “{scene.onScreenText}”
+                              </p>
+                              <p className="text-slate-400">
+                                <span className="text-sky-400 font-semibold">
+                                  Audio / SFX Cue:
+                                </span>{" "}
+                                {scene.soundCue}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Founder Caption & DM Closer */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-2 border-t border-slate-800">
+                      <div className="lg:col-span-8 bg-slate-950/90 border border-slate-800 rounded-xl p-3.5">
+                        <div className="flex items-center justify-between mb-1">
                           <span className="text-[11px] font-bold uppercase tracking-wider text-sky-400">
-                            3. Founder-Voice Caption (Ends with “Comment RESET”)
+                            Founder-Voice Caption (Ends with “Comment RESET”)
                           </span>
                           <button
                             type="button"
@@ -562,31 +876,37 @@ export default function AgentDashboard() {
                           {pkg.caption}
                         </p>
                       </div>
-                    </div>
 
-                    {/* Comment Auto-Reply + DM Opener */}
-                    <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-slate-400 truncate">
-                        DM Closer: “{pkg.dmOpeningMessage.slice(0, 68)}...”
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          copyToClipboard(
-                            pkg.dmOpeningMessage,
-                            `${pkg.id}-dm`,
-                            "DM Opening Message"
-                          )
-                        }
-                        className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 shrink-0"
-                      >
-                        {copiedKey === `${pkg.id}-dm` ? (
-                          <Check className="w-3 h-3 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-3 h-3" />
-                        )}
-                        Copy DM Closer
-                      </button>
+                      <div className="lg:col-span-4 bg-slate-950/90 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                              Auto-DM Closer
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                copyToClipboard(
+                                  pkg.dmOpeningMessage,
+                                  `${pkg.id}-dm`,
+                                  "DM Opening Message"
+                                )
+                              }
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300"
+                            >
+                              {copiedKey === `${pkg.id}-dm` ? (
+                                <Check className="w-3.5 h-3.5" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                              Copy DM
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-300 leading-relaxed">
+                            {pkg.dmOpeningMessage}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -596,7 +916,417 @@ export default function AgentDashboard() {
         )}
 
         {/* ============================================================
-            TAB 2: LIVE TWO-WAY DM & EMAIL CLOSER SIMULATOR
+            TAB 2: VIDEO APPROVAL QUEUE (APPROVE / DECLINE + AI DIRECTOR)
+        ============================================================ */}
+        {activeTab === "video-queue" && (
+          <div className="space-y-8">
+            {/* Pipeline Banner */}
+            <div className="bg-gradient-to-r from-slate-900 via-emerald-950/50 to-slate-900 border border-emerald-500/30 rounded-2xl p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1">
+                  <Scissors className="w-3.5 h-3.5" />
+                  Multimodal AI Video Director + Free Local FFmpeg Viral Assembler
+                </span>
+                <h2 className="text-xl sm:text-2xl font-bold text-white">
+                  Human-in-the-Loop Video Approval Queue ({pendingVideos.length} Pending Review • {approvedVideos.length} Approved)
+                </h2>
+                <p className="text-sm text-slate-300 mt-1 max-w-3xl">
+                  Every video is inspected by our <strong>AI Video Director (`video-analyzer.ts`)</strong> for peak motion timing (`trimStartSec` → `trimEndSec`), glitch/hand-morph verification, and dynamic `textSafeZone` placement before FFmpeg burns in the hook and renders a `1080x1920` H.264 `.mp4`.Nothing ever posts until you click <strong>Approve Video</strong>.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  disabled={generateVideoMutation.isPending}
+                  onClick={() =>
+                    generateVideoMutation.mutate({
+                      packageId: "cortisol-1-ocean-desk-purple-cow",
+                    })
+                  }
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition disabled:opacity-50"
+                >
+                  {generateVideoMutation.isPending ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Rendering New Cut...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4" />
+                      Render New Cut from Watch Folder / Storyboard
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {loadingVideos ? (
+              <div className="text-center py-12 text-slate-400">
+                Loading AI Video Director Approval Queue...
+              </div>
+            ) : (
+              <>
+                {/* SECTION A: PENDING REVIEW VIDEOS */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                      Pending Producer Review ({pendingVideos.length})
+                    </h3>
+                    <span className="text-xs text-slate-400">
+                      Watch folder: <code>attached_assets/flow_ultra_drop/</code>
+                    </span>
+                  </div>
+
+                  {pendingVideos.length === 0 ? (
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-slate-400">
+                      All queued videos have been reviewed! Click{" "}
+                      <strong className="text-emerald-400">
+                        Render Video with AI Director
+                      </strong>{" "}
+                      in Tab 1 to generate a new cut.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-6">
+                      {pendingVideos.map((video) => {
+                        const report = parseDirectorReport(video.directorReport);
+                        const isExpanded = expandedReports[video.id] ?? true;
+
+                        return (
+                          <div
+                            key={video.id}
+                            className="bg-slate-900 border border-slate-800 rounded-2xl p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+                          >
+                            {/* Left Column: 9:16 Vertical HTML5 Video Player */}
+                            <div className="lg:col-span-4 flex flex-col items-center">
+                              <div className="w-full max-w-[270px] aspect-[9/16] rounded-2xl overflow-hidden border-2 border-slate-700 bg-black shadow-2xl relative">
+                                <video
+                                  key={video.videoUrl}
+                                  src={video.videoUrl}
+                                  controls
+                                  playsInline
+                                  loop
+                                  preload="metadata"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className="mt-2.5 flex items-center gap-3 text-xs text-slate-400">
+                                <span>1080×1920 (9:16 H.264)</span>
+                                <span>•</span>
+                                <a
+                                  href={video.videoUrl}
+                                  download
+                                  className="text-emerald-400 hover:underline inline-flex items-center gap-1 font-semibold"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  Download .MP4
+                                </a>
+                              </div>
+                            </div>
+
+                            {/* Right Column: AI Director Cut Report + Approve / Decline Controls */}
+                            <div className="lg:col-span-8 space-y-4">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                      Pending Review • Video #{video.id}
+                                    </span>
+                                    <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-slate-800 text-emerald-300">
+                                      {video.viralFormat.replace(/_/g, " ").toUpperCase()}
+                                    </span>
+                                    {report && (
+                                      <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                        AI Director Score: {report.overallQualityScore}/100
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h4 className="text-lg font-bold text-white">
+                                    {video.title}
+                                  </h4>
+                                  {report && (
+                                    <p className="text-xs text-slate-400 mt-0.5">
+                                      {report.pacingSummary} • Engine:{" "}
+                                      <code className="text-emerald-300">
+                                        {report.analysisEngine}
+                                      </code>
+                                    </p>
+                                  )}
+                                  {video.declineReason && (
+                                    <p className="text-xs text-amber-300 mt-1">
+                                      Re-cut applied directive: “{video.declineReason}”
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Big 1-Click Approve & Decline Buttons */}
+                                <div className="flex flex-wrap items-center gap-2.5">
+                                  <button
+                                    type="button"
+                                    disabled={reviewVideoMutation.isPending}
+                                    onClick={() =>
+                                      reviewVideoMutation.mutate({
+                                        id: video.id,
+                                        action: "approve",
+                                      })
+                                    }
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg transition disabled:opacity-50"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    ✅ Approve Video
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={reviewVideoMutation.isPending}
+                                    onClick={() =>
+                                      reviewVideoMutation.mutate({
+                                        id: video.id,
+                                        action: "decline",
+                                        declineReason: "Declined by producer for re-cut",
+                                        regenerate: true,
+                                      })
+                                    }
+                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 font-bold text-xs transition disabled:opacity-50"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    ❌ Decline &amp; Re-Cut
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* 1-Click AI Director Re-Cut Feedback Pills */}
+                              <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3.5">
+                                <span className="block text-[11px] font-bold uppercase tracking-wider text-amber-400 mb-2">
+                                  1-Click AI Director Re-Cut Directives (Decline &amp; Automatically Re-Render):
+                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                  {[
+                                    "Cut Faster (Tight 1.8s Pacing)",
+                                    "Make Hook More Shocking",
+                                    "Move Text Position Safe Zone",
+                                  ].map((directive) => (
+                                    <button
+                                      key={directive}
+                                      type="button"
+                                      disabled={reviewVideoMutation.isPending}
+                                      onClick={() =>
+                                        reviewVideoMutation.mutate({
+                                          id: video.id,
+                                          action: "decline",
+                                          declineReason: directive,
+                                          regenerate: true,
+                                        })
+                                      }
+                                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition disabled:opacity-50"
+                                    >
+                                      <Scissors className="w-3 h-3 text-amber-400" />
+                                      {directive}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Expandable AI Director Cut Report */}
+                              {report && (
+                                <div className="bg-slate-950/90 border border-slate-800 rounded-xl overflow-hidden">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleReportExpand(video.id)}
+                                    className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-900/60 transition"
+                                  >
+                                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                                      <Sparkles className="w-3.5 h-3.5" />
+                                      AI Director Scene-by-Scene Cut Report ({report.sceneCuts.length} Scenes Inspected)
+                                    </span>
+                                    {isExpanded ? (
+                                      <ChevronUp className="w-4 h-4 text-slate-400" />
+                                    ) : (
+                                      <ChevronDown className="w-4 h-4 text-slate-400" />
+                                    )}
+                                  </button>
+
+                                  {isExpanded && (
+                                    <div className="px-4 pb-4 space-y-2.5 border-t border-slate-800/80 pt-3">
+                                      {report.sceneCuts.map((cut) => (
+                                        <div
+                                          key={cut.sceneNumber}
+                                          className="bg-slate-900/90 border border-slate-800 rounded-lg p-3 text-xs space-y-1"
+                                        >
+                                          <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <span className="font-bold text-white">
+                                              Scene {cut.sceneNumber} ({cut.shotType}) •{" "}
+                                              <span className="text-amber-300">
+                                                Trimmed {cut.trimStartSec}s–{cut.trimEndSec}s ({cut.keptDurationSec}s kept)
+                                              </span>
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                              <span className="px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 font-semibold text-[11px]">
+                                                Text Safe Zone: {cut.textSafeZone.toUpperCase()}
+                                              </span>
+                                              <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-semibold text-[11px]">
+                                                PASS ({cut.qualityScore}/100)
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <p className="text-slate-300">
+                                            {cut.actionPeakReason}
+                                          </p>
+                                          <p className="text-slate-400 text-[11px]">
+                                            Glitch Check: {cut.glitchNotes}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Caption Preview + Copy */}
+                              <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3.5">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[11px] font-bold uppercase tracking-wider text-sky-400">
+                                    Ready-to-Post Caption
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      copyToClipboard(
+                                        video.caption,
+                                        `video-${video.id}-caption`,
+                                        "Video Caption"
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-1 text-xs font-semibold text-sky-400 hover:text-sky-300"
+                                  >
+                                    {copiedKey === `video-${video.id}-caption` ? (
+                                      <Check className="w-3.5 h-3.5" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                    Copy Caption
+                                  </button>
+                                </div>
+                                <p className="text-xs text-slate-300 leading-relaxed">
+                                  {video.caption}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* SECTION B: APPROVED & READY TO POST */}
+                <div className="space-y-4 pt-6 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                      Approved &amp; Ready to Post ({approvedVideos.length})
+                    </h3>
+                    <span className="text-xs text-slate-400">
+                      Download <code>.MP4</code> + Copy Caption for manual posting, or click{" "}
+                      <strong>Send to Auto-Poster</strong>
+                    </span>
+                  </div>
+
+                  {approvedVideos.length === 0 ? (
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-400 text-sm">
+                      No approved videos yet. Click <strong>✅ Approve Video</strong> above to move a video here.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {approvedVideos.map((video) => (
+                        <div
+                          key={video.id}
+                          className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-5 flex flex-col sm:flex-row gap-5 items-start"
+                        >
+                          <div className="w-full sm:w-40 aspect-[9/16] rounded-xl overflow-hidden border border-slate-700 bg-black shrink-0">
+                            <video
+                              src={video.videoUrl}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+
+                          <div className="flex-1 space-y-3">
+                            <div>
+                              <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 mb-1">
+                                {video.status === "published"
+                                  ? "🚀 Published"
+                                  : "✅ Approved & Ready"}
+                              </span>
+                              <h4 className="text-base font-bold text-white">
+                                {video.title}
+                              </h4>
+                              <p className="text-xs text-slate-400 mt-1 line-clamp-3">
+                                {video.caption}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 pt-2">
+                              <a
+                                href={video.videoUrl}
+                                download
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                Download .MP4
+                              </a>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  copyToClipboard(
+                                    video.caption,
+                                    `approved-${video.id}-caption`,
+                                    "Approved Video Caption"
+                                  )
+                                }
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition"
+                              >
+                                {copiedKey === `approved-${video.id}-caption` ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                                Copy Caption
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={publishVideoMutation.isPending}
+                                onClick={() => publishVideoMutation.mutate(video.id)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition disabled:opacity-50"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                                Send to Auto-Poster
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {declinedVideos.length > 0 && (
+                    <p className="text-xs text-slate-500 pt-2">
+                      Declined archive: {declinedVideos.length} video(s).
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================
+            TAB 3: LIVE TWO-WAY DM & EMAIL CLOSER SIMULATOR
         ============================================================ */}
         {activeTab === "simulator" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

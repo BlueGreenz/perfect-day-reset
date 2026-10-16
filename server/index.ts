@@ -1,9 +1,35 @@
+import fs from "fs";
+import path from "path";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { processDueAgentNurtureEmails } from "./agent/email-nurture";
+
+// Automatically load local .env file into process.env if present
+const envFilePath = path.resolve(process.cwd(), ".env");
+if (fs.existsSync(envFilePath)) {
+  try {
+    if (typeof (process as any).loadEnvFile === "function") {
+      (process as any).loadEnvFile(envFilePath);
+    } else {
+      const envContent = fs.readFileSync(envFilePath, "utf8");
+      for (const line of envContent.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx > 0) {
+          const key = trimmed.slice(0, eqIdx).trim();
+          const val = trimmed.slice(eqIdx + 1).trim().replace(/^['"]|['"]$/g, "");
+          if (!process.env[key]) process.env[key] = val;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Could not load .env file:", err);
+  }
+}
 
 process.env.NODE_ENV = process.env.NODE_ENV || "development";
 

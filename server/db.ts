@@ -161,6 +161,22 @@ export async function ensureProductionTables(): Promise<void> {
           "metadata" text,
           "created_at" timestamp DEFAULT now() NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS "agent_videos" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "package_id" text NOT NULL,
+          "title" text NOT NULL,
+          "archetype_id" text NOT NULL,
+          "viral_format" text NOT NULL,
+          "status" text DEFAULT 'pending_review' NOT NULL,
+          "video_url" text NOT NULL,
+          "caption" text NOT NULL,
+          "hook_text" text NOT NULL,
+          "director_report" text NOT NULL,
+          "decline_reason" text,
+          "created_at" timestamp DEFAULT now() NOT NULL,
+          "updated_at" timestamp DEFAULT now() NOT NULL
+        );
       `);
     } catch (err: any) {
       console.warn("Non-fatal ensureProductionTables warning:", err?.message || err);
