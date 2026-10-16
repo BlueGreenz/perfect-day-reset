@@ -12,9 +12,13 @@ import {
 import {
   analyzeSceneClips,
   discoverWatchFolderClips,
+  resolveEffectivePacingMode,
+  resolveEffectiveTextStyle,
   type DirectorCutReport,
+  type PacingMode,
   type SceneCutPlan,
   type TextSafeZone,
+  type VideoTextStyle,
 } from "./video-analyzer";
 import { storage } from "../storage";
 import type { AgentVideo } from "@shared/schema";
@@ -32,9 +36,9 @@ const VISUAL_ASSETS_POOL = [
 
 function resolveFontFileForFfmpeg(): string | null {
   const candidates = [
+    "C:/Windows/Fonts/segoeuib.ttf",
     "C:/Windows/Fonts/arialbd.ttf",
     "C:/Windows/Fonts/calibrib.ttf",
-    "C:/Windows/Fonts/segoeuib.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
     "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
@@ -51,48 +55,72 @@ function escapeFfmpegFilterPath(filePath: string): string {
   return filePath.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
 }
 
-function wrapTextLines(text: string, maxCharsPerLine = 28): string {
-  const clean = text
-    .replace(/[⚡👋]/g, "")
+/**
+ * Formats on-screen hook/payoff copy into max 2-3 compact lines for native TikTok/Reels
+ * floating typography. Removes arrows (-> / →) and emojis so burned text is 100% clean.
+ */
+function wrapTextLines(text: string, maxCharsPerLine = 38): string {
+  const cleaned = text
+    .replace(/\s*→\s*Comment RESET\s*⚡?/gi, "\n(Comment RESET)")
+    .replace(/\s*->\s*Comment RESET\s*⚡?/gi, "\n(Comment RESET)")
+    .replace(/[→]|->/g, " ")
+    .replace(/[⚡👋🐄🏎️🔬]/gu, "")
     .replace(/—/g, " - ")
-    .replace(/→/g, "->")
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
     .trim();
-  const words = clean.split(/\s+/);
+
+  // Respect explicit line breaks first, then wrap long lines
+  const paragraphs = cleaned
+    .split(/\r?\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
   const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    if (!current) {
-      current = word;
-    } else if (current.length + 1 + word.length <= maxCharsPerLine) {
-      current += " " + word;
-    } else {
-      lines.push(current);
-      current = word;
+  for (const para of paragraphs) {
+    const words = para.split(/\s+/);
+    let current = "";
+    for (const word of words) {
+      if (!current) {
+        current = word;
+      } else if (current.length + 1 + word.length <= maxCharsPerLine) {
+        current += " " + word;
+      } else {
+        lines.push(current);
+        current = word;
+      }
     }
+    if (current) lines.push(current);
   }
-  if (current) lines.push(current);
+
   return lines.slice(0, 4).join("\n");
 }
 
-function safeZoneYCoordinate(zone: TextSafeZone): { boxY: number; textY: number } {
+/**
+ * Upper safe zone (y=160..260) so floating text never covers faces, hands, oak desk, or balcony action
+ */
+function safeZoneYCoordinate(zone: TextSafeZone): number {
   switch (zone) {
-    case "top":
-      return { boxY: 160, textY: 205 };
-    case "bottom":
-      return { boxY: 1320, textY: 1365 };
     case "upper_middle":
+      return 235;
+    case "bottom":
+      return 250;
+    case "top":
     default:
-      return { boxY: 460, textY: 505 };
+      return 185;
   }
 }
 
 export interface RenderAgentVideoOptions {
   packageId: string;
   outputFileName?: string;
+  pacingMode?: PacingMode;
+  textStyle?: VideoTextStyle;
+  cleanNoText?: boolean;
+  swapSceneOrder?: boolean;
   feedbackDirective?: string;
   fastSeedMode?: boolean;
+  useWatchFolderClips?: boolean;
 }
 
 export interface RenderedVideoArtifact {
@@ -102,8 +130,11 @@ export interface RenderedVideoArtifact {
 }
 
 /**
- * Renders a 9:16 vertical (1080x1920) multi-scene H.264 MP4 video using FFmpeg
+ * Renders a 9:16 vertical (1080x1920) multi-scene H.264 + AAC MP4 video using FFmpeg
  * guided by the Multimodal AI Video Director's SceneCutPlan.
+ * - Zero rectangular boxes, zero green footer bars, zero internal "SCENE X" labels.
+ * - Preserves full natural clip durations in "natural_cinema" mode (e.g. full 6s+6s=12s).
+ * - Preserves and crossfades native 48kHz stereo audio from dropped Flow Ultra clips.
  */
 export async function renderStoryVideoWithDirector(
   options: RenderAgentVideoOptions
@@ -111,8 +142,29 @@ export async function renderStoryVideoWithDirector(
   const pkg: FlowUltraVideoPackage =
     getFlowUltraPackageById(options.packageId) || FLOW_ULTRA_PACKAGES[0];
 
-  const dropClips = discoverWatchFolderClips();
-  const directorReport = await analyzeSceneClips(dropClips, pkg, {
+  const effectivePacingMode = resolveEffectivePacingMode(
+    options.pacingMode,
+    options.feedbackDirective
+  );
+  const effectiveTextStyle = resolveEffectiveTextStyle(
+    options.textStyle,
+    options.cleanNoText,
+    options.feedbackDirective
+  );
+
+  const shouldSwapOrder =
+    Boolean(options.swapSceneOrder) ||
+    (options.feedbackDirective || "").toLowerCase().includes("swap scene");
+
+  const useWatchClips = options.useWatchFolderClips !== false;
+  const rawDropClips = useWatchClips ? discoverWatchFolderClips() : [];
+  const dropClips = shouldSwapOrder ? [...rawDropClips].reverse() : rawDropClips;
+
+  const directorReport = await analyzeSceneClips(rawDropClips, pkg, {
+    pacingMode: effectivePacingMode,
+    textStyle: effectiveTextStyle,
+    cleanNoText: effectiveTextStyle === "none",
+    swapSceneOrder: shouldSwapOrder,
     feedbackDirective: options.feedbackDirective,
   });
 
@@ -132,16 +184,17 @@ export async function renderStoryVideoWithDirector(
   const fontArg = fontSpec ? `fontfile='${fontSpec}':` : "";
 
   try {
-    // In fastSeedMode (or standard multi-scene render), cap total scenes to 3 cuts so render completes in ~2.5s
-    const scenesToRender: SceneCutPlan[] = options.fastSeedMode
-      ? directorReport.sceneCuts.slice(0, 3).map((s) => ({
-          ...s,
-          keptDurationSec: Math.min(s.keptDurationSec, 2.2),
-        }))
-      : directorReport.sceneCuts.slice(0, 4).map((s) => ({
-          ...s,
-          keptDurationSec: Math.min(s.keptDurationSec, 2.5),
-        }));
+    // If real clips exist in attached_assets/flow_ultra_drop/, render as many scenes as match the storyboard (or dropped clips)
+    // and NEVER cap their duration to 2.5s!
+    let scenesToRender: SceneCutPlan[] = directorReport.sceneCuts;
+    if (dropClips.length > 0 && scenesToRender.length > dropClips.length) {
+      scenesToRender = scenesToRender.slice(0, dropClips.length);
+    } else if (options.fastSeedMode && dropClips.length === 0) {
+      scenesToRender = scenesToRender.slice(0, 3).map((s) => ({
+        ...s,
+        keptDurationSec: Math.min(s.keptDurationSec, 3.0),
+      }));
+    }
 
     const availableAssets = VISUAL_ASSETS_POOL.map((f) =>
       path.resolve(process.cwd(), "attached_assets", f)
@@ -153,78 +206,134 @@ export async function renderStoryVideoWithDirector(
       const cut = scenesToRender[i];
       const segPath = path.join(tmpDir, `seg-${i}.mp4`);
 
-      // Write scene caption & badge to temp UTF-8 files for FFmpeg drawtext textfile=...
-      const badgeFile = path.join(tmpDir, `badge-${i}.txt`);
-      const bodyFile = path.join(tmpDir, `body-${i}.txt`);
-      const ctaFile = path.join(tmpDir, `cta-${i}.txt`);
-
-      fs.writeFileSync(
-        badgeFile,
-        `SCENE ${cut.sceneNumber}  |  ${pkg.viralFormatLabel.toUpperCase()}`,
-        "utf8"
-      );
-      fs.writeFileSync(bodyFile, wrapTextLines(cut.onScreenText, 27), "utf8");
-      fs.writeFileSync(
-        ctaFile,
-        i === scenesToRender.length - 1
-          ? "Comment RESET for the 60-Second Diagnostic"
-          : "PERFECT DAY RESET  •  24-HOUR PROTOCOL",
-        "utf8"
-      );
-
-      const { boxY, textY } = safeZoneYCoordinate(cut.textSafeZone);
-      const badgePathEsc = escapeFfmpegFilterPath(badgeFile);
-      const bodyPathEsc = escapeFfmpegFilterPath(bodyFile);
-      const ctaPathEsc = escapeFfmpegFilterPath(ctaFile);
-
-      // Select visual source: watch-folder video clip if present, otherwise rotate through brand assets
       const rawClipPath = dropClips[i];
       const hasRawClip = Boolean(rawClipPath && fs.existsSync(rawClipPath));
       const assetPath =
         availableAssets[(i + pkg.id.length) % Math.max(1, availableAssets.length)];
 
-      // Alternate horizontal crop pan & subtle contrast/saturation per scene so cuts are visually distinct
-      const cropOffsetExpr =
-        i % 2 === 0
-          ? `(in_w-out_w)*0.25 + (in_w-out_w)*0.45*(t/${cut.keptDurationSec})`
-          : `(in_w-out_w)*0.75 - (in_w-out_w)*0.45*(t/${cut.keptDurationSec})`;
+      const vfSteps: string[] = [];
 
-      const colorTint =
-        i === 0
-          ? "eq=contrast=1.12:brightness=-0.04:saturation=1.15"
-          : i === scenesToRender.length - 1
-          ? "eq=contrast=1.08:brightness=0.02:saturation=1.25"
-          : "eq=contrast=1.06:brightness=-0.01:saturation=1.10";
-
-      const vfChain = [
-        `scale=-2:1920`,
-        `crop=1080:1920:'${cropOffsetExpr}':0`,
-        colorTint,
-        // Top header bar
-        `drawbox=x=60:y=${boxY - 56}:w=960:h=54:color=0x064e3b@0.92:t=fill`,
-        // Main text safe-zone card
-        `drawbox=x=60:y=${boxY}:w=960:h=310:color=0x090d16@0.82:t=fill`,
-        // Bottom CTA bar
-        `drawbox=x=60:y=1680:w=960:h=96:color=0x047857@0.92:t=fill`,
-        // Scene badge text
-        `drawtext=${fontArg}textfile='${badgePathEsc}':fontsize=26:fontcolor=0x6ee7b7:x=(w-text_w)/2:y=${
-          boxY - 40
-        }`,
-        // Main hook/payoff text
-        `drawtext=${fontArg}textfile='${bodyPathEsc}':fontsize=44:fontcolor=white:line_spacing=16:x=(w-text_w)/2:y=${textY}`,
-        // Bottom CTA pill text
-        `drawtext=${fontArg}textfile='${ctaPathEsc}':fontsize=32:fontcolor=white:x=(w-text_w)/2:y=1714`,
-      ].join(",");
-
-      const ffmpegArgs: string[] = ["-y", "-hide_banner", "-loglevel", "error"];
       if (hasRawClip) {
+        // Real 9:16 video clip from Google Flow Ultra: scale cleanly to 1080x1920 without artificial horizontal panning
+        vfSteps.push(
+          "scale=1080:1920:force_original_aspect_ratio=increase",
+          "crop=1080:1920",
+          "setsar=1"
+        );
+      } else {
+        // Static brand asset fallback: gentle cinematic pan
+        const cropOffsetExpr =
+          i % 2 === 0
+            ? `(in_w-out_w)*0.28 + (in_w-out_w)*0.38*(t/${cut.keptDurationSec})`
+            : `(in_w-out_w)*0.72 - (in_w-out_w)*0.38*(t/${cut.keptDurationSec})`;
+        vfSteps.push(
+          "scale=-2:1920",
+          `crop=1080:1920:'${cropOffsetExpr}':0`,
+          "setsar=1"
+        );
+      }
+
+      // Smooth transition fades between scenes
+      if (i > 0) {
+        vfSteps.push("fade=t=in:st=0:d=0.18");
+      }
+      if (i < scenesToRender.length - 1 && cut.keptDurationSec > 1.0) {
+        const fadeOutStart = Math.max(0, cut.keptDurationSec - 0.18).toFixed(2);
+        vfSteps.push(`fade=t=out:st=${fadeOutStart}:d=0.18`);
+      }
+
+      // Optional Clean TikTok/Reels Floating Typography (NO boxes, NO green banners, NO scene labels)
+      if (effectiveTextStyle !== "none" && cut.onScreenText.trim()) {
+        const bodyFile = path.join(tmpDir, `body-${i}.txt`);
+        fs.writeFileSync(bodyFile, wrapTextLines(cut.onScreenText, 38), "utf8");
+        const bodyPathEsc = escapeFfmpegFilterPath(bodyFile);
+        const textY = safeZoneYCoordinate(cut.textSafeZone);
+
+        vfSteps.push(
+          `drawtext=${fontArg}textfile='${bodyPathEsc}':fontsize=40:fontcolor=white:borderw=3:bordercolor=black@0.85:shadowx=0:shadowy=2:shadowcolor=black@0.6:line_spacing=12:x=(w-text_w)/2:y=${textY}`
+        );
+      }
+
+      const vfChain = vfSteps.join(",");
+      const ffmpegArgs: string[] = ["-y", "-hide_banner", "-loglevel", "error"];
+
+      if (hasRawClip && cut.hasAudio) {
+        // Input clip has native audio: preserve and smooth-fade audio at scene boundaries
         ffmpegArgs.push(
           "-ss",
           String(cut.trimStartSec),
           "-t",
           String(cut.keptDurationSec),
           "-i",
-          rawClipPath
+          rawClipPath,
+          "-vf",
+          vfChain,
+          "-af",
+          `aresample=48000,afade=t=in:st=0:d=0.15,afade=t=out:st=${Math.max(
+            0,
+            cut.keptDurationSec - 0.2
+          ).toFixed(2)}:d=0.20`,
+          "-r",
+          "24",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "fast",
+          "-crf",
+          "21",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "192k",
+          "-ar",
+          "48000",
+          "-ac",
+          "2",
+          segPath
+        );
+      } else if (hasRawClip) {
+        // Input clip without audio track: attach silent 48kHz stereo track so concat streams match
+        ffmpegArgs.push(
+          "-ss",
+          String(cut.trimStartSec),
+          "-t",
+          String(cut.keptDurationSec),
+          "-i",
+          rawClipPath,
+          "-f",
+          "lavfi",
+          "-t",
+          String(cut.keptDurationSec),
+          "-i",
+          "anullsrc=channel_layout=stereo:sample_rate=48000",
+          "-vf",
+          vfChain,
+          "-map",
+          "0:v:0",
+          "-map",
+          "1:a:0",
+          "-r",
+          "24",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "fast",
+          "-crf",
+          "21",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "128k",
+          "-ar",
+          "48000",
+          "-ac",
+          "2",
+          "-shortest",
+          segPath
         );
       } else if (assetPath) {
         ffmpegArgs.push(
@@ -235,7 +344,39 @@ export async function renderStoryVideoWithDirector(
           "-t",
           String(cut.keptDurationSec),
           "-i",
-          assetPath
+          assetPath,
+          "-f",
+          "lavfi",
+          "-t",
+          String(cut.keptDurationSec),
+          "-i",
+          "anullsrc=channel_layout=stereo:sample_rate=48000",
+          "-vf",
+          vfChain,
+          "-map",
+          "0:v:0",
+          "-map",
+          "1:a:0",
+          "-r",
+          "24",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-crf",
+          "23",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "128k",
+          "-ar",
+          "48000",
+          "-ac",
+          "2",
+          "-shortest",
+          segPath
         );
       } else {
         ffmpegArgs.push(
@@ -244,32 +385,47 @@ export async function renderStoryVideoWithDirector(
           "-t",
           String(cut.keptDurationSec),
           "-i",
-          "color=c=0x0f172a:s=1080x1920:r=24"
+          "color=c=0x0f172a:s=1080x1920:r=24",
+          "-f",
+          "lavfi",
+          "-t",
+          String(cut.keptDurationSec),
+          "-i",
+          "anullsrc=channel_layout=stereo:sample_rate=48000",
+          "-vf",
+          vfChain,
+          "-map",
+          "0:v:0",
+          "-map",
+          "1:a:0",
+          "-r",
+          "24",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-crf",
+          "23",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "128k",
+          "-ar",
+          "48000",
+          "-ac",
+          "2",
+          "-shortest",
+          segPath
         );
       }
-
-      ffmpegArgs.push(
-        "-vf",
-        vfChain,
-        "-r",
-        "24",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "ultrafast",
-        "-crf",
-        "24",
-        "-pix_fmt",
-        "yuv420p",
-        "-an",
-        segPath
-      );
 
       await execFileAsync(FFMPEG_BIN, ffmpegArgs);
       segmentFiles.push(segPath);
     }
 
-    // Concatenate all rendered scene segments into the final MP4 with +faststart
+    // Concatenate all rendered scene segments (video + audio) into the final MP4 with +faststart
     const concatListPath = path.join(tmpDir, "concat.txt");
     const concatContent = segmentFiles
       .map((p) => `file '${p.replace(/\\/g, "/").replace(/'/g, "'\\''")}'`)
@@ -330,26 +486,31 @@ export async function ensureSampleAgentVideosSeeded(): Promise<AgentVideo[]> {
       packageId: string;
       fileName: string;
       status: "pending_review" | "approved";
+      useWatchClips: boolean;
     }> = [
       {
         packageId: "cortisol-1-ocean-desk-purple-cow",
         fileName: "sample-1-ocean-desk-purple-cow.mp4",
         status: "pending_review",
+        useWatchClips: true,
       },
       {
         packageId: "cortisol-2-bmw-m5-trojan-horse",
         fileName: "sample-2-bmw-m5-trojan-horse.mp4",
         status: "pending_review",
+        useWatchClips: false,
       },
       {
         packageId: "dopamine-1-highway-bed-purple-cow",
         fileName: "sample-3-highway-bed-purple-cow.mp4",
         status: "pending_review",
+        useWatchClips: false,
       },
       {
         packageId: "dopamine-2-two-executives-ab-timeline",
         fileName: "sample-4-two-executives-ab-timeline.mp4",
         status: "approved",
+        useWatchClips: false,
       },
     ];
 
@@ -371,12 +532,19 @@ export async function ensureSampleAgentVideosSeeded(): Promise<AgentVideo[]> {
 
       let directorReport: DirectorCutReport;
       if (fs.existsSync(outFile) && fs.statSync(outFile).size > 1000) {
-        directorReport = await analyzeSceneClips([], pkg);
+        const clips = cfg.useWatchClips ? discoverWatchFolderClips() : [];
+        directorReport = await analyzeSceneClips(clips, pkg, {
+          pacingMode: "natural_cinema",
+          textStyle: "floating_tiktok",
+        });
       } else {
         const rendered = await renderStoryVideoWithDirector({
           packageId: cfg.packageId,
           outputFileName: cfg.fileName,
-          fastSeedMode: true,
+          pacingMode: "natural_cinema",
+          textStyle: "floating_tiktok",
+          fastSeedMode: !cfg.useWatchClips,
+          useWatchFolderClips: cfg.useWatchClips,
         });
         directorReport = rendered.directorReport;
       }

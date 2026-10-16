@@ -191,9 +191,15 @@ export default function AgentDashboard() {
   >("flow-ultra");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Tab 1 state
+  // Tab 1 & Tab 2 AI Director Pacing & Text Style state
   const [archetypeFilter, setArchetypeFilter] = useState<string>("all");
   const [viralFormatFilter, setViralFormatFilter] = useState<string>("all");
+  const [pacingMode, setPacingMode] = useState<
+    "natural_cinema" | "balanced_story" | "fast_cut"
+  >("natural_cinema");
+  const [textStyle, setTextStyle] = useState<"floating_tiktok" | "none">(
+    "floating_tiktok"
+  );
   const [expandedReports, setExpandedReports] = useState<Record<number, boolean>>({});
   const [renderingPackageId, setRenderingPackageId] = useState<string | null>(null);
 
@@ -261,9 +267,23 @@ export default function AgentDashboard() {
   };
 
   const generateVideoMutation = useMutation({
-    mutationFn: async (payload: { packageId: string; feedbackDirective?: string }) => {
+    mutationFn: async (payload: {
+      packageId: string;
+      pacingMode?: "natural_cinema" | "balanced_story" | "fast_cut";
+      textStyle?: "floating_tiktok" | "none";
+      cleanNoText?: boolean;
+      swapSceneOrder?: boolean;
+      feedbackDirective?: string;
+    }) => {
       setRenderingPackageId(payload.packageId);
-      const res = await apiRequest("POST", "/api/agent/videos/generate", payload);
+      const res = await apiRequest("POST", "/api/agent/videos/generate", {
+        packageId: payload.packageId,
+        pacingMode: payload.pacingMode ?? pacingMode,
+        textStyle: payload.textStyle ?? textStyle,
+        cleanNoText: payload.cleanNoText ?? textStyle === "none",
+        swapSceneOrder: payload.swapSceneOrder,
+        feedbackDirective: payload.feedbackDirective,
+      });
       return res.json();
     },
     onSuccess: (data) => {
@@ -292,11 +312,19 @@ export default function AgentDashboard() {
       action: "approve" | "decline";
       declineReason?: string;
       regenerate?: boolean;
+      pacingMode?: "natural_cinema" | "balanced_story" | "fast_cut";
+      textStyle?: "floating_tiktok" | "none";
+      cleanNoText?: boolean;
+      swapSceneOrder?: boolean;
     }) => {
       const res = await apiRequest("POST", `/api/agent/videos/${payload.id}/review`, {
         action: payload.action,
         declineReason: payload.declineReason,
         regenerate: payload.regenerate,
+        pacingMode: payload.pacingMode ?? pacingMode,
+        textStyle: payload.textStyle ?? textStyle,
+        cleanNoText: payload.cleanNoText ?? (payload.textStyle || textStyle) === "none",
+        swapSceneOrder: payload.swapSceneOrder,
       });
       return res.json();
     },
@@ -685,6 +713,71 @@ export default function AgentDashboard() {
                   </button>
                 ))}
               </div>
+
+              {/* Pacing Mode & Text Style Controls */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-800">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mr-1">
+                    Pacing Mode:
+                  </span>
+                  {[
+                    {
+                      id: "natural_cinema" as const,
+                      label: "Natural Full Clips (Keep Full 6–8s Arcs)",
+                    },
+                    {
+                      id: "balanced_story" as const,
+                      label: "Balanced (4–5s/clip)",
+                    },
+                    {
+                      id: "fast_cut" as const,
+                      label: "Fast Cut (2.5s/clip)",
+                    },
+                  ].map((pm) => (
+                    <button
+                      key={pm.id}
+                      type="button"
+                      onClick={() => setPacingMode(pm.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                        pacingMode === pm.id
+                          ? "bg-emerald-500 text-slate-950 shadow"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}
+                    >
+                      {pm.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-sky-400 mr-1">
+                    Text Style:
+                  </span>
+                  {[
+                    {
+                      id: "floating_tiktok" as const,
+                      label: "Clean TikTok Floating Text (No Boxes)",
+                    },
+                    {
+                      id: "none" as const,
+                      label: "No Burned Text (Clean Video Only)",
+                    },
+                  ].map((ts) => (
+                    <button
+                      key={ts.id}
+                      type="button"
+                      onClick={() => setTextStyle(ts.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                        textStyle === ts.id
+                          ? "bg-sky-400 text-slate-950 shadow"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}
+                    >
+                      {ts.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {loadingFlow ? (
@@ -921,43 +1014,113 @@ export default function AgentDashboard() {
         {activeTab === "video-queue" && (
           <div className="space-y-8">
             {/* Pipeline Banner */}
-            <div className="bg-gradient-to-r from-slate-900 via-emerald-950/50 to-slate-900 border border-emerald-500/30 rounded-2xl p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div>
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1">
-                  <Scissors className="w-3.5 h-3.5" />
-                  Multimodal AI Video Director + Free Local FFmpeg Viral Assembler
-                </span>
-                <h2 className="text-xl sm:text-2xl font-bold text-white">
-                  Human-in-the-Loop Video Approval Queue ({pendingVideos.length} Pending Review • {approvedVideos.length} Approved)
-                </h2>
-                <p className="text-sm text-slate-300 mt-1 max-w-3xl">
-                  Every video is inspected by our <strong>AI Video Director (`video-analyzer.ts`)</strong> for peak motion timing (`trimStartSec` → `trimEndSec`), glitch/hand-morph verification, and dynamic `textSafeZone` placement before FFmpeg burns in the hook and renders a `1080x1920` H.264 `.mp4`.Nothing ever posts until you click <strong>Approve Video</strong>.
-                </p>
+            <div className="bg-gradient-to-r from-slate-900 via-emerald-950/50 to-slate-900 border border-emerald-500/30 rounded-2xl p-6 space-y-5">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1">
+                    <Scissors className="w-3.5 h-3.5" />
+                    Multimodal AI Video Director + Free Local FFmpeg Viral Assembler
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white">
+                    Human-in-the-Loop Video Approval Queue ({pendingVideos.length} Pending Review • {approvedVideos.length} Approved)
+                  </h2>
+                  <p className="text-sm text-slate-300 mt-1 max-w-3xl">
+                    Preserves full natural 6–8s Google Flow Ultra clip arcs (`pacingMode: "natural_cinema"`), native 48kHz stereo audio with smooth crossfades, and clean floating TikTok/Reels typography with zero ugly boxes or footer banners.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                  <button
+                    type="button"
+                    disabled={generateVideoMutation.isPending}
+                    onClick={() =>
+                      generateVideoMutation.mutate({
+                        packageId: "cortisol-1-ocean-desk-purple-cow",
+                        pacingMode,
+                        textStyle,
+                        cleanNoText: textStyle === "none",
+                      })
+                    }
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition disabled:opacity-50"
+                  >
+                    {generateVideoMutation.isPending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Rendering New Cut...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4" />
+                        Render New Cut from Watch Folder / Storyboard
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-                <button
-                  type="button"
-                  disabled={generateVideoMutation.isPending}
-                  onClick={() =>
-                    generateVideoMutation.mutate({
-                      packageId: "cortisol-1-ocean-desk-purple-cow",
-                    })
-                  }
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition disabled:opacity-50"
-                >
-                  {generateVideoMutation.isPending ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Rendering New Cut...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4" />
-                      Render New Cut from Watch Folder / Storyboard
-                    </>
-                  )}
-                </button>
+              {/* Pacing Mode & Text Style Controls */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-4 border-t border-slate-800/80">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mr-1">
+                    Pacing Mode:
+                  </span>
+                  {[
+                    {
+                      id: "natural_cinema" as const,
+                      label: "Natural Full Clips (Keep Full 6–8s Arcs)",
+                    },
+                    {
+                      id: "balanced_story" as const,
+                      label: "Balanced (4–5s/clip)",
+                    },
+                    {
+                      id: "fast_cut" as const,
+                      label: "Fast Cut (2.5s/clip)",
+                    },
+                  ].map((pm) => (
+                    <button
+                      key={pm.id}
+                      type="button"
+                      onClick={() => setPacingMode(pm.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                        pacingMode === pm.id
+                          ? "bg-emerald-500 text-slate-950 shadow"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}
+                    >
+                      {pm.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-sky-400 mr-1">
+                    Text Style:
+                  </span>
+                  {[
+                    {
+                      id: "floating_tiktok" as const,
+                      label: "Clean TikTok Floating Text (No Boxes)",
+                    },
+                    {
+                      id: "none" as const,
+                      label: "No Burned Text (Clean Video Only)",
+                    },
+                  ].map((ts) => (
+                    <button
+                      key={ts.id}
+                      type="button"
+                      onClick={() => setTextStyle(ts.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                        textStyle === ts.id
+                          ? "bg-sky-400 text-slate-950 shadow"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}
+                    >
+                      {ts.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -1002,7 +1165,7 @@ export default function AgentDashboard() {
                             <div className="lg:col-span-4 flex flex-col items-center">
                               <div className="w-full max-w-[270px] aspect-[9/16] rounded-2xl overflow-hidden border-2 border-slate-700 bg-black shadow-2xl relative">
                                 <video
-                                  key={video.videoUrl}
+                                  key={`${video.videoUrl}-${report?.analyzedAt || ""}`}
                                   src={video.videoUrl}
                                   controls
                                   playsInline
@@ -1012,7 +1175,7 @@ export default function AgentDashboard() {
                                 />
                               </div>
                               <div className="mt-2.5 flex items-center gap-3 text-xs text-slate-400">
-                                <span>1080×1920 (9:16 H.264)</span>
+                                <span>1080×1920 (9:16 H.264 + AAC)</span>
                                 <span>•</span>
                                 <a
                                   href={video.videoUrl}
@@ -1084,7 +1247,10 @@ export default function AgentDashboard() {
                                       reviewVideoMutation.mutate({
                                         id: video.id,
                                         action: "decline",
-                                        declineReason: "Declined by producer for re-cut",
+                                        declineReason: "Keep Full Clip Length (Don't Cut Early)",
+                                        pacingMode,
+                                        textStyle,
+                                        cleanNoText: textStyle === "none",
                                         regenerate: true,
                                       })
                                     }
@@ -1103,26 +1269,62 @@ export default function AgentDashboard() {
                                 </span>
                                 <div className="flex flex-wrap gap-2">
                                   {[
-                                    "Cut Faster (Tight 1.8s Pacing)",
-                                    "Make Hook More Shocking",
-                                    "Move Text Position Safe Zone",
-                                  ].map((directive) => (
+                                    {
+                                      label: "Keep Full Clip Length (Don't Cut Early)",
+                                      pacingMode: "natural_cinema" as const,
+                                      textStyle: "floating_tiktok" as const,
+                                      cleanNoText: false,
+                                      swapSceneOrder: false,
+                                    },
+                                    {
+                                      label: "Render Clean Video (No Text)",
+                                      pacingMode: "natural_cinema" as const,
+                                      textStyle: "none" as const,
+                                      cleanNoText: true,
+                                      swapSceneOrder: false,
+                                    },
+                                    {
+                                      label: "Swap Scene Order",
+                                      pacingMode: "natural_cinema" as const,
+                                      textStyle,
+                                      cleanNoText: textStyle === "none",
+                                      swapSceneOrder: true,
+                                    },
+                                    {
+                                      label: "Cut Faster (2.5s/clip)",
+                                      pacingMode: "fast_cut" as const,
+                                      textStyle,
+                                      cleanNoText: textStyle === "none",
+                                      swapSceneOrder: false,
+                                    },
+                                    {
+                                      label: "Move Text Position Safe Zone",
+                                      pacingMode,
+                                      textStyle: "floating_tiktok" as const,
+                                      cleanNoText: false,
+                                      swapSceneOrder: false,
+                                    },
+                                  ].map((btn) => (
                                     <button
-                                      key={directive}
+                                      key={btn.label}
                                       type="button"
                                       disabled={reviewVideoMutation.isPending}
                                       onClick={() =>
                                         reviewVideoMutation.mutate({
                                           id: video.id,
                                           action: "decline",
-                                          declineReason: directive,
+                                          declineReason: btn.label,
+                                          pacingMode: btn.pacingMode,
+                                          textStyle: btn.textStyle,
+                                          cleanNoText: btn.cleanNoText,
+                                          swapSceneOrder: btn.swapSceneOrder,
                                           regenerate: true,
                                         })
                                       }
                                       className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition disabled:opacity-50"
                                     >
                                       <Scissors className="w-3 h-3 text-amber-400" />
-                                      {directive}
+                                      {btn.label}
                                     </button>
                                   ))}
                                 </div>

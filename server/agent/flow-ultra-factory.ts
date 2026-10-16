@@ -55,9 +55,9 @@ export const FLOW_ULTRA_PACKAGES: FlowUltraVideoPackage[] = [
     angleTitle: "The Ocean Desk Anomaly: Working With an Inverted Cortisol Curve",
     viralFormat: "purple_cow_loop",
     viralFormatLabel: "Purple Cow Loop",
-    targetLengthSeconds: 7,
-    durationSeconds: 7,
-    pacingRule: "2-cut surreal loop (3.5s Visual Anomaly -> 3.5s Grounded Payoff)",
+    targetLengthSeconds: 12,
+    durationSeconds: 12,
+    pacingRule: "2-cut full-arc loop (6.0s Visual Anomaly -> 6.0s Grounded Balcony Exhale)",
     psychologicalAngle:
       "Pattern-interrupt surrealism: visualizing what 10:30 PM 'tired but wired' adrenaline actually feels like inside a high performer's nervous system.",
     aspectRatio: "9:16",
@@ -68,21 +68,21 @@ export const FLOW_ULTRA_PACKAGES: FlowUltraVideoPackage[] = [
     scenes: [
       {
         sceneNumber: 1,
-        timeRange: "0.0s – 3.5s",
+        timeRange: "0.0s – 6.0s",
         shotType: "Medium Wide Surreal Anomaly Hook",
         flowUltraPrompt:
           "9:16 vertical video, organic 35mm handheld documentary cinematography, moody blue-hour dawn lighting, subtle film grain, shallow depth of field, zero CGI gloss. Immediate frame-0 motion: a 40-year-old executive in a tailored charcoal wool suit sits calmly typing on a brushed aluminum laptop at a solid oak desk positioned chest-deep in dark, foaming ocean waves crashing against the desk legs, salt spray catching the cold morning light, hyper-real tactile water and wet wool fabric textures.",
-        onScreenText: "Exhausted at 7:00 AM... yet your brain won't shut off at 10:30 PM?",
+        onScreenText: "Exhausted at 7:00 AM...\nyet wired at 10:30 PM?",
         soundCue: "Heavy ocean wave crash + rapid mechanical keyboard clicks",
       },
       {
         sceneNumber: 2,
-        timeRange: "3.5s – 7.0s",
+        timeRange: "6.0s – 12.0s",
         shotType: "Close-Up Tactile Contrast Cut",
         flowUltraPrompt:
           "9:16 vertical video, organic 35mm handheld documentary close-up, warm golden sunrise light flooding across a dry solid oak table, subtle 35mm film grain, shallow depth of field. Immediate frame-0 motion: a hand sets down a tall frosted glass of mineral water with real condensation beads and dissolving sea salt crystals beside a closed laptop, then steps onto a sunlit balcony taking a slow nasal inhale, authentic skin texture. Comment RESET.",
         onScreenText:
-          "Your cortisol curve is inverted. Reset it in 24 hours → Comment RESET ⚡",
+          "Your cortisol curve is inverted.\nReset it in 24 hours (Comment RESET)",
         soundCue: "Sudden silence + crisp glass clink on wood + deep exhale",
       },
     ],
@@ -271,7 +271,7 @@ export const FLOW_ULTRA_PACKAGES: FlowUltraVideoPackage[] = [
         shotType: "Quiet Sunlit Blinds Payoff Cut",
         flowUltraPrompt:
           "9:16 vertical video, organic 35mm handheld documentary close-up, silent sunlit bedroom, warm golden morning rays through wooden blinds, subtle film grain. Immediate frame-0 motion: a hand flips a smartphone face-down onto a walnut nightstand and pulls open wooden blinds to flood the room with warm morning sunlight.",
-        onScreenText: "Protect your first 45 mins. Reclaim 4 hours of focus → Comment RESET ⚡",
+        onScreenText: "Protect your first 45 mins. Reclaim 4 hours of focus (Comment RESET)",
         soundCue: "Instant dead silence + wooden blinds click + calm exhale",
       },
     ],
@@ -394,7 +394,7 @@ export const FLOW_ULTRA_PACKAGES: FlowUltraVideoPackage[] = [
         shotType: "Afternoon Desk Return with Clean Focus",
         flowUltraPrompt:
           "9:16 vertical video, 35mm handheld medium shot, bright afternoon window light over an oak desk. Immediate frame-0 motion: the executive sits down refreshed, pours cold sparkling mineral water, and types with effortless speed.",
-        onScreenText: "Restore your afternoon dopamine in 1 day → Comment RESET ⚡",
+        onScreenText: "Restore your afternoon dopamine in 1 day (Comment RESET)",
         soundCue: "Sparkling water fizz + crisp keyboard flow",
       },
     ],
@@ -446,7 +446,7 @@ export const FLOW_ULTRA_PACKAGES: FlowUltraVideoPackage[] = [
         shotType: "Macro Anti-Crash Salmon & Avocado Bowl Cut",
         flowUltraPrompt:
           "9:16 vertical video, organic 35mm handheld culinary documentary close-up, bright natural window light over a rustic wood table, subtle film grain. Immediate frame-0 motion: fresh lemon juice and extra-virgin olive oil are squeezed over crisp-skin wild grilled salmon, ripe avocado slices, and toasted pumpkin seeds in a matte stoneware bowl.",
-        onScreenText: "It's reactive hypoglycemia. Get the 5-Diet Reset Menu → Comment RESET ⚡",
+        onScreenText: "It's reactive hypoglycemia. Get the 5-Diet Reset Menu (Comment RESET)",
         soundCue: "Crisp citrus squeeze + sizzling whole-food texture",
       },
     ],
@@ -630,7 +630,7 @@ export const FLOW_ULTRA_PACKAGES: FlowUltraVideoPackage[] = [
         shotType: "1-Tap Live Rescheduler Relief Cut",
         flowUltraPrompt:
           "9:16 vertical video, organic 35mm handheld close-up, warm sunlit oak desk beside a steaming ceramic mug, subtle film grain. Immediate frame-0 motion: a calm thumb taps a '+15m Delay' button on a clean emerald web app interface, smoothly shifting the day's timeline blocks forward as the founder exhales with relief.",
-        onScreenText: "Our 1-Tap Delay Rescheduler recalculates your whole day → Comment RESET ⚡",
+        onScreenText: "Our 1-Tap Delay Rescheduler recalculates your whole day (Comment RESET)",
         soundCue: "Soft UI chime + calm exhale",
       },
     ],

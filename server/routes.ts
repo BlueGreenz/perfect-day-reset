@@ -1597,10 +1597,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const feedbackDirective = req.body?.feedbackDirective
         ? String(req.body.feedbackDirective)
         : undefined;
+      const pacingMode = req.body?.pacingMode ? String(req.body.pacingMode) as any : undefined;
+      const textStyle = req.body?.textStyle ? String(req.body.textStyle) as any : undefined;
+      const cleanNoText = Boolean(req.body?.cleanNoText);
+      const swapSceneOrder = Boolean(req.body?.swapSceneOrder);
 
       const pkg = getFlowUltraPackageById(packageId) || FLOW_ULTRA_PACKAGES[0];
       const rendered = await renderStoryVideoWithDirector({
         packageId: pkg.id,
+        pacingMode,
+        textStyle,
+        cleanNoText,
+        swapSceneOrder,
         feedbackDirective,
       });
 
@@ -1646,6 +1654,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const action = req.body?.action === "approve" ? "approve" : "decline";
       const declineReason = req.body?.declineReason ? String(req.body.declineReason) : null;
       const regenerate = Boolean(req.body?.regenerate);
+      const pacingMode = req.body?.pacingMode ? String(req.body.pacingMode) as any : undefined;
+      const textStyle = req.body?.textStyle ? String(req.body.textStyle) as any : undefined;
+      const cleanNoText = Boolean(req.body?.cleanNoText);
+      const swapSceneOrder = Boolean(req.body?.swapSceneOrder);
 
       if (action === "approve") {
         const updated = await storage.updateAgentVideo(id, {
@@ -1659,12 +1671,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // If declined and regenerate=true, re-run AI Video Director + FFmpeg Assembler with the declineReason directive
+      // If declined and regenerate=true, re-run AI Video Director + FFmpeg Assembler with the producer directives
       if (regenerate) {
         const pkg = getFlowUltraPackageById(existing.packageId) || FLOW_ULTRA_PACKAGES[0];
         const rendered = await renderStoryVideoWithDirector({
           packageId: pkg.id,
-          feedbackDirective: declineReason || "Cut Faster & Tighten Hook",
+          pacingMode,
+          textStyle,
+          cleanNoText,
+          swapSceneOrder,
+          feedbackDirective: declineReason || "Keep Full Clip Length (Don't Cut Early)",
         });
 
         const updated = await storage.updateAgentVideo(id, {
