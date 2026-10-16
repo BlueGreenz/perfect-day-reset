@@ -792,6 +792,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         climate_percentage: "0.5%",
       };
 
+      const description = hasOrderBump
+        ? "Perfect Day Reset (24h Protocol + 7-Day Momentum Toolkit)"
+        : "Perfect Day Reset — 24-Hour Protocol";
+      const statementDescriptorSuffix = "PDR RESET";
+
       if (!stripe && process.env.NODE_ENV !== "production") {
         const mockId = `pi_dev_${Date.now()}`;
         return res.json({
@@ -799,6 +804,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           amount,
           amountCents,
           includeOrderBump: hasOrderBump,
+          description,
+          statement_descriptor_suffix: statementDescriptorSuffix,
           metadata,
           mode: "local_dev_simulation",
         });
@@ -807,6 +814,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amountCents,
         currency: "usd",
+        description,
+        statement_descriptor_suffix: statementDescriptorSuffix,
         receipt_email: email || receipt_email,
         metadata,
       });
@@ -815,6 +824,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount,
         amountCents,
         includeOrderBump: hasOrderBump,
+        description,
+        statement_descriptor_suffix: statementDescriptorSuffix,
       });
     } catch (error: any) {
       res.status(500).json({ 

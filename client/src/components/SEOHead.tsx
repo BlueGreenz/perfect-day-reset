@@ -50,17 +50,59 @@ export default function SEOHead({
     "@context": "https://schema.org",
     "@type": "Product",
     "name": "Perfect Day Reset Program",
-    "description": "Complete 24-hour transformation guide including morning routines, midday recharge protocols, and evening reflection practices.",
+    "description": "Complete 24-hour transformation protocol and interactive web companion including morning activation, midday recharge, 5 customizable meal tracks, 1-tap delay rescheduler, and evening reflection.",
+    "image": [
+      "https://perfectdayreset.com/og-image.png",
+      "https://perfectdayreset.com/logo.png"
+    ],
+    "sku": "PDR-24H-CORE",
     "brand": {
       "@type": "Brand",
       "name": "Perfect Day Reset"
     },
     "offers": {
       "@type": "Offer",
-      "price": "19",
+      "url": "https://perfectdayreset.com/what-you-get",
+      "price": "19.00",
       "priceCurrency": "USD",
+      "priceValidUntil": "2027-12-31",
       "availability": "https://schema.org/InStock",
-      "url": "https://perfectdayreset.com/what-you-get"
+      "hasMerchantReturnPolicy": {
+        "@type": "MerchantReturnPolicy",
+        "applicableCountry": ["US", "GB", "CA", "AU", "EE", "DE", "FI", "SE"],
+        "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+        "merchantReturnDays": 14,
+        "returnMethod": "https://schema.org/ReturnByMail",
+        "returnFees": "https://schema.org/FreeReturn",
+        "merchantReturnLink": "https://perfectdayreset.com/refund-policy"
+      },
+      "shippingDetails": {
+        "@type": "OfferShippingDetails",
+        "shippingRate": {
+          "@type": "MonetaryAmount",
+          "value": "0.00",
+          "currency": "USD"
+        },
+        "shippingDestination": {
+          "@type": "DefinedRegion",
+          "addressCountry": ["US", "GB", "CA", "AU", "EE", "DE", "FI", "SE"]
+        },
+        "deliveryTime": {
+          "@type": "ShippingDeliveryTime",
+          "handlingTime": {
+            "@type": "QuantitativeValue",
+            "minValue": 0,
+            "maxValue": 0,
+            "unitCode": "DAY"
+          },
+          "transitTime": {
+            "@type": "QuantitativeValue",
+            "minValue": 0,
+            "maxValue": 0,
+            "unitCode": "DAY"
+          }
+        }
+      }
     },
     "aggregateRating": {
       "@type": "AggregateRating",
