@@ -11,6 +11,7 @@ interface SEOHeadProps {
   twitterTitle?: string;
   twitterDescription?: string;
   noindex?: boolean;
+  customSchemas?: Record<string, any>[];
 }
 
 export default function SEOHead({
@@ -22,7 +23,8 @@ export default function SEOHead({
   ogImage,
   twitterTitle,
   twitterDescription,
-  noindex = false
+  noindex = false,
+  customSchemas
 }: SEOHeadProps) {
   const [location] = useLocation();
 
@@ -111,6 +113,46 @@ export default function SEOHead({
     }
   };
 
+  // FAQPage structured data for homepage and product overview
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How does a 24-hour burnout reset work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The Perfect Day Reset is a structured, hour-by-hour 24-hour neuro-biological protocol that synchronizes four biological anchors in a single day: morning cortisol-hydration sequencing, a 90-minute adenosine-caffeine delay, metabolic glycemic stabilization at lunch with an optic-flow walk, and a 90-minute evening digital sunset with cognitive offload journaling."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What happens if I run late or get interrupted during my reset day?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Unlike rigid PDF schedules that fail the moment a meeting runs over or a family need arises, the interactive Perfect Day Reset Web Companion includes a 1-Tap Delay Rescheduler (+15m, +30m, +60m) that dynamically recalculates your remaining meal, movement, and wind-down timestamps without guilt."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do the 5 customizable nutrition tracks work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Inside the interactive portal, you can switch with one click between 5 whole-food metabolic tracks: Omnivore, Vegetarian, Ketogenic, Paleo, and Vegan. Each track provides exact breakfast, lunch, afternoon stabilizer, and dinner combinations calibrated to prevent post-meal glucose crashes without calorie counting."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the 14-day money-back guarantee?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Your $19 one-time purchase is backed by a 14-day 100% money-back guarantee. If you complete the 24-Hour Reset Protocol and do not feel a measurable improvement in morning alertness, afternoon focus, and evening calm, simply email support@perfectdayreset.com within 14 days for a full refund."
+        }
+      }
+    ]
+  };
+
   useEffect(() => {
     // Update document title
     if (title) {
@@ -174,7 +216,7 @@ export default function SEOHead({
     }
     organizationScript.textContent = JSON.stringify(organizationSchema);
 
-    // Add structured data for product (on product/what-you-get pages)
+    // Add structured data for product & FAQ (on product/what-you-get and home pages)
     if (location === '/what-you-get' || location === '/') {
       let productScript = document.querySelector('script[data-type="product-schema"]');
       if (!productScript) {
@@ -184,9 +226,30 @@ export default function SEOHead({
         document.head.appendChild(productScript);
       }
       productScript.textContent = JSON.stringify(productSchema);
+
+      let faqScript = document.querySelector('script[data-type="faq-schema"]');
+      if (!faqScript) {
+        faqScript = document.createElement('script');
+        faqScript.setAttribute('type', 'application/ld+json');
+        faqScript.setAttribute('data-type', 'faq-schema');
+        document.head.appendChild(faqScript);
+      }
+      faqScript.textContent = JSON.stringify(faqSchema);
     }
 
-  }, [title, description, canonical, ogTitle, ogDescription, ogImage, twitterTitle, twitterDescription, noindex, location]);
+    // Add custom route schemas if provided
+    document.querySelectorAll('script[data-type="custom-schema"]').forEach((el) => el.remove());
+    if (customSchemas && customSchemas.length > 0) {
+      customSchemas.forEach((schemaObj) => {
+        const script = document.createElement('script');
+        script.setAttribute('type', 'application/ld+json');
+        script.setAttribute('data-type', 'custom-schema');
+        script.textContent = JSON.stringify(schemaObj);
+        document.head.appendChild(script);
+      });
+    }
+
+  }, [title, description, canonical, ogTitle, ogDescription, ogImage, twitterTitle, twitterDescription, noindex, location, customSchemas]);
 
   return null;
 }

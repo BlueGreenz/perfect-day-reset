@@ -1,0 +1,41 @@
+# Perfect Day Reset
+
+> Science-backed 24-hour neuro-biological burnout, cortisol, and nervous system reset protocol and interactive web companion for high-performing professionals.
+
+Perfect Day Reset (`https://perfectdayreset.com`) is a structured 24-hour lifestyle and nervous system reset protocol engineered by **Reiko Kevvai** (Ex Head of Sales for Inchcape Motors BMW, with 35+ years of experience in competitive sports and corporate burnout recovery). Unlike rigid 30-day wellness challenges with an 85% drop-off rate by Day 4, Perfect Day Reset compresses circadian alignment, cortisol-hydration sequencing, glycemic stabilization, optic-flow movement, and evening vagal decompression into a single executable 24-hour day.
+
+## Core Offer & Pricing
+- **Free 60-Second Overwhelm Archetype Diagnostic (`/quiz`)**: Interactive 5-question diagnostic that identifies the user's primary Overwhelm Archetype, calculates their physiological bottleneck, and generates a live 24-hour schedule preview shifted to their wake time and dietary track.
+- **The Perfect Day Reset 24-Hour Interactive Protocol (`$19.00` USD one-time payment)**:
+  - **Live Interactive Web Companion Portal**: Works immediately on any smartphone, tablet, or laptop with zero app store download required.
+  - **1-Tap Delay Rescheduler (`+15m`, `+30m`, `+60m`)**: Dynamically recalculates all remaining meal, hydration, movement, and wind-down timestamps if a meeting runs late or life interrupts.
+  - **5 Customizable Whole-Food Nutrition Tracks**: Switch with one click between **Omnivore**, **Vegetarian**, **Ketogenic**, **Paleo**, and **Vegan** anti-crash meal plans with 1-click grocery lists.
+  - **Interactive Hydration Calculator & Digital Detox Checklist**: Bodyweight-calibrated water and electrolyte targets plus structured screen boundaries.
+  - **5-Prompt Evening Cognitive Unload Journal**: Saves evening reflections in the member portal and generates a personalized Certificate of Completion.
+  - **Printable PDF Blueprint & 7-Day Daily Reset Tracker**: Complete offline kit for paper-only execution.
+- **Optional Checkout Order Bump — 7-Day Momentum & Emergency 2-Hour Workday Reset Kit (`+$12.00` USD, Total `$31.00` USD)**:
+  - Includes the **Emergency 2-Hour Mid-Week Workday Reset Protocol** (for chaotic Tuesday/Wednesday workdays), the **Interactive 7-Day Post-Reset Habit & Energy Tracker**, and the **High-Stress Executive Travel & Dining-Out Cheat Sheet**.
+- **Guarantee & Social Impact**: Backed by a **14-Day 100% Money-Back Guarantee** (`https://perfectdayreset.com/refund-policy`), with `$1` donated to children's wellness programs per purchase.
+
+## The 4 Overwhelm Archetypes Addressed
+1. **Cortisol-Spiked High Performer (`cortisol_spiked`)**: Wakes up exhausted yet wired, reaches immediately for phone notifications and caffeine on an empty stomach, and experiences afternoon irritability and 2 AM wake-ups.
+2. **Metabolic Midday Crasher (`metabolic_crasher`)**: Experiences severe 2 PM–4 PM post-lunch brain fog, heavy eyelids, and sugar/caffeine cravings caused by reactive hypoglycemia and prolonged indoor sitting.
+3. **Dopamine-Depleted Multitasker (`dopamine_depleted`)**: Suffers from fragmented attention, constant context switching, evening doomscrolling, and "tired but wired" revenge bedtime procrastination.
+4. **Systemic Burnout Recovery (`systemic_burnout`)**: Chronic multi-week exhaustion where weekend sleep no longer restores baseline motivation or cognitive sharpness; requires a complete 24-hour four-phase biological reboot.
+
+## Authoritative 24-Hour & Workday Reset Pillar Guides
+- [All 24-Hour Burnout & Cortisol Reset Guides](https://perfectdayreset.com/guides): Complete library of science-backed executive reset protocols.
+- [The 24-Hour Burnout Reset Protocol: How High Performers Recover Energy & Clarity in One Day](https://perfectdayreset.com/guides/24-hour-burnout-reset-protocol): Hour-by-hour four-phase blueprint covering evening prep, morning activation, midday metabolic recharge, and evening vagal decompression.
+- [Morning Cortisol & Hydration Reset: Why You Wake Up Tired (And the 90-Minute Fix)](https://perfectdayreset.com/guides/morning-cortisol-hydration-reset): How to sequence 500ml electrolyte hydration, outdoor solar lux, and the 90-minute caffeine delay to eliminate morning fatigue and afternoon rebound crashes.
+- [How to Stop the 3 PM Energy Crash at Work: The Midday Metabolic & Optic-Flow Protocol](https://perfectdayreset.com/guides/stop-afternoon-energy-crash-work): How to pair a protein-and-fiber-first metabolic lunch with a 12-minute post-meal optic-flow walk and physiological sigh breathwork.
+- [Tired But Wired at Night? The Evening Nervous System & Digital Sunset Reset](https://perfectdayreset.com/guides/tired-but-wired-evening-nervous-system-reset): A 90-minute evening decompression sequence combining warm thermal down-regulation, 4-7-8 vagal breathing, and the 5-prompt cognitive offload journal.
+- [The 2-Hour Emergency Workday Reset for Overwhelmed Executives](https://perfectdayreset.com/guides/2-hour-workday-reset-overwhelmed-executives): A 120-minute tactical rescue protocol for chaotic Tuesday/Wednesday workdays when a full 24-hour off-grid reset isn't possible.
+
+## Key Pages & Entry Points
+- [Homepage](https://perfectdayreset.com/): Overview of the 24-Hour Reset Protocol, 4-phase timeline, and interactive web companion.
+- [Free 60-Second Burnout & Reset Diagnostic Quiz](https://perfectdayreset.com/quiz): Personalized archetype diagnosis and custom 24-hour schedule preview.
+- [What You Get — Program Breakdown](https://perfectdayreset.com/what-you-get): Complete feature breakdown of the $19 Interactive Web Companion and Printable PDF package.
+- [Instant Checkout](https://perfectdayreset.com/checkout): Secure Stripe checkout for the $19 24-Hour Reset Protocol (+ optional $12 7-Day Momentum & 2-Hour Emergency Reset Kit).
+- [About Founder Reiko Kevvai](https://perfectdayreset.com/about): Founder credentials (Ex Head of Sales for Inchcape Motors BMW, 35+ years in competitive sports) and origin story.
+- [Contact & Support](https://perfectdayreset.com/contact): Customer support (`support@perfectdayreset.com`).
+- [14-Day Money-Back Refund Policy](https://perfectdayreset.com/refund-policy): Full details on the 14-day satisfaction guarantee.

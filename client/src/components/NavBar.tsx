@@ -8,8 +8,8 @@ export default function NavBar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location] = useLocation();
 
-  const forceWhitePages = ["/what-you-get", "/quiz", "/checkout", "/about", "/contact"];
-  const shouldForceWhite = forceWhitePages.includes(location);
+  const forceWhitePages = ["/what-you-get", "/quiz", "/checkout", "/about", "/contact", "/guides"];
+  const shouldForceWhite = forceWhitePages.includes(location) || location.startsWith("/guides/");
 
   useEffect(() => {
     if (shouldForceWhite) {
@@ -63,7 +63,7 @@ export default function NavBar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
+          <div className="hidden md:flex items-center space-x-5 lg:space-x-7">
             <Link
               href="/quiz"
               className="inline-flex items-center gap-1.5 text-orange-600 hover:text-orange-700 font-semibold text-sm bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3.5 py-1.5 rounded-full transition-colors"
@@ -73,16 +73,22 @@ export default function NavBar() {
             </Link>
 
             <Link
-              href="/about"
+              href="/guides"
               className="text-gray-700 hover:text-primary transition-colors font-medium"
             >
-              About
+              Reset Guides
             </Link>
             <Link
               href="/what-you-get"
               className="text-gray-700 hover:text-primary transition-colors font-medium"
             >
               How It Works
+            </Link>
+            <Link
+              href="/about"
+              className="text-gray-700 hover:text-primary transition-colors font-medium"
+            >
+              About
             </Link>
             <Link
               href="/"
@@ -175,6 +181,15 @@ export default function NavBar() {
               Free 60s Diagnostic
             </span>
             <ChevronRight className="h-5 w-5 text-orange-500" />
+          </Link>
+
+          <Link
+            href="/guides"
+            className="text-gray-900 hover:text-primary text-xl font-medium py-2 flex items-center justify-between border-b border-gray-100"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Reset Guides
+            <ChevronRight className="h-5 w-5 text-gray-400" />
           </Link>
 
           <Link

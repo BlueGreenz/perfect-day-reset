@@ -28,6 +28,8 @@ const Contact = lazy(() => import("@/pages/Contact"));
 const About = lazy(() => import("@/pages/About"));
 const Quiz = lazy(() => import("@/pages/Quiz"));
 const AgentDashboard = lazy(() => import("@/pages/AgentDashboard"));
+const Guides = lazy(() => import("@/pages/Guides"));
+const GuideArticle = lazy(() => import("@/pages/GuideArticle"));
 
 function RouteLoadingFallback() {
   return (
@@ -46,6 +48,8 @@ function Router() {
       <Switch>
         <Route path="/" component={Home}/>
         <Route path="/quiz" component={Quiz}/>
+        <Route path="/guides" component={Guides}/>
+        <Route path="/guides/:slug" component={GuideArticle}/>
         <Route path="/what-you-get" component={WhatYouGet}/>
         <Route path="/checkout" component={Checkout}/>
         <Route path="/payment-success" component={PaymentSuccess}/>

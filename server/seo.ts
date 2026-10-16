@@ -1,3 +1,5 @@
+import { SEO_GUIDES, getGuideBySlug, type SEOGuideArticle } from "@shared/seo-guides";
+
 interface RouteSEOConfig {
   title: string;
   description: string;
@@ -9,6 +11,8 @@ interface RouteSEOConfig {
   twitterDescription: string;
   noindex?: boolean;
   includeProductSchema?: boolean;
+  includeFaqSchema?: boolean;
+  extraJsonLd?: Record<string, any>[];
   semanticHtml: string;
 }
 
@@ -22,6 +26,7 @@ const SHARED_NAV_HTML = `
       <ul>
         <li><a href="/">Home</a></li>
         <li><a href="/quiz">Free 60s Diagnostic</a></li>
+        <li><a href="/guides">Reset Guides</a></li>
         <li><a href="/what-you-get">What You Get</a></li>
         <li><a href="/about">About</a></li>
         <li><a href="/contact">Contact</a></li>
@@ -38,6 +43,12 @@ const SHARED_FOOTER_HTML = `
     <nav aria-label="Footer Navigation">
       <ul>
         <li><a href="/quiz">Free 60-Second Reset Diagnostic</a></li>
+        <li><a href="/guides">24-Hour Burnout &amp; Cortisol Reset Guides</a></li>
+        <li><a href="/guides/24-hour-burnout-reset-protocol">The 24-Hour Burnout Reset Protocol</a></li>
+        <li><a href="/guides/morning-cortisol-hydration-reset">Morning Cortisol &amp; Hydration Reset</a></li>
+        <li><a href="/guides/stop-afternoon-energy-crash-work">How to Stop the 3 PM Energy Crash</a></li>
+        <li><a href="/guides/tired-but-wired-evening-nervous-system-reset">Tired But Wired Evening Nervous System Reset</a></li>
+        <li><a href="/guides/2-hour-workday-reset-overwhelmed-executives">The 2-Hour Emergency Workday Reset</a></li>
         <li><a href="/what-you-get">What You Get</a></li>
         <li><a href="/about">About the Founder</a></li>
         <li><a href="/contact">Contact &amp; Support</a></li>
@@ -136,7 +147,80 @@ const ROUTE_SEO_MAP: Record<string, RouteSEOConfig> = {
     twitterDescription:
       "One day can change everything. Join the 24-hour reset that restores your energy, focus, and mood.",
     includeProductSchema: true,
+    includeFaqSchema: true,
     semanticHtml: HOME_SEMANTIC_HTML,
+  },
+  "/guides": {
+    title: "24-Hour Burnout, Cortisol & Energy Reset Guides | Perfect Day Reset",
+    description:
+      "Actionable, science-backed guides by Reiko Kevvai on 24-hour burnout recovery, morning cortisol hydration reset, stopping 3 PM afternoon crashes, and evening nervous system decompression.",
+    canonical: "https://perfectdayreset.com/guides",
+    ogTitle: "24-Hour Burnout, Cortisol & Energy Reset Guides | Perfect Day Reset",
+    ogDescription:
+      "Step-by-step neuro-biological protocols for high performers: fix morning fatigue, 3 PM brain fog, tired-but-wired nights, and chaotic workdays.",
+    ogImage: DEFAULT_OG_IMAGE,
+    twitterTitle: "24-Hour Burnout, Cortisol & Energy Reset Guides",
+    twitterDescription:
+      "Science-backed protocols by Reiko Kevvai for 24-hour burnout recovery, morning cortisol reset, and afternoon energy stabilization.",
+    extraJsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: "24-Hour Burnout, Cortisol & Nervous System Reset Guides | Perfect Day Reset",
+        description:
+          "Science-backed, hour-by-hour protocols for reversing executive burnout, morning cortisol spikes, 3 PM afternoon brain fog, and tired-but-wired evening insomnia.",
+        url: "https://perfectdayreset.com/guides",
+        mainEntity: {
+          "@type": "ItemList",
+          itemListElement: SEO_GUIDES.map((g, idx) => ({
+            "@type": "ListItem",
+            position: idx + 1,
+            url: `https://perfectdayreset.com/guides/${g.slug}`,
+            name: g.title,
+          })),
+        },
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: "https://perfectdayreset.com/",
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Reset Guides",
+            item: "https://perfectdayreset.com/guides",
+          },
+        ],
+      },
+    ],
+    semanticHtml: `
+<div class="ssr-seo-shell">
+  ${SHARED_NAV_HTML}
+  <main>
+    <h1>The 24-Hour Burnout, Cortisol &amp; Nervous System Reset Library</h1>
+    <p>Authored by Reiko Kevvai (Ex Head of Sales for Inchcape Motors BMW &amp; Founder of Perfect Day Reset). Explore our 5 comprehensive, science-backed protocols for high-performing professionals.</p>
+    <p><a href="/quiz">Take the Free 60-Second Diagnostic</a> | <a href="/checkout">Start the Full 24-Hour Reset — $19</a></p>
+    <section aria-label="Pillar Protocol Guides">
+      <h2>5 Complete Biological Reset Protocols</h2>
+      ${SEO_GUIDES.map(
+        (g) => `
+      <article>
+        <h3><a href="/guides/${g.slug}">${g.title}</a></h3>
+        <p><strong>Target Archetype:</strong> ${g.archetypeLabel} · <strong>Read Time:</strong> ${g.readTimeMinutes} minutes</p>
+        <p>${g.heroSummary}</p>
+        <p><a href="/guides/${g.slug}">Read Complete Protocol: ${g.title}</a></p>
+      </article>`
+      ).join("\n")}
+    </section>
+  </main>
+  ${SHARED_FOOTER_HTML}
+</div>`,
   },
   "/quiz": {
     title: "Free 60-Second Burnout & Reset Diagnostic Quiz | Perfect Day Reset",
@@ -182,6 +266,7 @@ const ROUTE_SEO_MAP: Record<string, RouteSEOConfig> = {
     twitterDescription:
       "Complete 24-hour wellness transformation package with interactive web companion, 5 diet plans, and printable PDF guide.",
     includeProductSchema: true,
+    includeFaqSchema: true,
     semanticHtml: `
 <div class="ssr-seo-shell">
   ${SHARED_NAV_HTML}
@@ -437,13 +522,289 @@ const PRODUCT_SCHEMA = {
   },
 };
 
+const CORE_FAQ_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "How does a 24-hour burnout reset work?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "The Perfect Day Reset is a structured, hour-by-hour 24-hour neuro-biological protocol that synchronizes four biological anchors in a single day: morning cortisol-hydration sequencing, a 90-minute adenosine-caffeine delay, metabolic glycemic stabilization at lunch with an optic-flow walk, and a 90-minute evening digital sunset with cognitive offload journaling.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "What happens if I run late or get interrupted during my reset day?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Unlike rigid PDF schedules that fail the moment a meeting runs over or a family need arises, the interactive Perfect Day Reset Web Companion includes a 1-Tap Delay Rescheduler (+15m, +30m, +60m) that dynamically recalculates your remaining meal, movement, and wind-down timestamps without guilt.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "How do the 5 customizable nutrition tracks work?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Inside the interactive portal, you can switch with one click between 5 whole-food metabolic tracks: Omnivore, Vegetarian, Ketogenic, Paleo, and Vegan. Each track provides exact breakfast, lunch, afternoon stabilizer, and dinner combinations calibrated to prevent post-meal glucose crashes without calorie counting.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "What is the 14-day money-back guarantee?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Your $19 one-time purchase is backed by a 14-day 100% money-back guarantee. If you complete the 24-Hour Reset Protocol and do not feel a measurable improvement in morning alertness, afternoon focus, and evening calm, simply email support@perfectdayreset.com within 14 days for a full refund.",
+      },
+    },
+  ],
+};
+
 function escapeAttr(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildGuideRouteSEO(guide: SEOGuideArticle): RouteSEOConfig {
+  const canonicalUrl = `${SITE_URL}/guides/${guide.slug}`;
+  const relatedGuides = guide.relatedSlugs
+    .map((s) => getGuideBySlug(s))
+    .filter((g): g is SEOGuideArticle => Boolean(g));
+
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: guide.title,
+    description: guide.metaDescription,
+    image: [DEFAULT_OG_IMAGE],
+    datePublished: guide.publishedDate,
+    dateModified: guide.updatedDate,
+    author: {
+      "@type": "Person",
+      name: "Reiko Kevvai",
+      jobTitle:
+        "Founder of Perfect Day Reset, Ex Head of Sales for Inchcape Motors BMW",
+      url: `${SITE_URL}/about`,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Perfect Day Reset",
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/logo.png`,
+      },
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": canonicalUrl,
+    },
+    keywords: guide.targetKeywords.join(", "),
+  };
+
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: guide.faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${SITE_URL}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Reset Guides",
+        item: `${SITE_URL}/guides`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: guide.title,
+        item: canonicalUrl,
+      },
+    ],
+  };
+
+  const summaryRowsHtml = guide.quickProtocolSummary
+    .map(
+      (row) => `
+          <tr>
+            <td><strong>${escapeHtml(row.timeWindow)}</strong></td>
+            <td>${escapeHtml(row.action)}</td>
+            <td>${escapeHtml(row.mechanism)}</td>
+          </tr>`
+    )
+    .join("");
+
+  const sectionsHtml = guide.sections
+    .map((sec, idx) => {
+      const paragraphsHtml = sec.paragraphs
+        .map((p) => `<p>${escapeHtml(p)}</p>`)
+        .join("\n        ");
+
+      const subSectionsHtml =
+        sec.subSections && sec.subSections.length > 0
+          ? sec.subSections
+              .map(
+                (sub) => `
+        <h3>${escapeHtml(sub.subHeading)}</h3>
+        <p>${escapeHtml(sub.body)}</p>`
+              )
+              .join("\n")
+          : "";
+
+      const checklistHtml =
+        sec.actionChecklist && sec.actionChecklist.length > 0
+          ? `
+        <h3>Actionable Implementation Checklist</h3>
+        <ul>
+          ${sec.actionChecklist.map((item) => `<li>${escapeHtml(item)}</li>`).join("\n          ")}
+        </ul>`
+          : "";
+
+      const takeawayHtml = sec.keyTakeaway
+        ? `<p><strong>Key Takeaway:</strong> ${escapeHtml(sec.keyTakeaway)}</p>`
+        : "";
+
+      const midArticleCtaHtml =
+        idx === 1
+          ? `
+      <aside aria-label="Mid-Article Diagnostic CTA">
+        <h3>Want This Protocol Calibrated to Your Exact Wake Time &amp; Diet?</h3>
+        <p>Take our free 60-second diagnostic to identify your primary Overwhelm Archetype, or start the full interactive 24-Hour Reset Web Companion for $19.</p>
+        <p><a href="/quiz">Take the Free 60-Second Diagnostic</a> | <a href="/checkout">Start the Full 24-Hour Reset — $19</a></p>
+      </aside>`
+          : "";
+
+      return `
+      <section id="${escapeAttr(sec.id)}">
+        <h2>${escapeHtml(sec.heading)}</h2>
+        ${paragraphsHtml}
+        ${subSectionsHtml}
+        ${checklistHtml}
+        ${takeawayHtml}
+      </section>${midArticleCtaHtml}`;
+    })
+    .join("\n");
+
+  const faqsHtml = guide.faqs
+    .map(
+      (f) => `
+        <dt><h3>${escapeHtml(f.question)}</h3></dt>
+        <dd><p>${escapeHtml(f.answer)}</p></dd>`
+    )
+    .join("\n");
+
+  const relatedHtml = relatedGuides
+    .map(
+      (r) =>
+        `<li><a href="/guides/${r.slug}">${escapeHtml(r.title)}</a> — ${escapeHtml(r.metaDescription)}</li>`
+    )
+    .join("\n          ");
+
+  const semanticHtml = `
+<div class="ssr-seo-shell">
+  ${SHARED_NAV_HTML}
+  <main>
+    <article>
+      <header>
+        <nav aria-label="Breadcrumb">
+          <a href="/">Home</a> / <a href="/guides">Reset Guides</a> / <span>${escapeHtml(guide.categoryBadge)}</span>
+        </nav>
+        <p>${escapeHtml(guide.categoryBadge)} · Target Archetype: ${escapeHtml(guide.archetypeLabel)} · ${guide.readTimeMinutes} min read</p>
+        <h1>${escapeHtml(guide.title)}</h1>
+        <p>${escapeHtml(guide.heroSummary)}</p>
+        <p>By <strong>Reiko Kevvai</strong> (Ex Head of Sales for Inchcape Motors BMW &amp; Founder of Perfect Day Reset) · Updated <time datetime="${guide.updatedDate}">${guide.updatedDate}</time></p>
+      </header>
+
+      <section aria-label="Quick Protocol Summary">
+        <h2>Executive Protocol Summary (At-a-Glance Schedule)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Timing Window</th>
+              <th>Core Protocol Action</th>
+              <th>Neuro-Biological Mechanism</th>
+            </tr>
+          </thead>
+          <tbody>${summaryRowsHtml}
+          </tbody>
+        </table>
+      </section>
+
+      ${sectionsHtml}
+
+      <section id="frequently-asked-questions" aria-label="Frequently Asked Questions">
+        <h2>Frequently Asked Questions</h2>
+        <dl>${faqsHtml}
+        </dl>
+      </section>
+
+      <section aria-label="Start Your 24-Hour Reset">
+        <h2>Ready to Reclaim Your Energy, Focus &amp; Calm in the Next 24 Hours?</h2>
+        <p>Get instant access to the interactive Perfect Day Reset Web Companion + Printable Blueprint (including the 1-Tap Delay Rescheduler and 5 nutrition tracks) backed by our 14-day 100% money-back guarantee.</p>
+        <p><a href="/checkout">Start the Full 24-Hour Reset — $19</a> | <a href="/quiz">Take the Free 60-Second Diagnostic</a></p>
+      </section>
+
+      <nav aria-label="Related Biological Reset Protocols">
+        <h2>Related Biological Reset Protocols</h2>
+        <ul>
+          ${relatedHtml}
+        </ul>
+      </nav>
+    </article>
+  </main>
+  ${SHARED_FOOTER_HTML}
+</div>`;
+
+  return {
+    title: guide.metaTitle,
+    description: guide.metaDescription,
+    canonical: canonicalUrl,
+    ogTitle: guide.metaTitle,
+    ogDescription: guide.metaDescription,
+    ogImage: DEFAULT_OG_IMAGE,
+    twitterTitle: guide.metaTitle,
+    twitterDescription: guide.metaDescription,
+    extraJsonLd: [articleSchema, faqSchema, breadcrumbSchema],
+    semanticHtml,
+  };
+}
+
 export function injectRouteSEO(html: string, rawUrl: string): string {
   const pathname = (rawUrl.split("?")[0] || "/").replace(/\/+$/, "") || "/";
-  const seo = ROUTE_SEO_MAP[pathname];
+  let seo: RouteSEOConfig | undefined = ROUTE_SEO_MAP[pathname];
+
+  if (!seo && pathname.startsWith("/guides/")) {
+    const slug = pathname.slice("/guides/".length);
+    const guide = getGuideBySlug(slug);
+    if (guide) {
+      seo = buildGuideRouteSEO(guide);
+    }
+  }
+
   if (!seo) {
     return html;
   }
@@ -515,9 +876,9 @@ export function injectRouteSEO(html: string, rawUrl: string): string {
     `<meta property="twitter:image" content="${escapeAttr(seo.ogImage)}" />`
   );
 
-  // Remove any pre-existing organization-schema or product-schema script tags before injecting route-specific schemas
+  // Remove any pre-existing organization-schema, product-schema, faq-schema, or route-schema script tags before injecting route-specific schemas
   updated = updated.replace(
-    /\s*<script[^>]*data-type="(?:organization-schema|product-schema)"[^>]*>[\s\S]*?<\/script>/gi,
+    /\s*<script[^>]*data-type="(?:organization-schema|product-schema|faq-schema|route-schema)"[^>]*>[\s\S]*?<\/script>/gi,
     ""
   );
 
@@ -527,6 +888,17 @@ export function injectRouteSEO(html: string, rawUrl: string): string {
       ? [
           `<script type="application/ld+json" data-type="product-schema">${JSON.stringify(PRODUCT_SCHEMA)}</script>`,
         ]
+      : []),
+    ...(seo.includeFaqSchema
+      ? [
+          `<script type="application/ld+json" data-type="faq-schema">${JSON.stringify(CORE_FAQ_SCHEMA)}</script>`,
+        ]
+      : []),
+    ...(seo.extraJsonLd
+      ? seo.extraJsonLd.map(
+          (schemaObj) =>
+            `<script type="application/ld+json" data-type="route-schema">${JSON.stringify(schemaObj)}</script>`
+        )
       : []),
   ].join("\n    ");
 

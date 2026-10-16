@@ -19,13 +19,14 @@ export default function Footer() {
           </div>
           
           <div>
-            <h4 className="text-xl font-semibold mb-6 text-white">Company</h4>
+            <h4 className="text-xl font-semibold mb-6 text-white">Company &amp; Resources</h4>
             <ul className="space-y-3">
               {[
+                { name: 'Reset Guides', path: '/guides' },
+                { name: 'Free 60s Diagnostic Quiz', path: '/quiz' },
+                { name: 'How It Works', path: '/what-you-get' },
                 { name: 'About Us', path: '/about' },
                 { name: 'Contact', path: '/contact' },
-                { name: 'How It Works', path: '/what-you-get' }, 
-                { name: 'FAQs', path: '#faq' }
               ].map((item, i) => (
                 <li key={i}>
                   <a 
@@ -40,14 +41,14 @@ export default function Footer() {
           </div>
           
           <div>
-            <h4 className="text-xl font-semibold mb-6 text-white">Product Pages</h4>
+            <h4 className="text-xl font-semibold mb-6 text-white">Popular Protocols</h4>
             <ul className="space-y-3">
               {[
-                { name: 'Welcome & Prep', path: '/product/reset/welcome' },
-                { name: 'Morning Routine', path: '/product/reset/morning' },
-                { name: 'Midday Recharge', path: '/product/reset/midday' },
-                { name: 'Evening Wind Down', path: '/product/reset/afternoon' },
-                { name: 'Final Reflection', path: '/product/reset/reflection' }
+                { name: '24-Hour Burnout Reset', path: '/guides/24-hour-burnout-reset-protocol' },
+                { name: 'Morning Cortisol Reset', path: '/guides/morning-cortisol-hydration-reset' },
+                { name: 'Stop 3 PM Energy Crash', path: '/guides/stop-afternoon-energy-crash-work' },
+                { name: 'Evening Nervous System Reset', path: '/guides/tired-but-wired-evening-nervous-system-reset' },
+                { name: '2-Hour Workday Rescue', path: '/guides/2-hour-workday-reset-overwhelmed-executives' }
               ].map((item, i) => (
                 <li key={i}>
                   <Link href={item.path}>
