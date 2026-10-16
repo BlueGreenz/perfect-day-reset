@@ -3,11 +3,13 @@ import {
   type Subscriber, type InsertSubscriber, type User, type InsertUser, 
   type MarketingEmail, type InsertMarketingEmail, type EmailLog, type InsertEmailLog,
   type ResetRun, type InsertResetRun, type ResetItem, type InsertResetItem,
-  type ResetEntry, type InsertResetEntry, resetEntries
+  type ResetEntry, type InsertResetEntry, resetEntries,
+  agentLeads, agentInteractions,
+  type AgentLead, type InsertAgentLead, type AgentInteraction, type InsertAgentInteraction
 } from "@shared/schema";
 import session from "express-session";
 import { db, pool, ensureProductionTables } from "./db";
-import { eq, asc, desc, and, sql } from "drizzle-orm";
+import { eq, asc, desc, and, sql, lte, lt } from "drizzle-orm";
 import connectPgSimple from "connect-pg-simple";
 import createMemoryStore from "memorystore";
 import { computeDelayedSchedule } from "./reset/rescheduler";
@@ -85,6 +87,17 @@ export interface IStorage {
   saveResetEntryForUser(userId: number, kind: string, content: string): Promise<SaveEntryResult>;
   getResetEntriesForUser(userId: number): Promise<{ type: "not_found" } | { type: "success", entries: ResetEntry[] }>;
   updateResetFoodPreferenceForUser(userId: number, foodPreference: string): Promise<{ type: "not_found" } | { type: "success", resetRun: ResetRun }>;
+
+  // Autonomous Agent Lead & Interaction methods
+  upsertAgentLead(data: Partial<InsertAgentLead> & { email: string }): Promise<AgentLead>;
+  getAgentLeadByEmail(email: string): Promise<AgentLead | undefined>;
+  getAllAgentLeads(): Promise<AgentLead[]>;
+  getDueAgentLeads(now?: Date): Promise<AgentLead[]>;
+  updateAgentLeadStage(email: string, nurtureStage: number, nextEmailAt: Date | null): Promise<AgentLead | undefined>;
+  markAgentLeadPurchased(email: string): Promise<AgentLead | undefined>;
+  unsubscribeAgentLead(email: string): Promise<AgentLead | undefined>;
+  createAgentInteraction(data: InsertAgentInteraction): Promise<AgentInteraction>;
+  getRecentAgentInteractions(limit?: number): Promise<AgentInteraction[]>;
 
   sessionStore: session.Store;
 }
@@ -764,6 +777,189 @@ export class DatabaseStorage implements IStorage {
       return this.fallbackMem.delayResetItemForUser(userId, itemId, delayMinutes, expectedScheduleRevision);
     }
   }
+
+  async upsertAgentLead(data: Partial<InsertAgentLead> & { email: string }): Promise<AgentLead> {
+    const normalizedEmail = data.email.trim().toLowerCase();
+    try {
+      const existing = await this.getAgentLeadByEmail(normalizedEmail);
+      const now = new Date();
+      if (existing) {
+        const updatePayload: Partial<InsertAgentLead> & { updatedAt: Date } = {
+          updatedAt: now,
+        };
+        if (data.firstName !== undefined && data.firstName) updatePayload.firstName = data.firstName;
+        if (data.source !== undefined) updatePayload.source = data.source;
+        if (data.archetypeId !== undefined) updatePayload.archetypeId = data.archetypeId;
+        if (data.wakeTime !== undefined) updatePayload.wakeTime = data.wakeTime;
+        if (data.foodPreference !== undefined) updatePayload.foodPreference = data.foodPreference;
+        if (data.pastBlocker !== undefined) updatePayload.pastBlocker = data.pastBlocker;
+        if (data.nurtureStage !== undefined) updatePayload.nurtureStage = data.nurtureStage;
+        if (data.nextEmailAt !== undefined) updatePayload.nextEmailAt = data.nextEmailAt;
+        if (data.hasPurchased !== undefined) updatePayload.hasPurchased = data.hasPurchased;
+        if (data.unsubscribed !== undefined) updatePayload.unsubscribed = data.unsubscribed;
+
+        const [updated] = await db
+          .update(agentLeads)
+          .set(updatePayload)
+          .where(eq(agentLeads.id, existing.id))
+          .returning();
+        return updated;
+      }
+
+      const [inserted] = await db
+        .insert(agentLeads)
+        .values({
+          email: normalizedEmail,
+          firstName: data.firstName ?? null,
+          source: data.source ?? "quiz",
+          archetypeId: data.archetypeId ?? "cortisol_spiked",
+          wakeTime: data.wakeTime ?? "07:00",
+          foodPreference: data.foodPreference ?? "omni",
+          pastBlocker: data.pastBlocker ?? "ran_late",
+          nurtureStage: data.nurtureStage ?? 0,
+          nextEmailAt: data.nextEmailAt ?? now,
+          hasPurchased: data.hasPurchased ?? false,
+          unsubscribed: data.unsubscribed ?? false,
+        })
+        .returning();
+      return inserted;
+    } catch (err) {
+      console.warn("upsertAgentLead fallback:", err);
+      return this.fallbackMem.upsertAgentLead({ ...data, email: normalizedEmail });
+    }
+  }
+
+  async getAgentLeadByEmail(email: string): Promise<AgentLead | undefined> {
+    const normalizedEmail = email.trim().toLowerCase();
+    try {
+      const [lead] = await db
+        .select()
+        .from(agentLeads)
+        .where(sql`LOWER(${agentLeads.email}) = ${normalizedEmail}`);
+      if (lead) return lead;
+      return this.fallbackMem.getAgentLeadByEmail(normalizedEmail);
+    } catch {
+      return this.fallbackMem.getAgentLeadByEmail(normalizedEmail);
+    }
+  }
+
+  async getAllAgentLeads(): Promise<AgentLead[]> {
+    try {
+      const rows = await db
+        .select()
+        .from(agentLeads)
+        .orderBy(desc(agentLeads.updatedAt), desc(agentLeads.id));
+      if (rows.length > 0) return rows;
+      return this.fallbackMem.getAllAgentLeads();
+    } catch {
+      return this.fallbackMem.getAllAgentLeads();
+    }
+  }
+
+  async getDueAgentLeads(now: Date = new Date()): Promise<AgentLead[]> {
+    try {
+      const rows = await db
+        .select()
+        .from(agentLeads)
+        .where(
+          and(
+            eq(agentLeads.hasPurchased, false),
+            eq(agentLeads.unsubscribed, false),
+            lt(agentLeads.nurtureStage, 4),
+            lte(agentLeads.nextEmailAt, now)
+          )
+        )
+        .orderBy(asc(agentLeads.nextEmailAt));
+      return rows;
+    } catch {
+      return this.fallbackMem.getDueAgentLeads(now);
+    }
+  }
+
+  async updateAgentLeadStage(email: string, nurtureStage: number, nextEmailAt: Date | null): Promise<AgentLead | undefined> {
+    const normalizedEmail = email.trim().toLowerCase();
+    try {
+      const [updated] = await db
+        .update(agentLeads)
+        .set({
+          nurtureStage,
+          nextEmailAt,
+          updatedAt: new Date(),
+        })
+        .where(sql`LOWER(${agentLeads.email}) = ${normalizedEmail}`)
+        .returning();
+      if (updated) return updated;
+      return this.fallbackMem.updateAgentLeadStage(normalizedEmail, nurtureStage, nextEmailAt);
+    } catch {
+      return this.fallbackMem.updateAgentLeadStage(normalizedEmail, nurtureStage, nextEmailAt);
+    }
+  }
+
+  async markAgentLeadPurchased(email: string): Promise<AgentLead | undefined> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return undefined;
+    try {
+      const [updated] = await db
+        .update(agentLeads)
+        .set({
+          hasPurchased: true,
+          nextEmailAt: null,
+          updatedAt: new Date(),
+        })
+        .where(sql`LOWER(${agentLeads.email}) = ${normalizedEmail}`)
+        .returning();
+      if (updated) return updated;
+      return this.fallbackMem.markAgentLeadPurchased(normalizedEmail);
+    } catch {
+      return this.fallbackMem.markAgentLeadPurchased(normalizedEmail);
+    }
+  }
+
+  async unsubscribeAgentLead(email: string): Promise<AgentLead | undefined> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return undefined;
+    try {
+      const [updated] = await db
+        .update(agentLeads)
+        .set({
+          unsubscribed: true,
+          nextEmailAt: null,
+          updatedAt: new Date(),
+        })
+        .where(sql`LOWER(${agentLeads.email}) = ${normalizedEmail}`)
+        .returning();
+      if (updated) return updated;
+      return this.fallbackMem.unsubscribeAgentLead(normalizedEmail);
+    } catch {
+      return this.fallbackMem.unsubscribeAgentLead(normalizedEmail);
+    }
+  }
+
+  async createAgentInteraction(data: InsertAgentInteraction): Promise<AgentInteraction> {
+    try {
+      const [interaction] = await db
+        .insert(agentInteractions)
+        .values(data)
+        .returning();
+      return interaction;
+    } catch {
+      return this.fallbackMem.createAgentInteraction(data);
+    }
+  }
+
+  async getRecentAgentInteractions(limit: number = 50): Promise<AgentInteraction[]> {
+    try {
+      const rows = await db
+        .select()
+        .from(agentInteractions)
+        .orderBy(desc(agentInteractions.createdAt), desc(agentInteractions.id))
+        .limit(limit);
+      if (rows.length > 0) return rows;
+      return this.fallbackMem.getRecentAgentInteractions(limit);
+    } catch {
+      return this.fallbackMem.getRecentAgentInteractions(limit);
+    }
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -775,6 +971,8 @@ export class MemStorage implements IStorage {
   private runsList: ResetRun[] = [];
   private itemsList: ResetItem[] = [];
   private entriesList: ResetEntry[] = [];
+  private agentLeadsList: AgentLead[] = [];
+  private agentInteractionsList: AgentInteraction[] = [];
   private nextId = 1;
 
   constructor() {
@@ -1056,8 +1254,113 @@ export class MemStorage implements IStorage {
     run.foodPreference = foodPreference;
     return { type: "success", resetRun: run };
   }
+
+  async upsertAgentLead(data: Partial<InsertAgentLead> & { email: string }): Promise<AgentLead> {
+    const normalizedEmail = data.email.trim().toLowerCase();
+    const now = new Date();
+    const existing = this.agentLeadsList.find((l) => l.email.toLowerCase() === normalizedEmail);
+    if (existing) {
+      if (data.firstName !== undefined && data.firstName) existing.firstName = data.firstName;
+      if (data.source !== undefined && data.source) existing.source = data.source;
+      if (data.archetypeId !== undefined && data.archetypeId) existing.archetypeId = data.archetypeId;
+      if (data.wakeTime !== undefined && data.wakeTime) existing.wakeTime = data.wakeTime;
+      if (data.foodPreference !== undefined && data.foodPreference) existing.foodPreference = data.foodPreference;
+      if (data.pastBlocker !== undefined && data.pastBlocker) existing.pastBlocker = data.pastBlocker;
+      if (data.nurtureStage !== undefined && data.nurtureStage !== null) existing.nurtureStage = data.nurtureStage;
+      if (data.nextEmailAt !== undefined) existing.nextEmailAt = data.nextEmailAt ?? null;
+      if (data.hasPurchased !== undefined && data.hasPurchased !== null) existing.hasPurchased = data.hasPurchased;
+      if (data.unsubscribed !== undefined && data.unsubscribed !== null) existing.unsubscribed = data.unsubscribed;
+      existing.updatedAt = now;
+      return existing;
+    }
+
+    const created: AgentLead = {
+      id: this.nextId++,
+      email: normalizedEmail,
+      firstName: data.firstName ?? null,
+      source: data.source ?? "quiz",
+      archetypeId: data.archetypeId ?? "cortisol_spiked",
+      wakeTime: data.wakeTime ?? "07:00",
+      foodPreference: data.foodPreference ?? "omni",
+      pastBlocker: data.pastBlocker ?? "ran_late",
+      nurtureStage: data.nurtureStage ?? 0,
+      nextEmailAt: data.nextEmailAt !== undefined ? (data.nextEmailAt ?? null) : now,
+      hasPurchased: data.hasPurchased ?? false,
+      unsubscribed: data.unsubscribed ?? false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.agentLeadsList.push(created);
+    return created;
+  }
+
+  async getAgentLeadByEmail(email: string): Promise<AgentLead | undefined> {
+    const normalizedEmail = email.trim().toLowerCase();
+    return this.agentLeadsList.find((l) => l.email.toLowerCase() === normalizedEmail);
+  }
+
+  async getAllAgentLeads(): Promise<AgentLead[]> {
+    return [...this.agentLeadsList].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  }
+
+  async getDueAgentLeads(now: Date = new Date()): Promise<AgentLead[]> {
+    return this.agentLeadsList.filter(
+      (l) =>
+        !l.hasPurchased &&
+        !l.unsubscribed &&
+        l.nurtureStage < 4 &&
+        l.nextEmailAt !== null &&
+        l.nextEmailAt.getTime() <= now.getTime()
+    );
+  }
+
+  async updateAgentLeadStage(email: string, nurtureStage: number, nextEmailAt: Date | null): Promise<AgentLead | undefined> {
+    const lead = await this.getAgentLeadByEmail(email);
+    if (!lead) return undefined;
+    lead.nurtureStage = nurtureStage;
+    lead.nextEmailAt = nextEmailAt;
+    lead.updatedAt = new Date();
+    return lead;
+  }
+
+  async markAgentLeadPurchased(email: string): Promise<AgentLead | undefined> {
+    const lead = await this.getAgentLeadByEmail(email);
+    if (!lead) return undefined;
+    lead.hasPurchased = true;
+    lead.nextEmailAt = null;
+    lead.updatedAt = new Date();
+    return lead;
+  }
+
+  async unsubscribeAgentLead(email: string): Promise<AgentLead | undefined> {
+    const lead = await this.getAgentLeadByEmail(email);
+    if (!lead) return undefined;
+    lead.unsubscribed = true;
+    lead.nextEmailAt = null;
+    lead.updatedAt = new Date();
+    return lead;
+  }
+
+  async createAgentInteraction(data: InsertAgentInteraction): Promise<AgentInteraction> {
+    const created: AgentInteraction = {
+      id: this.nextId++,
+      channel: data.channel,
+      senderIdentifier: data.senderIdentifier,
+      inboundMessage: data.inboundMessage ?? null,
+      agentReply: data.agentReply,
+      metadata: data.metadata ?? null,
+      createdAt: new Date(),
+    };
+    this.agentInteractionsList.unshift(created);
+    return created;
+  }
+
+  async getRecentAgentInteractions(limit: number = 50): Promise<AgentInteraction[]> {
+    return this.agentInteractionsList.slice(0, limit);
+  }
 }
 
 export const storage: IStorage = process.env.DATABASE_URL
   ? new DatabaseStorage()
   : new MemStorage();
+

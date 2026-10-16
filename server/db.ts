@@ -134,6 +134,33 @@ export async function ensureProductionTables(): Promise<void> {
         CREATE INDEX IF NOT EXISTS "reset_runs_user_id_idx" ON "reset_runs" USING btree ("user_id");
         CREATE INDEX IF NOT EXISTS "reset_items_run_id_status_seq_idx" ON "reset_items" USING btree ("reset_run_id", "status", "sequence");
         CREATE INDEX IF NOT EXISTS "reset_entries_run_id_idx" ON "reset_entries" USING btree ("reset_run_id");
+
+        CREATE TABLE IF NOT EXISTS "agent_leads" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "email" text NOT NULL UNIQUE,
+          "first_name" text,
+          "source" text DEFAULT 'quiz' NOT NULL,
+          "archetype_id" text DEFAULT 'cortisol_spiked' NOT NULL,
+          "wake_time" text DEFAULT '07:00' NOT NULL,
+          "food_preference" text DEFAULT 'omni' NOT NULL,
+          "past_blocker" text DEFAULT 'ran_late' NOT NULL,
+          "nurture_stage" integer DEFAULT 0 NOT NULL,
+          "next_email_at" timestamp,
+          "has_purchased" boolean DEFAULT false NOT NULL,
+          "unsubscribed" boolean DEFAULT false NOT NULL,
+          "created_at" timestamp DEFAULT now() NOT NULL,
+          "updated_at" timestamp DEFAULT now() NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS "agent_interactions" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "channel" text NOT NULL,
+          "sender_identifier" text NOT NULL,
+          "inbound_message" text,
+          "agent_reply" text NOT NULL,
+          "metadata" text,
+          "created_at" timestamp DEFAULT now() NOT NULL
+        );
       `);
     } catch (err: any) {
       console.warn("Non-fatal ensureProductionTables warning:", err?.message || err);

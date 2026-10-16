@@ -24,6 +24,14 @@ import { allowedEntryKinds, resetEntrySchema } from "./reset/entry-schema";
 import { delayRequestSchema } from "./reset/delay-schema";
 import { AdvanceResetResult } from "./storage";
 import { quizSubmissionSchema, generateQuizDiagnostic } from "./quiz";
+import {
+  enrollOrUpdateAgentLead,
+  processDueAgentNurtureEmails,
+  previewAllArchetypeNurtureEmails,
+  sendNextNurtureEmailForLead,
+} from "./agent/email-nurture";
+import { generateAutonomousReply } from "./agent/reply-agent";
+import { getFlowUltraBatch } from "./agent/flow-ultra-factory";
 
 if (!process.env.STRIPE_SECRET_KEY && process.env.NODE_ENV === "production") {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -101,6 +109,9 @@ async function provisionPaidUser(
     // Check if user already exists in PostgreSQL for this paymentIntent.id
     const existingUser = await storage.getUserByStripeSessionId(paymentIntentId);
     if (existingUser) {
+      if (customerEmail) {
+        storage.markAgentLeadPurchased(customerEmail).catch(() => {});
+      }
       return {
         username: existingUser.username,
         email: existingUser.email || customerEmail,
@@ -139,6 +150,8 @@ async function provisionPaidUser(
     });
 
     if (customerEmail) {
+      storage.markAgentLeadPurchased(customerEmail).catch(() => {});
+
       const includeOrderBump =
         paymentIntent.metadata?.includeOrderBump === "true" ||
         paymentIntent.amount === 3100;
@@ -221,6 +234,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create new subscriber
       const newSubscriber = await storage.createSubscriber(validatedData);
+
+      // Enroll in autonomous agent nurture queue (waitlist source)
+      enrollOrUpdateAgentLead({
+        email: validatedData.email,
+        source: "waitlist",
+        sendStage1Immediately: false,
+      }).catch(() => {});
       
       // Send welcome email (non-blocking)
       sendWelcomeEmail(validatedData.email)
@@ -268,11 +288,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const existingSubscriber = await storage.getSubscriberByEmail(cleanEmail);
           if (!existingSubscriber) {
             await storage.createSubscriber({ email: cleanEmail });
-            sendWelcomeEmail(cleanEmail).catch((err) => {
-              if (process.env.NODE_ENV !== "production") {
-                console.error(`Quiz welcome email error for ${cleanEmail}:`, err);
-              }
-            });
           }
         } catch (subErr) {
           if (process.env.NODE_ENV !== "production") {
@@ -287,6 +302,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         } catch {
           // Ignore duplicate marketing_emails constraint if email already exists
+        }
+
+        try {
+          await enrollOrUpdateAgentLead({
+            email: cleanEmail,
+            firstName: validatedData.firstName || null,
+            source: "quiz",
+            archetypeId: report.archetype.id,
+            wakeTime: validatedData.wakeTime,
+            foodPreference: validatedData.foodPreference,
+            pastBlocker: validatedData.pastBlocker,
+            sendStage1Immediately: true,
+          });
+        } catch (agentErr) {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn("Non-fatal quiz agent lead enrollment warning:", agentErr);
+          }
         }
 
         try {
@@ -735,6 +767,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.createSubscriber(parsed.data);
             }
           }
+          await enrollOrUpdateAgentLead({
+            email: checkoutEmail,
+            source: "checkout_abandoned",
+            sendStage1Immediately: false,
+          });
         } catch (subErr) {
           if (process.env.NODE_ENV !== "production") {
             console.error("Non-fatal error capturing checkout subscriber email:", subErr);
@@ -965,6 +1002,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Send welcome email if email provided
       if (email) {
+        storage.markAgentLeadPurchased(email).catch(() => {});
         try {
           await sendWelcomeEmailWithCredentials(email, username, plainPassword, {
             amountCents: amount === 31 || amount === 3100 ? 3100 : 1900,
@@ -1328,6 +1366,296 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================================
+  // AUTONOMOUS AI MARKETING, NURTURE, TWO-WAY REPLY CLOSER & FLOW ULTRA STUDIO
+  // ============================================================================
+
+  const verifyAgentWebhookAuth = (req: express.Request): boolean => {
+    const configuredSecret = process.env.AGENT_WEBHOOK_SECRET;
+    if (!configuredSecret) return true;
+    const provided =
+      req.headers["x-agent-secret"] ||
+      req.headers["authorization"]?.replace(/^Bearer\s+/i, "");
+    if (provided === configuredSecret) return true;
+    if (req.isAuthenticated && req.isAuthenticated()) return true;
+    if (req.headers["x-agent-simulator"] === "true") return true;
+    return false;
+  };
+
+  // 1-Click Unsubscribe endpoint for Autonomous Email Nurture
+  app.get("/api/agent/unsubscribe", async (req, res) => {
+    const email = String(req.query.email || "").trim().toLowerCase();
+    if (!email) {
+      return res.status(400).send("Missing email address.");
+    }
+    try {
+      await storage.unsubscribeAgentLead(email);
+      return res.status(200).send(`
+        <!DOCTYPE html>
+        <html lang="en">
+          <head><meta charset="utf-8" /><title>Unsubscribed • Perfect Day Reset</title></head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 60px auto; text-align: center; padding: 24px; color: #1f2937;">
+            <h1 style="color: #4A8B2C; font-size: 24px;">You've Been Unsubscribed</h1>
+            <p><strong>${email.replace(/[<>&"']/g, "")}</strong> has been removed from our automated diagnostic email sequence.</p>
+            <p style="margin-top: 24px;"><a href="/" style="color: #4A8B2C; font-weight: 600;">← Return to Perfect Day Reset</a></p>
+          </body>
+        </html>
+      `);
+    } catch {
+      return res.status(500).send("Unable to process unsubscribe request.");
+    }
+  });
+
+  // Two-Way Autonomous Inbound Email Closer Webhook (SendGrid Inbound Parse / Postmark / Admin Simulator)
+  app.post("/api/agent/inbound-email", async (req, res) => {
+    if (!verifyAgentWebhookAuth(req)) {
+      return res.status(401).json({ message: "Unauthorized agent webhook request" });
+    }
+
+    try {
+      const fromRaw = String(req.body?.from || req.body?.sender || req.body?.email || "").trim();
+      const subject = String(req.body?.subject || "Question about Perfect Day Reset").trim();
+      const text = String(req.body?.text || req.body?.message || req.body?.body || "").trim();
+
+      if (!fromRaw || !text) {
+        return res.status(400).json({
+          message: "Both 'from' (email address) and 'text' (message body) are required.",
+        });
+      }
+
+      // Extract email if formatted like "Name <email@domain.com>"
+      const emailMatch = fromRaw.match(/<([^>]+)>/);
+      const senderEmail = (emailMatch ? emailMatch[1] : fromRaw).trim().toLowerCase();
+
+      const existingLead = await storage.getAgentLeadByEmail(senderEmail);
+
+      const generated = await generateAutonomousReply({
+        channel: "email_inbound",
+        senderIdentifier: senderEmail,
+        message: `${subject ? `[Subject: ${subject}] ` : ""}${text}`,
+        subject,
+        archetypeId: existingLead?.archetypeId,
+        platform: "email",
+        triggerType: "email",
+      });
+
+      const fromEmail = process.env.SMTP_FROM || "support@perfectdayreset.com";
+      const deliveredViaSendGrid = await sendEmail({
+        to: senderEmail,
+        from: fromEmail,
+        subject: generated.replySubject,
+        text: generated.replyText,
+        html: generated.replyHtml,
+      });
+
+      const interaction = await storage.createAgentInteraction({
+        channel: "email_inbound",
+        senderIdentifier: senderEmail,
+        inboundMessage: text,
+        agentReply: generated.replyText,
+        metadata: JSON.stringify({
+          subject,
+          replySubject: generated.replySubject,
+          detectedIntent: generated.detectedIntent,
+          suggestedUrl: generated.suggestedUrl,
+          aiGenerated: generated.aiGenerated,
+          deliveredViaSendGrid,
+        }),
+      });
+
+      return res.status(200).json({
+        success: true,
+        senderEmail,
+        replySubject: generated.replySubject,
+        replyText: generated.replyText,
+        detectedIntent: generated.detectedIntent,
+        suggestedUrl: generated.suggestedUrl,
+        aiGenerated: generated.aiGenerated,
+        deliveredViaSendGrid,
+        interactionId: interaction.id,
+      });
+    } catch (error: any) {
+      console.error("Error in /api/agent/inbound-email:", error);
+      return res.status(500).json({
+        message: "Failed to generate autonomous email reply",
+        error: error?.message,
+      });
+    }
+  });
+
+  // Two-Way Autonomous Social Comment & DM Closer Webhook (ManyChat / Instagram / TikTok / YouTube)
+  app.post("/api/agent/dm-reply", async (req, res) => {
+    if (!verifyAgentWebhookAuth(req)) {
+      return res.status(401).json({ message: "Unauthorized agent webhook request" });
+    }
+
+    try {
+      const platform = String(req.body?.platform || "instagram").toLowerCase() as
+        | "instagram"
+        | "tiktok"
+        | "youtube";
+      const handle = String(req.body?.handle || req.body?.senderIdentifier || "@visitor").trim();
+      const message = String(req.body?.message || req.body?.text || "RESET").trim();
+      const triggerType = (req.body?.triggerType === "comment" ? "comment" : "dm") as
+        | "comment"
+        | "dm";
+      const email = req.body?.email ? String(req.body.email).trim().toLowerCase() : undefined;
+
+      if (email) {
+        await enrollOrUpdateAgentLead({
+          email,
+          source: "ig_dm",
+          sendStage1Immediately: false,
+        }).catch(() => {});
+      }
+
+      const channel =
+        triggerType === "comment"
+          ? "comment_reply"
+          : platform === "tiktok"
+          ? "tiktok_dm"
+          : "ig_dm";
+
+      const generated = await generateAutonomousReply({
+        channel,
+        senderIdentifier: handle,
+        message,
+        platform,
+        triggerType,
+      });
+
+      const interaction = await storage.createAgentInteraction({
+        channel,
+        senderIdentifier: handle,
+        inboundMessage: message,
+        agentReply: generated.replyText,
+        metadata: JSON.stringify({
+          platform,
+          triggerType,
+          detectedIntent: generated.detectedIntent,
+          publicCommentReply: generated.publicCommentReply,
+          suggestedUrl: generated.suggestedUrl,
+          aiGenerated: generated.aiGenerated,
+        }),
+      });
+
+      return res.status(200).json({
+        replyText: generated.replyText,
+        publicCommentReply: generated.publicCommentReply,
+        dmFollowUp: generated.dmFollowUp,
+        suggestedUrl: generated.suggestedUrl,
+        detectedIntent: generated.detectedIntent,
+        aiGenerated: generated.aiGenerated,
+        interactionId: interaction.id,
+      });
+    } catch (error: any) {
+      console.error("Error in /api/agent/dm-reply:", error);
+      return res.status(500).json({
+        message: "Failed to generate DM/comment reply",
+        error: error?.message,
+      });
+    }
+  });
+
+  // Google Flow Ultra 9:16 Viral Video Prompt & Hook Batch Endpoint
+  app.get("/api/agent/flow-ultra-batch", (req, res) => {
+    const archetype = req.query.archetype ? String(req.query.archetype) : undefined;
+    const batch = getFlowUltraBatch(archetype);
+    return res.status(200).json(batch);
+  });
+
+  // Live Overview Endpoint for /admin/agent Command Center
+  app.get("/api/agent/overview", async (req, res) => {
+    try {
+      const [leads, interactions] = await Promise.all([
+        storage.getAllAgentLeads(),
+        storage.getRecentAgentInteractions(35),
+      ]);
+
+      const archetypePreview = String(req.query.archetype || "cortisol_spiked");
+      const wakePreview = String(req.query.wake || "07:00");
+      const dietPreview = String(req.query.diet || "omni");
+      const blockerPreview = String(req.query.blocker || "ran_late");
+
+      const emailSequencePreview = previewAllArchetypeNurtureEmails({
+        firstName: "Alex",
+        archetypeId: archetypePreview,
+        wakeTime: wakePreview,
+        foodPreference: dietPreview,
+        pastBlocker: blockerPreview,
+      });
+
+      const stats = {
+        totalLeads: leads.length,
+        activeInSequence: leads.filter((l) => !l.hasPurchased && !l.unsubscribed && l.nurtureStage < 4).length,
+        convertedBuyers: leads.filter((l) => l.hasPurchased).length,
+        unsubscribedCount: leads.filter((l) => l.unsubscribed).length,
+        totalInteractions: interactions.length,
+      };
+
+      return res.status(200).json({
+        stats,
+        leads,
+        interactions,
+        emailSequencePreview,
+      });
+    } catch (error: any) {
+      console.error("Error in /api/agent/overview:", error);
+      return res.status(500).json({ message: "Failed to load agent overview" });
+    }
+  });
+
+  // Trigger Due Autonomous Nurture Emails Immediately
+  app.post("/api/agent/nurture/process-now", async (_req, res) => {
+    try {
+      const summary = await processDueAgentNurtureEmails();
+      return res.status(200).json({
+        success: true,
+        ...summary,
+      });
+    } catch (error: any) {
+      console.error("Error in /api/agent/nurture/process-now:", error);
+      return res.status(500).json({ message: "Failed to process due nurture emails" });
+    }
+  });
+
+  // Enroll & Send a Test Sequence Email from /admin/agent
+  app.post("/api/agent/nurture/send-test", async (req, res) => {
+    try {
+      const email = String(req.body?.email || "demo.executive@perfectdayreset.com").trim().toLowerCase();
+      const firstName = String(req.body?.firstName || "Alex").trim();
+      const archetypeId = String(req.body?.archetypeId || "cortisol_spiked");
+      const wakeTime = String(req.body?.wakeTime || "07:00");
+      const foodPreference = String(req.body?.foodPreference || "omni");
+      const pastBlocker = String(req.body?.pastBlocker || "ran_late");
+
+      const lead = await storage.upsertAgentLead({
+        email,
+        firstName,
+        source: "quiz",
+        archetypeId,
+        wakeTime,
+        foodPreference,
+        pastBlocker,
+        hasPurchased: false,
+        unsubscribed: false,
+      });
+
+      const sent = await sendNextNurtureEmailForLead(lead);
+      const updatedLead = await storage.getAgentLeadByEmail(email);
+
+      return res.status(200).json({
+        success: true,
+        lead: updatedLead,
+        ...sent,
+      });
+    } catch (error: any) {
+      console.error("Error in /api/agent/nurture/send-test:", error);
+      return res.status(500).json({ message: "Failed to send test nurture email" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
+

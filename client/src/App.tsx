@@ -27,6 +27,7 @@ const CookiePolicy = lazy(() => import("@/pages/CookiePolicy"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const About = lazy(() => import("@/pages/About"));
 const Quiz = lazy(() => import("@/pages/Quiz"));
+const AgentDashboard = lazy(() => import("@/pages/AgentDashboard"));
 
 function RouteLoadingFallback() {
   return (
@@ -50,6 +51,7 @@ function Router() {
         <Route path="/payment-success" component={PaymentSuccess}/>
         <Route path="/success" component={PaymentSuccess}/>
         <Route path="/login" component={Login}/>
+        <Route path="/admin/agent" component={AgentDashboard}/>
         
         {/* Protected Routes - Require Authentication */}
         <ProtectedRoute path="/dashboard" component={Dashboard}/>

@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import { processDueAgentNurtureEmails } from "./agent/email-nurture";
 
 process.env.NODE_ENV = process.env.NODE_ENV || "development";
 
@@ -125,5 +126,19 @@ app.use((req, res, next) => {
     ...(process.platform !== "win32" ? { reusePort: true } : {}),
   }, () => {
     log(`serving on port ${port}`);
+
+    // Autonomous 4-Stage Email Nurture background scheduler (every 5 minutes)
+    setInterval(() => {
+      processDueAgentNurtureEmails()
+        .then((res) => {
+          if (res.processedCount > 0) {
+            log(`Autonomous nurture agent processed ${res.processedCount} due lead(s)`);
+          }
+        })
+        .catch((err) => {
+          console.warn("Autonomous nurture scheduler warning:", err?.message || err);
+        });
+    }, 5 * 60 * 1000);
   });
 })();
+

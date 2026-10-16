@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, json, index, check } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, json, index, check, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -96,6 +96,33 @@ export const resetEntries = pgTable("reset_entries", {
   index("reset_entries_run_id_idx").on(table.resetRunId)
 ]);
 
+export const agentLeads = pgTable("agent_leads", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  firstName: text("first_name"),
+  source: text("source").default("quiz").notNull(), // 'quiz', 'checkout_abandoned', 'waitlist', 'ig_dm'
+  archetypeId: text("archetype_id").default("cortisol_spiked").notNull(),
+  wakeTime: text("wake_time").default("07:00").notNull(),
+  foodPreference: text("food_preference").default("omni").notNull(),
+  pastBlocker: text("past_blocker").default("ran_late").notNull(),
+  nurtureStage: integer("nurture_stage").default(0).notNull(), // 0 -> 1 -> 2 -> 3 -> 4
+  nextEmailAt: timestamp("next_email_at"),
+  hasPurchased: boolean("has_purchased").default(false).notNull(),
+  unsubscribed: boolean("unsubscribed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const agentInteractions = pgTable("agent_interactions", {
+  id: serial("id").primaryKey(),
+  channel: text("channel").notNull(), // 'email_outbound', 'email_inbound', 'ig_dm', 'tiktok_dm', 'comment_reply'
+  senderIdentifier: text("sender_identifier").notNull(),
+  inboundMessage: text("inbound_message"),
+  agentReply: text("agent_reply").notNull(),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertSubscriberSchema = createInsertSchema(subscribers).pick({
   email: true,
 });
@@ -140,3 +167,19 @@ export type InsertResetItem = z.infer<typeof insertResetItemSchema>;
 export type ResetItem = typeof resetItems.$inferSelect;
 export type InsertResetEntry = z.infer<typeof insertResetEntrySchema>;
 export type ResetEntry = typeof resetEntries.$inferSelect;
+
+export const insertAgentLeadSchema = createInsertSchema(agentLeads).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertAgentInteractionSchema = createInsertSchema(agentInteractions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAgentLead = z.infer<typeof insertAgentLeadSchema>;
+export type AgentLead = typeof agentLeads.$inferSelect;
+export type InsertAgentInteraction = z.infer<typeof insertAgentInteractionSchema>;
+export type AgentInteraction = typeof agentInteractions.$inferSelect;
+
