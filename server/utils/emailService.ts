@@ -82,7 +82,7 @@ const createWelcomeEmailTemplate = (data: WelcomeEmailData) => {
           </div>
           
           <div class="footer">
-            <p>Need help? Reply to this email or contact us at support@perfectdayreset.com</p>
+            <p>Need help? Reply to this email or contact us at perfectdayreset@gmail.com</p>
             <p>Perfect Day Reset - Transform Your Energy, Clarity & Focus</p>
           </div>
         </div>
@@ -104,7 +104,7 @@ const createWelcomeEmailTemplate = (data: WelcomeEmailData) => {
       
       Thank you for your purchase - $1 has been donated to children's programs!
       
-      Need help? Contact support@perfectdayreset.com
+      Need help? Contact perfectdayreset@gmail.com
       
       The Perfect Day Reset Team
     `

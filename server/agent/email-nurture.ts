@@ -388,7 +388,7 @@ export async function sendNextNurtureEmailForLead(lead: AgentLead): Promise<{
 }> {
   const nextStage = Math.min(4, Math.max(1, (lead.nurtureStage || 0) + 1)) as 1 | 2 | 3 | 4;
   const template = buildArchetypeNurtureEmail(lead, nextStage);
-  const fromEmail = process.env.SMTP_FROM || "support@perfectdayreset.com";
+  const fromEmail = process.env.SMTP_FROM || "perfectdayreset@gmail.com";
 
   const delivered = await sendEmail({
     to: lead.email,

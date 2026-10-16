@@ -209,10 +209,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "Not found" });
     }
     try {
-      const success = await sendWelcomeEmail("reikokevvai@gmail.com");
+      const success = await sendWelcomeEmail("perfectdayreset@gmail.com");
       
       if (success) {
-        res.json({ message: "Test email sent successfully to reikokevvai@gmail.com" });
+        res.json({ message: "Test email sent successfully to perfectdayreset@gmail.com" });
       } else {
         res.status(500).json({ message: "Failed to send test email" });
       }
@@ -1346,8 +1346,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'received'
       });
 
-      // Send notification email to support@perfectdayreset.com
-      const supportEmail = "support@perfectdayreset.com";
+      // Send notification email to perfectdayreset@gmail.com
+      const supportEmail = "perfectdayreset@gmail.com";
       const fromEmail = process.env.SMTP_FROM || supportEmail;
       sendEmail({
         to: supportEmail,
@@ -1454,7 +1454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         triggerType: "email",
       });
 
-      const fromEmail = process.env.SMTP_FROM || "support@perfectdayreset.com";
+      const fromEmail = process.env.SMTP_FROM || "perfectdayreset@gmail.com";
       const deliveredViaSendGrid = await sendEmail({
         to: senderEmail,
         from: fromEmail,

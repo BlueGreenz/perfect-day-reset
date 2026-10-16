@@ -15,7 +15,12 @@ export default function Footer() {
                 className="h-14 md:h-16 inline-block bg-white rounded-xl p-2"
               />
             </div>
-            <p className="text-gray-300 mb-6 leading-relaxed">Transform your daily routine and discover a more balanced, productive, and fulfilling life.</p>
+            <p className="text-gray-300 mb-3 leading-relaxed">Transform your daily routine and discover a more balanced, productive, and fulfilling life.</p>
+            <p className="text-sm text-gray-300">
+              <a href="mailto:perfectdayreset@gmail.com" className="hover:text-white underline underline-offset-4 transition-colors">
+                perfectdayreset@gmail.com
+              </a>
+            </p>
           </div>
           
           <div>

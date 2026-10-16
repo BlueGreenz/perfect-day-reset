@@ -255,7 +255,11 @@ export default function Contact() {
                 <div className="space-y-3">
                   <div>
                     <p className="font-semibold text-gray-800">Email Support</p>
-                    <p className="text-gray-600">support@perfectdayreset.com</p>
+                    <p className="text-gray-600">
+                      <a href="mailto:perfectdayreset@gmail.com" className="text-primary hover:underline">
+                        perfectdayreset@gmail.com
+                      </a>
+                    </p>
                   </div>
                   <div>
                     <p className="font-semibold text-gray-800">Business Hours</p>

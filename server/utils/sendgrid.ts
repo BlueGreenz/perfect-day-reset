@@ -54,7 +54,7 @@ export async function sendPurchaseWelcomeEmail(
   password: string,
   options?: PurchaseReceiptOptions
 ): Promise<boolean> {
-  const fromEmail = process.env.SMTP_FROM || 'support@perfectdayreset.com';
+  const fromEmail = process.env.SMTP_FROM || 'perfectdayreset@gmail.com';
   const isBundle = options?.includeOrderBump === true || options?.amountCents === 3100;
   const formattedAmount = isBundle ? '$31.00' : '$19.00';
   const climateDonation = isBundle ? '$0.16' : '$0.10';
@@ -163,7 +163,7 @@ Questions? Reply to this email or visit our support page.
 export const sendWelcomeEmailWithCredentials = sendPurchaseWelcomeEmail;
 
 export async function sendWelcomeEmail(email: string): Promise<boolean> {
-  const fromEmail = 'support@perfectdayreset.com';
+  const fromEmail = 'perfectdayreset@gmail.com';
   
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">

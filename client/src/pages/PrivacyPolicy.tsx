@@ -95,7 +95,7 @@ export default function PrivacyPolicy() {
                 <h3 className="text-xl font-semibold">Contact Us</h3>
               </div>
               <p className="text-gray-700">
-                For any questions, email us at: <a href="mailto:support@perfectdayreset.com" className="text-blue-600 hover:underline">support@perfectdayreset.com</a>
+                For any questions, email us at: <a href="mailto:perfectdayreset@gmail.com" className="text-blue-600 hover:underline">perfectdayreset@gmail.com</a>
               </p>
             </div>
           </div>

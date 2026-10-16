@@ -58,7 +58,7 @@ const SHARED_FOOTER_HTML = `
         <li><a href="/cookie-policy">Cookie Policy</a></li>
       </ul>
     </nav>
-    <p>Contact: <a href="mailto:support@perfectdayreset.com">support@perfectdayreset.com</a></p>
+    <p>Contact: <a href="mailto:perfectdayreset@gmail.com">perfectdayreset@gmail.com</a></p>
   </footer>
 `;
 
@@ -328,7 +328,7 @@ const ROUTE_SEO_MAP: Record<string, RouteSEOConfig> = {
   "/contact": {
     title: "Contact & Support – Perfect Day Reset",
     description:
-      "Have questions about your Perfect Day Reset journey? Contact our support team at support@perfectdayreset.com and we'll get back to you within 24 hours.",
+      "Have questions about your Perfect Day Reset journey? Contact our support team at perfectdayreset@gmail.com and we'll get back to you within 24 hours.",
     canonical: "https://perfectdayreset.com/contact",
     ogTitle: "Contact & Support – Perfect Day Reset",
     ogDescription:
@@ -343,7 +343,7 @@ const ROUTE_SEO_MAP: Record<string, RouteSEOConfig> = {
   <main>
     <h1>Contact &amp; Support</h1>
     <p>Have questions about the Perfect Day Reset program, your account, or billing? Our team responds within 24 hours.</p>
-    <p>Email us directly: <a href="mailto:support@perfectdayreset.com">support@perfectdayreset.com</a></p>
+    <p>Email us directly: <a href="mailto:perfectdayreset@gmail.com">perfectdayreset@gmail.com</a></p>
   </main>
   ${SHARED_FOOTER_HTML}
 </div>`,
@@ -364,7 +364,7 @@ const ROUTE_SEO_MAP: Record<string, RouteSEOConfig> = {
   ${SHARED_NAV_HTML}
   <main>
     <h1>Refund Policy — 14-Day Money-Back Satisfaction Guarantee</h1>
-    <p>We stand behind the Perfect Day Reset 100%. If you complete the 24-Hour Reset (or try the protocol within 14 days of purchase) and do not feel noticeably more energized, focused, and clear-headed, contact <a href="mailto:support@perfectdayreset.com">support@perfectdayreset.com</a> within 14 days for a full, friendly refund.</p>
+    <p>We stand behind the Perfect Day Reset 100%. If you complete the 24-Hour Reset (or try the protocol within 14 days of purchase) and do not feel noticeably more energized, focused, and clear-headed, contact <a href="mailto:perfectdayreset@gmail.com">perfectdayreset@gmail.com</a> within 14 days for a full, friendly refund.</p>
   </main>
   ${SHARED_FOOTER_HTML}
 </div>`,
@@ -451,7 +451,7 @@ const ORGANIZATION_SCHEMA = {
   contactPoint: {
     "@type": "ContactPoint",
     contactType: "customer service",
-    email: "support@perfectdayreset.com",
+    email: "perfectdayreset@gmail.com",
   },
 };
 
@@ -555,7 +555,7 @@ const CORE_FAQ_SCHEMA = {
       name: "What is the 14-day money-back guarantee?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Your $19 one-time purchase is backed by a 14-day 100% money-back guarantee. If you complete the 24-Hour Reset Protocol and do not feel a measurable improvement in morning alertness, afternoon focus, and evening calm, simply email support@perfectdayreset.com within 14 days for a full refund.",
+        text: "Your $19 one-time purchase is backed by a 14-day 100% money-back guarantee. If you complete the 24-Hour Reset Protocol and do not feel a measurable improvement in morning alertness, afternoon focus, and evening calm, simply email perfectdayreset@gmail.com within 14 days for a full refund.",
       },
     },
   ],

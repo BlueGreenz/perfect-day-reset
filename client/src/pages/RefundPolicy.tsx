@@ -10,7 +10,7 @@ export default function RefundPolicy() {
     <div className="bg-white min-h-screen">
       <SEOHead
         title="Refund Policy – 14-Day 100% Satisfaction Guarantee | Perfect Day Reset"
-        description="Read the Perfect Day Reset 14-day money-back satisfaction guarantee. Try the 24-Hour Reset risk-free and contact support@perfectdayreset.com within 14 days if you aren't noticeably more energized and focused."
+        description="Read the Perfect Day Reset 14-day money-back satisfaction guarantee. Try the 24-Hour Reset risk-free and contact perfectdayreset@gmail.com within 14 days if you aren't noticeably more energized and focused."
         canonical="https://perfectdayreset.com/refund-policy"
       />
       <NavBar />
@@ -70,10 +70,10 @@ export default function RefundPolicy() {
               <p className="text-gray-700 mb-4 leading-relaxed">
                 Email our support team at{" "}
                 <a
-                  href="mailto:support@perfectdayreset.com"
+                  href="mailto:perfectdayreset@gmail.com"
                   className="text-primary font-semibold hover:underline"
                 >
-                  support@perfectdayreset.com
+                  perfectdayreset@gmail.com
                 </a>{" "}
                 within 14 days of your purchase with:
               </p>

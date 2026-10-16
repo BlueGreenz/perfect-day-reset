@@ -43,7 +43,7 @@ export default function SEOHead({
     "contactPoint": {
       "@type": "ContactPoint",
       "contactType": "customer service",
-      "email": "support@perfectdayreset.com"
+      "email": "perfectdayreset@gmail.com"
     }
   };
 
@@ -147,7 +147,7 @@ export default function SEOHead({
         "name": "What is the 14-day money-back guarantee?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Your $19 one-time purchase is backed by a 14-day 100% money-back guarantee. If you complete the 24-Hour Reset Protocol and do not feel a measurable improvement in morning alertness, afternoon focus, and evening calm, simply email support@perfectdayreset.com within 14 days for a full refund."
+          "text": "Your $19 one-time purchase is backed by a 14-day 100% money-back guarantee. If you complete the 24-Hour Reset Protocol and do not feel a measurable improvement in morning alertness, afternoon focus, and evening calm, simply email perfectdayreset@gmail.com within 14 days for a full refund."
         }
       }
     ]
