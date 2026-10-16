@@ -64,7 +64,7 @@ function wrapTextLines(text: string, maxCharsPerLine = 38): string {
     .replace(/\s*→\s*Comment RESET\s*⚡?/gi, "\n(Comment RESET)")
     .replace(/\s*->\s*Comment RESET\s*⚡?/gi, "\n(Comment RESET)")
     .replace(/[→]|->/g, " ")
-    .replace(/[⚡👋🐄🏎️🔬]/gu, "")
+    .replace(/⚡|👋|🐄|🏎️|🔬/g, "")
     .replace(/—/g, " - ")
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
