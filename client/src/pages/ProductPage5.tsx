@@ -33,8 +33,11 @@ import {
   useSaveResetEntry,
   useStartNextMorning,
   useCompleteItem,
+  useCreateReset,
+  useStartReset,
 } from "@/lib/reset-api";
 import { useToast } from "@/hooks/use-toast";
+import PortalNavBar from "@/components/PortalNavBar";
 
 interface ReflectionFields {
   surprised: string;
@@ -51,6 +54,8 @@ export default function ProductPage5() {
   const saveResetEntry = useSaveResetEntry();
   const startNextMorning = useStartNextMorning();
   const completeItem = useCompleteItem();
+  const createReset = useCreateReset();
+  const startReset = useStartReset();
 
   const [reflections, setReflections] = useState<ReflectionFields>({
     surprised: "",
@@ -116,14 +121,33 @@ export default function ProductPage5() {
     const payload = JSON.stringify(reflections);
 
     try {
+      let activeReset = currentReset;
+      if (!activeReset?.resetRun) {
+        const now = new Date();
+        const startAt = new Date(now);
+        startAt.setHours(7, 0, 0, 0);
+        const bedtimeAt = new Date(startAt.getTime() + 15.5 * 60 * 60 * 1000);
+        const nextMorningAt = new Date(startAt.getTime() + 24 * 60 * 60 * 1000);
+        await createReset.mutateAsync({
+          startAt: startAt.toISOString(),
+          targetBedtimeAt: bedtimeAt.toISOString(),
+          targetNextMorningAt: nextMorningAt.toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+          resetGoal: "Complete my 24-Hour Perfect Day Reset",
+          foodPreference: "omni",
+          movementAccess: "walk_only",
+        });
+        activeReset = await startReset.mutateAsync();
+      }
+
       await saveResetEntry.mutateAsync({
         kind: "evening_reflection",
         content: payload,
       });
 
       // Also complete the Reset Run lifecycle if currently in sleep or next_morning
-      if (currentReset?.resetRun) {
-        let latestReset = currentReset;
+      if (activeReset?.resetRun) {
+        let latestReset = activeReset;
         if (latestReset.resetRun.status === "sleep") {
           try {
             latestReset = await startNextMorning.mutateAsync();
@@ -162,14 +186,18 @@ export default function ProductPage5() {
       toast({
         title: "Could not save reflections",
         description:
-          err?.message || "Make sure you have started a Perfect Day Reset session first.",
+          err?.message || "Make sure you are signed in to save your reflections.",
         variant: "destructive",
       });
     }
   };
 
   const isSaving =
-    saveResetEntry.isPending || startNextMorning.isPending || completeItem.isPending;
+    saveResetEntry.isPending ||
+    startNextMorning.isPending ||
+    completeItem.isPending ||
+    createReset.isPending ||
+    startReset.isPending;
 
   // Scroll to top when component mounts
   useEffect(() => {
@@ -178,6 +206,7 @@ export default function ProductPage5() {
 
   return (
     <div className="bg-white min-h-screen">
+      <PortalNavBar />
       {/* Header Section with Sunrise Background */}
       <section 
         className="text-white py-24 md:py-32 relative"

@@ -33,6 +33,7 @@ import {
   useSaveResetEntry,
   type ResetItem,
 } from "@/lib/reset-api";
+import PortalNavBar, { getDefaultPhaseItems } from "@/components/PortalNavBar";
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/queryClient";
 
@@ -1014,81 +1015,39 @@ export default function ProductPage4() {
     );
   }
 
-  if (resetError) {
-    if ((resetError as ApiError).status === 401) {
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-bold mb-2">Session Expired</h2>
-          <p className="text-gray-600 mb-4">Please log in to continue your Reset.</p>
-          <Link href="/login">
-            <Button>Log In</Button>
-          </Link>
-        </div>
-      );
-    }
-
-    if ((resetError as ApiError).status === 404) {
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-          <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
-          <h2 className="text-xl font-bold mb-2">No Active Reset</h2>
-          <p className="text-gray-600 mb-4">You haven't set up a Perfect Day Reset yet.</p>
-          <Link href="/product/reset/welcome">
-            <Button>Start Your Reset</Button>
-          </Link>
-        </div>
-      );
-    }
-
+  if (resetError && (resetError as ApiError).status === 401) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
         <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <h2 className="text-xl font-bold mb-2">Error Loading Reset</h2>
-        <p className="text-gray-600 mb-4">{(resetError as Error).message}</p>
-        <Button onClick={() => refetch()}>Try Again</Button>
-      </div>
-    );
-  }
-
-  if (!currentReset) return null;
-
-  const status = currentReset.resetRun.status;
-  const phase = currentReset.resetRun.phase;
-
-  if (status === "ready") {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
-        <AlertCircle className="h-12 w-12 text-blue-500 mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Your Reset hasn't started yet.</h2>
-        <p className="text-gray-600 mb-6">Head back to the start page to begin.</p>
-        <Link href="/product/reset/welcome">
-          <Button>Go to Setup</Button>
+        <h2 className="text-xl font-bold mb-2">Session Expired</h2>
+        <p className="text-gray-600 mb-4">Please log in to continue your Reset.</p>
+        <Link href="/login">
+          <Button>Log In</Button>
         </Link>
       </div>
     );
   }
 
-  if (status === "active" && (phase === "morning" || phase === "midday")) {
-    const targetHref = phase === "morning" ? "/product/reset/morning" : "/product/reset/midday";
-    const targetLabel = phase === "morning" ? "Morning" : "Midday";
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
-        <AlertCircle className="h-12 w-12 text-blue-500 mb-4" />
-        <h2 className="text-2xl font-bold mb-2">You are currently in the {targetLabel} phase.</h2>
-        <p className="text-gray-600 mb-6">
-          Complete your {targetLabel.toLowerCase()} activities to unlock the Afternoon &amp; Evening Reset.
-        </p>
-        <Link href={targetHref}>
-          <Button>Go to {targetLabel}</Button>
-        </Link>
-      </div>
-    );
-  }
+  const afternoonEveningItems =
+    currentReset && currentReset.items.length > 0
+      ? [...currentReset.items]
+          .filter((i) => i.phase === "afternoon" || i.phase === "evening")
+          .sort((a, b) => a.sequence - b.sequence)
+      : getDefaultPhaseItems("afternoon_evening");
 
-  const afternoonEveningItems = [...currentReset.items]
-    .filter((i) => i.phase === "afternoon" || i.phase === "evening")
-    .sort((a, b) => a.sequence - b.sequence);
-
-  return renderAfternoonEveningPage(afternoonEveningItems);
+  return (
+    <>
+      <PortalNavBar />
+      {currentReset?.currentItem &&
+        (currentReset.currentItem.phase === "afternoon" ||
+          currentReset.currentItem.phase === "evening") && (
+          <div className="bg-primary text-primary-foreground text-center p-2 text-sm font-medium">
+            Current active step:{" "}
+            {catalogMapping[currentReset.currentItem.activityKey]?.title ||
+              currentReset.currentItem.activityKey}
+          </div>
+        )}
+      {renderAfternoonEveningPage(afternoonEveningItems)}
+    </>
+  );
 }

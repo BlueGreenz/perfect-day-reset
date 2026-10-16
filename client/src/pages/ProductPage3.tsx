@@ -26,6 +26,7 @@ import {
 import { Link, useLocation } from "wouter";
 import beachExerciseImage from "@assets/16x9_A_vibrant_array_of_modern_sports.webp";
 import { useCurrentReset, useCompleteItem, useSkipItem, useDelayItem } from "@/lib/reset-api";
+import PortalNavBar, { getDefaultPhaseItems } from "@/components/PortalNavBar";
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
@@ -750,9 +751,15 @@ export default function ProductPage3() {
           <h2 className="text-3xl font-bold mb-6">Energized and renewed! Now channel this clarity into your afternoon of focused achievement and purposeful calm.</h2>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">You've nourished your body, refreshed your mind, and reset your energy. The foundation is set for your most productive and balanced afternoon yet.</p>
           
-          <div className="text-gray-500 italic">
-            Complete your midday activities above to unlock the Afternoon Reset.
-          </div>
+          <Button
+            size="lg"
+            className="px-8 py-6 text-lg rounded-full font-medium"
+            onClick={() => {
+              setLocation("/product/reset/afternoon");
+            }}
+          >
+            Continue to the Afternoon &amp; Evening Reset <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
         </div>
       </section>
     </div>
@@ -766,149 +773,35 @@ export default function ProductPage3() {
     );
   }
 
-  if (resetError) {
-    if ((resetError as ApiError).status === 401) {
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-bold mb-2">Session Expired</h2>
-          <p className="text-gray-600 mb-4">Please log in to continue your Reset.</p>
-          <Link href="/login">
-            <Button>Log In</Button>
-          </Link>
-        </div>
-      );
-    }
-    
-    if ((resetError as ApiError).status === 404) {
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-          <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
-          <h2 className="text-xl font-bold mb-2">No Active Reset</h2>
-          <p className="text-gray-600 mb-4">You haven't set up a Perfect Day Reset yet.</p>
-          <Link href="/product/reset/welcome">
-            <Button>Start Your Reset</Button>
-          </Link>
-        </div>
-      );
-    }
-
+  if (resetError && (resetError as ApiError).status === 401) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
         <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <h2 className="text-xl font-bold mb-2">Error Loading Reset</h2>
-        <p className="text-gray-600 mb-4">{(resetError as Error).message}</p>
-        <Button onClick={() => refetch()}>Try Again</Button>
-      </div>
-    );
-  }
-
-  if (!currentReset) return null;
-
-  const status = currentReset.resetRun.status;
-  const phase = currentReset.resetRun.phase;
-
-  if (status === 'ready') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
-        <AlertCircle className="h-12 w-12 text-blue-500 mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Your Reset hasn't started yet.</h2>
-        <p className="text-gray-600 mb-6">Head back to the start page to begin.</p>
-        <Link href="/product/reset/welcome">
-          <Button>Go to Setup</Button>
+        <h2 className="text-xl font-bold mb-2">Session Expired</h2>
+        <p className="text-gray-600 mb-4">Please log in to continue your Reset.</p>
+        <Link href="/login">
+          <Button>Log In</Button>
         </Link>
       </div>
     );
   }
 
-  if (status === 'sleep') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-4 text-center">
-        <h2 className="text-3xl font-bold mb-4">Your Reset is in the overnight recovery phase.</h2>
-        <p className="text-gray-400 mb-6">Rest well. Your next check-in is tomorrow morning.</p>
-      </div>
-    );
-  }
-
-  if (status === 'next_morning') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-blue-50 p-4 text-center">
-        <h2 className="text-3xl font-bold mb-4">Your next-morning check-in is ready.</h2>
-        <p className="text-gray-600 mb-6">Complete your final reflections to finish your Reset.</p>
-      </div>
-    );
-  }
-
-  if (status === 'completed') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-green-50 p-4 text-center">
-        <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-        <h2 className="text-3xl font-bold mb-2">Your Reset is complete.</h2>
-        <p className="text-gray-600 mb-6">Congratulations on completing your Perfect Day Reset.</p>
-      </div>
-    );
-  }
-
-  if (status === 'active') {
-    if (phase === 'morning') {
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
-          <AlertCircle className="h-12 w-12 text-blue-500 mb-4" />
-          <h2 className="text-2xl font-bold mb-2">You are currently in the Morning phase.</h2>
-          <p className="text-gray-600 mb-6">Complete your morning activities to unlock midday.</p>
-          <Link href="/product/reset/morning">
-            <Button>Go to Morning</Button>
-          </Link>
-        </div>
-      );
-    }
-    
-    if (phase === 'afternoon' || phase === 'evening') {
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
-          <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Midday Complete</h2>
-          <p className="text-gray-600 mb-6">Your Reset has progressed beyond this phase.</p>
-          <Link href={`/product/reset/${phase}`}>
-            <Button>Continue to {phase.charAt(0).toUpperCase() + phase.slice(1)}</Button>
-          </Link>
-        </div>
-      );
-    }
-
-    if (phase === 'midday') {
-      const middayItems = [...currentReset.items]
-        .filter(i => i.phase === 'midday')
-        .sort((a, b) => a.sequence - b.sequence);
-      const activeItems = currentReset.items.filter(i => i.status === 'active');
-      
-      // Integrity check
-      if (
-        activeItems.length !== 1 || 
-        !currentReset.currentItem || 
-        currentReset.currentItem.status !== 'active' || 
-        currentReset.currentItem.id !== activeItems[0].id ||
-        currentReset.currentItem.phase !== 'midday'
-      ) {
-        return (
-          <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
-            <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
-            <h2 className="text-xl font-bold mb-2">State Synchronizing...</h2>
-            <p className="text-gray-600 mb-4">Please wait while your Reset state updates.</p>
-            <Button onClick={() => refetch()}>Refresh Page</Button>
-          </div>
-        );
-      }
-
-      return renderMiddayContent(middayItems);
-    }
-  }
+  const middayItems =
+    currentReset && currentReset.items.length > 0
+      ? [...currentReset.items]
+          .filter((i) => i.phase === "midday")
+          .sort((a, b) => a.sequence - b.sequence)
+      : getDefaultPhaseItems("midday");
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-      <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
-      <h2 className="text-xl font-bold mb-2">Unknown State</h2>
-      <p className="text-gray-600 mb-4">We couldn't determine your Reset phase.</p>
-    </div>
+    <>
+      <PortalNavBar />
+      {currentReset?.currentItem && currentReset.currentItem.phase === "midday" && (
+        <div className="bg-primary text-primary-foreground text-center p-2 text-sm font-medium">
+          Current active step: {catalogMapping[currentReset.currentItem.activityKey]?.title || currentReset.currentItem.activityKey}
+        </div>
+      )}
+      {renderMiddayContent(middayItems)}
+    </>
   );
 }

@@ -86,64 +86,99 @@ export default function Dashboard() {
         </div>
 
         {/* Program Access Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          <Card className="bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all border-0">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
+          <Card className="bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all border-0 flex flex-col justify-between">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-emerald-600" />
+                </div>
+                0. Prep &amp; Setup
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col flex-1 justify-between">
+              <p className="text-gray-600 text-sm mb-4">
+                Customize your wake time, nutrition track, and day-before environment setup.
+              </p>
+              <Link href="/product/reset/welcome">
+                <Button className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700">
+                  Setup &amp; Welcome
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all border-0 flex flex-col justify-between">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
                 <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
                   <Calendar className="h-4 w-4 text-orange-600" />
                 </div>
-                Morning Reset
+                1. Morning Reset
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-4">Start your day with energy and purpose</p>
-              <Link href="/product/reset/welcome">
+            <CardContent className="flex flex-col flex-1 justify-between">
+              <p className="text-gray-600 text-sm mb-4">
+                Start your day with hydration, light exposure, movement, and calm focus.
+              </p>
+              <Link href="/product/reset/morning">
                 <Button className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700">
-                  Begin Morning Routine
+                  Open Morning Routine
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all border-0">
+          <Card className="bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all border-0 flex flex-col justify-between">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                   <Clock className="h-4 w-4 text-blue-600" />
                 </div>
-                Midday Recharge
+                2. Midday Recharge
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-4">Maintain momentum and stay focused</p>
+            <CardContent className="flex flex-col flex-1 justify-between">
+              <p className="text-gray-600 text-sm mb-4">
+                Eliminate the 2 PM slump with blood-sugar-stable lunch and NSDR reset.
+              </p>
               <Link href="/product/reset/midday">
                 <Button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
-                  Continue to Midday
+                  Open Midday Routine
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all border-0">
+          <Card className="bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all border-0 flex flex-col justify-between">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
                 <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                   <Target className="h-4 w-4 text-purple-600" />
                 </div>
-                Evening Reflection
+                3. Evening &amp; Sleep
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-4">Wind down and prepare for rest</p>
-              <Link href="/product/reset/afternoon">
-                <Button className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700">
-                  Complete Your Day
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
+            <CardContent className="flex flex-col flex-1 justify-between">
+              <p className="text-gray-600 text-sm mb-4">
+                Wind down your nervous system, enjoy dinner, and lock in deep sleep.
+              </p>
+              <div className="space-y-2">
+                <Link href="/product/reset/afternoon">
+                  <Button className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700">
+                    Open Evening Routine
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="/product/reset/reflection">
+                  <Button variant="outline" size="sm" className="w-full text-xs border-purple-200 text-purple-700 hover:bg-purple-50">
+                    Final Reflection &amp; Certificate →
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>

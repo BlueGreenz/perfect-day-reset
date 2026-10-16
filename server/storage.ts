@@ -1163,14 +1163,39 @@ export class MemStorage implements IStorage {
     if (!data) return { type: "not_found" };
     const item = data.items.find((i) => i.id === itemId);
     if (!item) return { type: "item_not_found" };
+    const now = new Date();
     item.status = action === "complete" ? "completed" : "skipped";
-    const next = data.items.find((i) => i.status === "scheduled");
-    if (next) {
-      next.status = "active";
-      data.resetRun.phase = next.phase;
+    if (action === "complete") {
+      item.completedAt = now;
     } else {
+      item.skippedAt = now;
+    }
+    item.updatedAt = now;
+
+    if (data.resetRun.status === "next_morning") {
       data.resetRun.status = "completed";
-      data.resetRun.phase = null;
+      data.resetRun.phase = "next_morning";
+      data.resetRun.completedAt = now;
+      data.resetRun.updatedAt = now;
+      return { type: "success", resetRun: data.resetRun, items: data.items };
+    }
+
+    const next = data.items.find((i) => i.status === "scheduled" && i.sequence > item.sequence);
+    if (!next) {
+      data.resetRun.status = "completed";
+      data.resetRun.phase = "next_morning";
+      data.resetRun.completedAt = now;
+      data.resetRun.updatedAt = now;
+    } else if (next.phase === "next_morning") {
+      data.resetRun.status = "sleep";
+      data.resetRun.phase = "sleep";
+      data.resetRun.sleepStartedAt = now;
+      data.resetRun.updatedAt = now;
+    } else {
+      next.status = "active";
+      next.updatedAt = now;
+      data.resetRun.phase = next.phase;
+      data.resetRun.updatedAt = now;
     }
     return { type: "success", resetRun: data.resetRun, items: data.items };
   }
@@ -1205,8 +1230,16 @@ export class MemStorage implements IStorage {
   async startNextMorningForUser(userId: number): Promise<StartNextMorningResult> {
     const data = await this.getResetRunAndItemsByUserId(userId);
     if (!data) return { type: "not_found" };
-    data.resetRun.status = "active";
+    const now = new Date();
+    data.resetRun.status = "next_morning";
     data.resetRun.phase = "next_morning";
+    data.resetRun.nextMorningStartedAt = now;
+    data.resetRun.updatedAt = now;
+    const nextMorningItem = data.items.find((i) => i.phase === "next_morning");
+    if (nextMorningItem && nextMorningItem.status === "scheduled") {
+      nextMorningItem.status = "active";
+      nextMorningItem.updatedAt = now;
+    }
     return { type: "success", resetRun: data.resetRun, items: data.items };
   }
 

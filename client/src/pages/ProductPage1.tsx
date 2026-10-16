@@ -24,6 +24,7 @@ import { ChevronRight, ArrowRight, Sunrise, Coffee, BookOpen, ShoppingBag, Bell,
 import { Link, useLocation } from "wouter";
 import { toast } from "@/hooks/use-toast";
 import PerfectDayResetPDF from "@/components/PerfectDayResetPDF";
+import PortalNavBar from "@/components/PortalNavBar";
 import { useCurrentReset, useCreateReset, useStartReset } from "@/lib/reset-api";
 import { loadQuizProfile } from "@/lib/quiz-profile";
 import { Loader2 } from "lucide-react";
@@ -78,7 +79,10 @@ export default function ProductPage1() {
   const [startAt, setStartAt] = useState(initialTimes.startAt);
   const [targetBedtimeAt, setTargetBedtimeAt] = useState(initialTimes.targetBedtimeAt);
   const [targetNextMorningAt, setTargetNextMorningAt] = useState(initialTimes.targetNextMorningAt);
-  const [resetGoal, setResetGoal] = useState(initialQuizProfile?.recommendedGoal || "");
+  const [resetGoal, setResetGoal] = useState(
+    initialQuizProfile?.recommendedGoal ||
+      "Reclaim calm morning energy, eliminate afternoon brain fog, and get deep restorative sleep"
+  );
   const [movementAccess, setMovementAccess] = useState("bodyweight");
   const [blockedTimes, setBlockedTimes] = useState("");
 
@@ -576,6 +580,7 @@ export default function ProductPage1() {
 
   return (
     <div className="bg-white min-h-screen" ref={pageRef}>
+      <PortalNavBar />
       {/* Hero Section */}
       <section className="relative text-white py-24 md:py-32">
         {/* Background Image with Overlay */}
@@ -1977,55 +1982,66 @@ export default function ProductPage1() {
                   </div>
                 ) : currentReset ? (
                   <div className="w-full max-w-md bg-green-50 p-6 rounded-xl border border-green-200">
-                    <h3 className="text-xl font-bold text-green-800 text-center mb-4">Your Reset is {currentReset.resetRun.status}!</h3>
+                    <h3 className="text-xl font-bold text-green-800 text-center mb-4">
+                      Your 24-Hour Reset is {currentReset.resetRun.status === "ready" ? "Ready" : "Active"}!
+                    </h3>
                     <div className="space-y-2 text-sm text-green-900 mb-6">
                       <p><strong>Goal:</strong> {currentReset.resetRun.resetGoal || 'Not specified'}</p>
+                      <p><strong>Diet Track:</strong> {(currentReset.resetRun.foodPreference || 'omni').toUpperCase()}</p>
                       <p><strong>Start:</strong> {new Date(currentReset.resetRun.startAt).toLocaleString()}</p>
                       <p><strong>Bedtime:</strong> {new Date(currentReset.resetRun.targetBedtimeAt).toLocaleString()}</p>
                       <p><strong>Next Morning:</strong> {new Date(currentReset.resetRun.targetNextMorningAt).toLocaleString()}</p>
                     </div>
-                    {currentReset.resetRun.status === 'ready' && (
-                      <div className="flex flex-col items-center mt-6 pt-4 border-t border-green-200">
-                        <p className="text-center italic text-green-700 mb-4">You can start this Reset when the time comes.</p>
+                    {currentReset.resetRun.status === 'ready' ? (
+                      <div className="flex flex-col items-center mt-4 pt-4 border-t border-green-200">
                         <Button 
                           size="lg" 
-                          className="w-full"
+                          className="w-full bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-bold rounded-full"
                           disabled={startReset.isPending}
                           onClick={async () => {
                             try {
-                              const result = await startReset.mutateAsync();
-                              if (result.resetRun.status === 'active' && result.resetRun.phase === 'morning' && result.currentItem && result.currentItem.status === 'active') {
-                                setLocation('/product/reset/morning');
-                              }
+                              await startReset.mutateAsync();
+                              setLocation('/product/reset/morning');
                             } catch (err: any) {
-                              if (err.status === 409) {
-                                // Conflict, refetch to get actual state
-                                refetch();
-                              } else if (err.status === 404) {
-                                toast({ title: "Reset not found", description: "Please recreate it.", variant: "destructive" });
-                                refetch();
-                              } else {
-                                toast({ title: "Failed to start Reset", description: err.message, variant: "destructive" });
-                              }
+                              refetch();
+                              setLocation('/product/reset/morning');
                             }
                           }}
                         >
                           {startReset.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                          {startReset.isPending ? "Starting..." : "Start My Reset"}
+                          {startReset.isPending ? "Starting..." : "Start My 24-Hour Reset → Morning Phase"}
                         </Button>
                       </div>
-                    )}
-                    {currentReset.resetRun.status === 'active' && (
-                       <p className="text-center italic text-green-700">Your Reset is currently in progress.</p>
-                    )}
-                    {currentReset.resetRun.status === 'sleep' && (
-                       <p className="text-center italic text-green-700">Your Reset is in the overnight recovery phase.</p>
-                    )}
-                    {currentReset.resetRun.status === 'next_morning' && (
-                       <p className="text-center italic text-green-700">Your next-morning check-in is ready.</p>
-                    )}
-                    {currentReset.resetRun.status === 'completed' && (
-                       <p className="text-center italic text-green-700">Your Reset is complete.</p>
+                    ) : (
+                      <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-green-200">
+                        <Button
+                          size="lg"
+                          className="w-full bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-bold rounded-full"
+                          onClick={() => {
+                            const phase = currentReset.resetRun.phase;
+                            if (phase === "midday") setLocation("/product/reset/midday");
+                            else if (phase === "afternoon" || phase === "evening") setLocation("/product/reset/afternoon");
+                            else if (currentReset.resetRun.status === "next_morning" || currentReset.resetRun.status === "completed") setLocation("/product/reset/reflection");
+                            else setLocation("/product/reset/morning");
+                          }}
+                        >
+                          Continue Active Reset Phase <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                        <div className="grid grid-cols-2 gap-2 pt-2">
+                          <Link href="/product/reset/morning">
+                            <Button variant="outline" size="sm" className="w-full text-xs">1. Morning</Button>
+                          </Link>
+                          <Link href="/product/reset/midday">
+                            <Button variant="outline" size="sm" className="w-full text-xs">2. Midday</Button>
+                          </Link>
+                          <Link href="/product/reset/afternoon">
+                            <Button variant="outline" size="sm" className="w-full text-xs">3. Evening</Button>
+                          </Link>
+                          <Link href="/product/reset/reflection">
+                            <Button variant="outline" size="sm" className="w-full text-xs">4. Reflection</Button>
+                          </Link>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -2094,50 +2110,52 @@ export default function ProductPage1() {
 
                     <Button 
                       size="lg" 
-                      className="w-full mt-4"
-                      disabled={createReset.isPending}
+                      className="w-full mt-4 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-bold rounded-full py-6 text-base shadow-lg"
+                      disabled={createReset.isPending || startReset.isPending}
                       onClick={async () => {
                         if (!startAt || !targetBedtimeAt || !targetNextMorningAt) {
                           toast({ title: "Please fill out all times", variant: "destructive" });
                           return;
                         }
-                        if (!resetGoal.trim()) {
-                          toast({ title: "Please provide a goal for this Reset", variant: "destructive" });
-                          return;
-                        }
-                        if (!selectedDiet) {
-                          toast({ title: "Please select a food preference above", variant: "destructive" });
-                          return;
-                        }
-                        if (!movementAccess) {
-                          toast({ title: "Please select your movement style", variant: "destructive" });
-                          return;
-                        }
+                        const effectiveGoal =
+                          resetGoal.trim() ||
+                          "Reclaim calm morning energy, eliminate afternoon brain fog, and get deep restorative sleep";
                         
                         try {
                           await createReset.mutateAsync({
                             startAt: new Date(startAt).toISOString(),
                             targetBedtimeAt: new Date(targetBedtimeAt).toISOString(),
                             targetNextMorningAt: new Date(targetNextMorningAt).toISOString(),
-                            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                            resetGoal,
-                            foodPreference: selectedDiet,
-                            movementAccess,
+                            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+                            resetGoal: effectiveGoal,
+                            foodPreference: selectedDiet || "omni",
+                            movementAccess: movementAccess || "bodyweight",
                             blockedTimesJson: blockedTimes ? { notes: blockedTimes } : undefined
                           });
-                          toast({ title: "Reset configured!" });
+                          await startReset.mutateAsync();
+                          toast({ title: "Your 24-Hour Reset is Live!", description: "Starting Phase 1: Morning Activation." });
+                          setLocation("/product/reset/morning");
                         } catch (err: any) {
                           if (err.status === 409) {
-                            // Already exists, just refetch
+                            try {
+                              await startReset.mutateAsync();
+                            } catch {
+                              // Already started
+                            }
                             refetch();
+                            setLocation("/product/reset/morning");
                           } else {
                             toast({ title: "Failed to setup Reset", description: err.message, variant: "destructive" });
                           }
                         }
                       }}
                     >
-                      {createReset.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      {createReset.isPending ? "Setting up..." : "Save Setup"}
+                      {createReset.isPending || startReset.isPending ? (
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      ) : null}
+                      {createReset.isPending || startReset.isPending
+                        ? "Starting Your Reset..."
+                        : "Save & Start My 24-Hour Reset →"}
                     </Button>
                   </div>
                 )}
