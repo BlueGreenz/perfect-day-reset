@@ -429,6 +429,18 @@ const ROUTE_SEO_MAP: Record<string, RouteSEOConfig> = {
   ${SHARED_FOOTER_HTML}
 </div>`,
   },
+  "/admin/agent": {
+    title: "Admin Command Center – Perfect Day Reset",
+    description: "Private Admin Command Center.",
+    canonical: "https://perfectdayreset.com/admin/agent",
+    ogTitle: "Admin Command Center – Perfect Day Reset",
+    ogDescription: "Private Admin Command Center.",
+    ogImage: DEFAULT_OG_IMAGE,
+    twitterTitle: "Admin Command Center – Perfect Day Reset",
+    twitterDescription: "Private Admin Command Center.",
+    noindex: true,
+    semanticHtml: `<div class="ssr-seo-shell"><main><h1>Admin Authentication Required</h1></main></div>`,
+  },
 };
 
 const ORGANIZATION_SCHEMA = {

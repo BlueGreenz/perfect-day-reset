@@ -1,7 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import {
+  apiRequest,
+  queryClient,
+  getStoredAdminPasscode,
+  setStoredAdminPasscode,
+} from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   Sparkles,
@@ -30,6 +35,10 @@ import {
   ChevronDown,
   ChevronUp,
   Clapperboard,
+  Lock,
+  Eye,
+  EyeOff,
+  LogOut,
 } from "lucide-react";
 
 interface FlowUltraScene {
@@ -206,6 +215,12 @@ interface AgentOverviewResponse {
 
 export default function AgentDashboard() {
   const { toast } = useToast();
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+  const [checkingPasscode, setCheckingPasscode] = useState<boolean>(true);
+  const [passcodeInput, setPasscodeInput] = useState<string>("");
+  const [showPasscodeText, setShowPasscodeText] = useState<boolean>(false);
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
+
   const [activeTab, setActiveTab] = useState<
     "flow-ultra" | "video-queue" | "simulator" | "nurture" | "webhooks"
   >("flow-ultra");
@@ -245,8 +260,90 @@ export default function AgentDashboard() {
   );
   const [testFirstNameInput, setTestFirstNameInput] = useState<string>("Alex");
 
+  useEffect(() => {
+    const existingCode = getStoredAdminPasscode();
+    if (!existingCode) {
+      setCheckingPasscode(false);
+      return;
+    }
+
+    fetch("/api/agent/verify-passcode", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Admin-Passcode": existingCode,
+      },
+      body: JSON.stringify({ passcode: existingCode }),
+    })
+      .then((res) => {
+        if (res.ok) {
+          setIsAdminAuthenticated(true);
+        } else {
+          setStoredAdminPasscode("");
+          setIsAdminAuthenticated(false);
+        }
+      })
+      .catch(() => {
+        setIsAdminAuthenticated(false);
+      })
+      .finally(() => {
+        setCheckingPasscode(false);
+      });
+  }, []);
+
+  const handleUnlockSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setPasscodeError(null);
+    const trimmed = passcodeInput.trim();
+    if (!trimmed) {
+      setPasscodeError("Please enter the admin password.");
+      return;
+    }
+
+    setCheckingPasscode(true);
+    try {
+      const res = await fetch("/api/agent/verify-passcode", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Passcode": trimmed,
+        },
+        body: JSON.stringify({ passcode: trimmed }),
+      });
+
+      if (res.ok) {
+        setStoredAdminPasscode(trimmed);
+        setIsAdminAuthenticated(true);
+        setPasscodeInput("");
+        toast({
+          title: "Command Center Unlocked",
+          description: "Welcome to the AI Growth & Video Director Command Center.",
+        });
+      } else {
+        setPasscodeError("Invalid admin password. Access denied.");
+      }
+    } catch {
+      setPasscodeError("Unable to verify admin password. Please try again.");
+    } finally {
+      setCheckingPasscode(false);
+    }
+  };
+
+  const handleLockAdmin = () => {
+    setStoredAdminPasscode("");
+    setIsAdminAuthenticated(false);
+    queryClient.removeQueries({
+      predicate: (q) => String(q.queryKey[0]).startsWith("/api/agent/"),
+    });
+    toast({
+      title: "Command Center Locked",
+      description: "Admin session cleared from this browser.",
+    });
+  };
+
   const { data: flowBatch, isLoading: loadingFlow } = useQuery<FlowUltraBatchResponse>({
     queryKey: ["/api/agent/flow-ultra-batch"],
+    enabled: isAdminAuthenticated,
   });
 
   const {
@@ -255,6 +352,7 @@ export default function AgentDashboard() {
     refetch: refetchVideos,
   } = useQuery<{ videos: AgentVideoRecord[] }>({
     queryKey: ["/api/agent/videos"],
+    enabled: isAdminAuthenticated,
   });
 
   const {
@@ -265,6 +363,7 @@ export default function AgentDashboard() {
     queryKey: [
       `/api/agent/overview?archetype=${previewArchetype}&wake=${previewWake}&diet=${previewDiet}&blocker=${previewBlocker}`,
     ],
+    enabled: isAdminAuthenticated,
   });
 
   const copyToClipboard = async (text: string, key: string, label: string) => {
@@ -399,12 +498,14 @@ export default function AgentDashboard() {
 
   const simulateReplyMutation = useMutation({
     mutationFn: async () => {
+      const adminCode = getStoredAdminPasscode();
       if (simChannel === "email") {
         const res = await fetch("/api/agent/inbound-email", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "X-Agent-Simulator": "true",
+            "X-Admin-Passcode": adminCode,
           },
           body: JSON.stringify({
             from: simSender.includes("@") && !simSender.startsWith("@")
@@ -421,6 +522,7 @@ export default function AgentDashboard() {
           headers: {
             "Content-Type": "application/json",
             "X-Agent-Simulator": "true",
+            "X-Admin-Passcode": adminCode,
           },
           body: JSON.stringify({
             platform: simPlatform,
@@ -517,6 +619,90 @@ export default function AgentDashboard() {
     setExpandedReports((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  if (!isAdminAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+              <Lock className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                Protected Admin Route
+              </span>
+              <h1 className="text-xl font-bold text-white">
+                AI Command Center Login
+              </h1>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Enter your Admin Passcode to unlock the Google Flow Ultra (Veo 3.1) Storyboard Studio, AI Video Director Approval Queue, and Autonomous Closer tools.
+          </p>
+
+          <form onSubmit={handleUnlockSubmit} className="space-y-4">
+            <div>
+              <label
+                htmlFor="admin-passcode-input"
+                className="block text-xs font-semibold text-slate-300 mb-1.5"
+              >
+                Admin Password
+              </label>
+              <div className="relative">
+                <input
+                  id="admin-passcode-input"
+                  type={showPasscodeText ? "text" : "password"}
+                  value={passcodeInput}
+                  onChange={(e) => setPasscodeInput(e.target.value)}
+                  placeholder="Enter admin password..."
+                  autoComplete="current-password"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-700 px-3.5 py-2.5 pr-10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasscodeText((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                  aria-label="Toggle password visibility"
+                >
+                  {showPasscodeText ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              {passcodeError && (
+                <p className="text-xs text-rose-400 mt-2 font-medium">
+                  {passcodeError}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={checkingPasscode}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-lg transition disabled:opacity-50"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              {checkingPasscode ? "Verifying..." : "Unlock AI Command Center"}
+            </button>
+          </form>
+
+          <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <span>Perfect Day Reset Admin</span>
+            <Link href="/">
+              <a className="inline-flex items-center gap-1 text-emerald-400 hover:underline font-medium">
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back to Public Site
+              </a>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       {/* Top Command Bar */}
@@ -555,6 +741,14 @@ export default function AgentDashboard() {
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </Link>
+            <button
+              type="button"
+              onClick={handleLockAdmin}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Lock Admin
+            </button>
             <Link href="/">
               <a className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg text-slate-400 hover:text-white transition">
                 <ArrowLeft className="w-3.5 h-3.5" />

@@ -40,14 +40,48 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+export const ADMIN_PASSCODE_STORAGE_KEY = "pdr_admin_passcode";
+
+export function getStoredAdminPasscode(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(ADMIN_PASSCODE_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function setStoredAdminPasscode(passcode: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (passcode) {
+      window.localStorage.setItem(ADMIN_PASSCODE_STORAGE_KEY, passcode);
+    } else {
+      window.localStorage.removeItem(ADMIN_PASSCODE_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function buildAdminHeader(): Record<string, string> {
+  const code = getStoredAdminPasscode();
+  return code ? { "X-Admin-Passcode": code } : {};
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const headers: Record<string, string> = {
+    ...buildAdminHeader(),
+    ...(data ? { "Content-Type": "application/json" } : {}),
+  };
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -63,6 +97,7 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const res = await fetch(queryKey[0] as string, {
+      headers: buildAdminHeader(),
       credentials: "include",
     });
 

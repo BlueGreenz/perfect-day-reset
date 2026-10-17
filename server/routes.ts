@@ -1385,15 +1385,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AUTONOMOUS AI MARKETING, NURTURE, TWO-WAY REPLY CLOSER & FLOW ULTRA STUDIO
   // ============================================================================
 
+  const DEFAULT_ADMIN_PASSCODE = "PDR-Reiko-2026!";
+
+  const getAdminPasscode = (): string =>
+    (process.env.ADMIN_PASSCODE || DEFAULT_ADMIN_PASSCODE).trim();
+
+  const verifyAdminPasscode = (req: express.Request): boolean => {
+    const expected = getAdminPasscode();
+    const provided = String(
+      req.headers["x-admin-passcode"] || req.body?.passcode || ""
+    ).trim();
+    return Boolean(provided && provided === expected);
+  };
+
+  const requireAdminPasscode = (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    if (!verifyAdminPasscode(req)) {
+      return res.status(401).json({
+        message: "Admin password required to access the AI Command Center.",
+      });
+    }
+    next();
+  };
+
+  app.post("/api/agent/verify-passcode", (req, res) => {
+    if (!verifyAdminPasscode(req)) {
+      return res.status(401).json({
+        authenticated: false,
+        message: "Invalid admin password.",
+      });
+    }
+    return res.status(200).json({
+      authenticated: true,
+    });
+  });
+
   const verifyAgentWebhookAuth = (req: express.Request): boolean => {
+    if (verifyAdminPasscode(req)) return true;
+    // Simulator calls from /admin/agent must include the valid admin passcode
+    if (req.headers["x-agent-simulator"] === "true") {
+      return false;
+    }
     const configuredSecret = process.env.AGENT_WEBHOOK_SECRET;
     if (!configuredSecret) return true;
     const provided =
       req.headers["x-agent-secret"] ||
       req.headers["authorization"]?.replace(/^Bearer\s+/i, "");
     if (provided === configuredSecret) return true;
-    if (req.isAuthenticated && req.isAuthenticated()) return true;
-    if (req.headers["x-agent-simulator"] === "true") return true;
     return false;
   };
 
@@ -1572,16 +1613,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Google Flow Ultra 9:16 Viral Video Prompt & Hook Batch Endpoint
-  app.get("/api/agent/flow-ultra-batch", (req, res) => {
+  // Google Flow Ultra 9:16 Viral Video Prompt & Hook Batch Endpoint (Admin Protected)
+  app.get("/api/agent/flow-ultra-batch", requireAdminPasscode, (req, res) => {
     const archetype = req.query.archetype ? String(req.query.archetype) : undefined;
     const viralFormat = req.query.viralFormat ? String(req.query.viralFormat) : undefined;
     const batch = getFlowUltraBatch(archetype, viralFormat);
     return res.status(200).json(batch);
   });
 
-  // AI Video Director & Approval Queue Endpoints
-  app.get("/api/agent/videos", async (_req, res) => {
+  // AI Video Director & Approval Queue Endpoints (Admin Protected)
+  app.get("/api/agent/videos", requireAdminPasscode, async (_req, res) => {
     try {
       const videos = await ensureSampleAgentVideosSeeded();
       return res.status(200).json({ videos });
@@ -1591,7 +1632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/agent/videos/generate", async (req, res) => {
+  app.post("/api/agent/videos/generate", requireAdminPasscode, async (req, res) => {
     try {
       const packageId = String(req.body?.packageId || FLOW_ULTRA_PACKAGES[0].id);
       const feedbackDirective = req.body?.feedbackDirective
@@ -1639,7 +1680,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/agent/videos/:id/review", async (req, res) => {
+  app.post("/api/agent/videos/:id/review", requireAdminPasscode, async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
       if (isNaN(id)) {
@@ -1717,7 +1758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/agent/videos/:id/publish", async (req, res) => {
+  app.post("/api/agent/videos/:id/publish", requireAdminPasscode, async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
       if (isNaN(id)) {
@@ -1784,8 +1825,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Live Overview Endpoint for /admin/agent Command Center
-  app.get("/api/agent/overview", async (req, res) => {
+  // Live Overview Endpoint for /admin/agent Command Center (Admin Protected)
+  app.get("/api/agent/overview", requireAdminPasscode, async (req, res) => {
     try {
       const [leads, interactions] = await Promise.all([
         storage.getAllAgentLeads(),
@@ -1825,8 +1866,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Trigger Due Autonomous Nurture Emails Immediately
-  app.post("/api/agent/nurture/process-now", async (_req, res) => {
+  // Trigger Due Autonomous Nurture Emails Immediately (Admin Protected)
+  app.post("/api/agent/nurture/process-now", requireAdminPasscode, async (_req, res) => {
     try {
       const summary = await processDueAgentNurtureEmails();
       return res.status(200).json({
@@ -1839,8 +1880,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enroll & Send a Test Sequence Email from /admin/agent
-  app.post("/api/agent/nurture/send-test", async (req, res) => {
+  // Enroll & Send a Test Sequence Email from /admin/agent (Admin Protected)
+  app.post("/api/agent/nurture/send-test", requireAdminPasscode, async (req, res) => {
     try {
       const email = String(req.body?.email || "demo.executive@perfectdayreset.com").trim().toLowerCase();
       const firstName = String(req.body?.firstName || "Alex").trim();
