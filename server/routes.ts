@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import path from "path";
 import { storage } from "./storage";
 import { insertSubscriberSchema, users } from "@shared/schema";
 import { setupAuth, hashPassword } from "./auth";
@@ -190,6 +191,12 @@ async function provisionPaidUser(
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
   setupAuth(app);
+
+  // Serve dynamically rendered AI Director videos in both development and production
+  app.use(
+    "/generated-videos",
+    express.static(path.resolve(process.cwd(), "client", "public", "generated-videos"))
+  );
 
   // Clean up expired credentials (older than 1 hour)
   setInterval(() => {

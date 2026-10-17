@@ -139,22 +139,215 @@ async function probeVideoFile(clipPath: string): Promise<TechnicalClipProbe> {
   };
 }
 
+const CLIP_STOPWORDS = new Set([
+  "the",
+  "on",
+  "in",
+  "by",
+  "to",
+  "of",
+  "and",
+  "a",
+  "an",
+  "with",
+  "at",
+  "into",
+  "onto",
+  "from",
+  "for",
+  "mp4",
+  "mov",
+  "webm",
+]);
+
+interface ParsedWatchClip {
+  fullPath: string;
+  fileName: string;
+  timestampNum: number;
+  tokens: string[];
+}
+
+function parseWatchClipMeta(fullPath: string): ParsedWatchClip {
+  const fileName = path.basename(fullPath);
+  const tsMatch = fileName.match(/_(\d{14})\.(mp4|mov|webm)$/i);
+  let timestampNum = 0;
+  if (tsMatch) {
+    // Convert YYYYMMDDHHMMSS into approximate epoch seconds for batch grouping
+    const s = tsMatch[1];
+    const year = parseInt(s.slice(0, 4), 10);
+    const month = parseInt(s.slice(4, 6), 10) - 1;
+    const day = parseInt(s.slice(6, 8), 10);
+    const hour = parseInt(s.slice(8, 10), 10);
+    const min = parseInt(s.slice(10, 12), 10);
+    const sec = parseInt(s.slice(12, 14), 10);
+    timestampNum = Math.floor(Date.UTC(year, month, day, hour, min, sec) / 1000);
+  } else {
+    try {
+      timestampNum = Math.floor(fs.statSync(fullPath).mtimeMs / 1000);
+    } catch {
+      timestampNum = 0;
+    }
+  }
+
+  const baseWithoutTs = fileName
+    .replace(/_?\d{14}\.(mp4|mov|webm)$/i, "")
+    .replace(/\.(mp4|mov|webm)$/i, "");
+  const tokens = baseWithoutTs
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 3 && !CLIP_STOPWORDS.has(t));
+
+  return {
+    fullPath,
+    fileName,
+    timestampNum,
+    tokens,
+  };
+}
+
+function scoreClipForScene(
+  clip: ParsedWatchClip,
+  scene: FlowUltraScene,
+  pkg: FlowUltraVideoPackage
+): number {
+  const shotText = `${scene.shotType}`.toLowerCase();
+  const primaryText = `${scene.shotType} ${scene.whatWeWant} ${scene.onScreenText}`.toLowerCase();
+  const fullText = `${primaryText} ${scene.flowUltraPrompt} ${pkg.angleTitle}`.toLowerCase();
+
+  let score = 0;
+  for (const tok of clip.tokens) {
+    const stem = tok.length > 4 ? tok.replace(/(ing|ed|es|s)$/, "") : tok;
+    if (shotText.includes(tok) || (stem.length >= 3 && shotText.includes(stem))) {
+      score += 6;
+    } else if (
+      primaryText.includes(tok) ||
+      (stem.length >= 3 && primaryText.includes(stem))
+    ) {
+      score += 4;
+    } else if (fullText.includes(tok) || (stem.length >= 3 && fullText.includes(stem))) {
+      score += 2;
+    }
+
+    if (tok === "founder" && !fullText.includes("founder")) {
+      score -= 4;
+    }
+    if (tok === "executive" && !fullText.includes("executive")) {
+      score -= 4;
+    }
+  }
+  return score;
+}
+
 /**
- * Discovers any raw MP4/MOV/WEBM clips dropped into attached_assets/flow_ultra_drop/
+ * Discovers any raw MP4/MOV/WEBM clips dropped into attached_assets/flow_ultra_drop/.
+ * When a storyboardPackage is provided, groups clips by upload batch and matches each
+ * scene to its corresponding clip semantically + chronologically.
  */
-export function discoverWatchFolderClips(): string[] {
+export function discoverWatchFolderClips(
+  storyboardPackage?: FlowUltraVideoPackage
+): string[] {
   const dropDir = path.resolve(process.cwd(), "attached_assets", "flow_ultra_drop");
   try {
     if (!fs.existsSync(dropDir)) {
       fs.mkdirSync(dropDir, { recursive: true });
       return [];
     }
-    const files = fs
+    const rawFiles = fs
       .readdirSync(dropDir)
       .filter((f) => /\.(mp4|mov|webm)$/i.test(f))
-      .sort()
       .map((f) => path.join(dropDir, f));
-    return files;
+
+    if (rawFiles.length === 0) return [];
+
+    const parsed = rawFiles
+      .map(parseWatchClipMeta)
+      .sort((a, b) => a.timestampNum - b.timestampNum || a.fileName.localeCompare(b.fileName));
+
+    if (!storyboardPackage || !storyboardPackage.scenes?.length) {
+      return parsed.map((p) => p.fullPath);
+    }
+
+    // Group clips into upload batches (clips within 25 minutes of each other belong to the same batch)
+    const batches: ParsedWatchClip[][] = [];
+    for (const clip of parsed) {
+      const currentBatch = batches[batches.length - 1];
+      if (
+        !currentBatch ||
+        Math.abs(clip.timestampNum - currentBatch[currentBatch.length - 1].timestampNum) > 1500
+      ) {
+        batches.push([clip]);
+      } else {
+        currentBatch.push(clip);
+      }
+    }
+
+    const scenes = storyboardPackage.scenes;
+
+    // Score each batch against this storyboard package
+    let bestBatch = batches[batches.length - 1];
+    let bestBatchScore = -999;
+
+    for (const batch of batches) {
+      let batchScore = 0;
+      for (const clip of batch) {
+        const maxSceneScore = Math.max(
+          0,
+          ...scenes.map((sc) => scoreClipForScene(clip, sc, storyboardPackage))
+        );
+        batchScore += maxSceneScore;
+      }
+      if (batch.length === scenes.length && batchScore > 0) {
+        batchScore += 5;
+      }
+      if (batchScore > bestBatchScore) {
+        bestBatchScore = batchScore;
+        bestBatch = batch;
+      }
+    }
+
+    // If the best batch has no semantic overlap at all, use the newest batch
+    const candidateClips = bestBatchScore > 0 ? bestBatch : batches[batches.length - 1];
+
+    // Assign each scene to its best-matching clip in candidateClips without duplicates
+    const pairs: Array<{ sceneIdx: number; clipIdx: number; score: number }> = [];
+    for (let sIdx = 0; sIdx < scenes.length; sIdx++) {
+      for (let cIdx = 0; cIdx < candidateClips.length; cIdx++) {
+        pairs.push({
+          sceneIdx: sIdx,
+          clipIdx: cIdx,
+          score: scoreClipForScene(candidateClips[cIdx], scenes[sIdx], storyboardPackage),
+        });
+      }
+    }
+
+    pairs.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      // Tie-break by keeping chronological clip index aligned with scene index
+      return Math.abs(a.sceneIdx - a.clipIdx) - Math.abs(b.sceneIdx - b.clipIdx);
+    });
+
+    const assignedByScene = new Array<string | null>(scenes.length).fill(null);
+    const usedClipIndices = new Set<number>();
+
+    for (const pair of pairs) {
+      if (assignedByScene[pair.sceneIdx] !== null) continue;
+      if (usedClipIndices.has(pair.clipIdx)) continue;
+      assignedByScene[pair.sceneIdx] = candidateClips[pair.clipIdx].fullPath;
+      usedClipIndices.add(pair.clipIdx);
+    }
+
+    // Fill any remaining unassigned scenes with unused clips in chronological order
+    for (let sIdx = 0; sIdx < scenes.length; sIdx++) {
+      if (assignedByScene[sIdx] === null) {
+        const nextUnused = candidateClips.findIndex((_, idx) => !usedClipIndices.has(idx));
+        if (nextUnused !== -1) {
+          assignedByScene[sIdx] = candidateClips[nextUnused].fullPath;
+          usedClipIndices.add(nextUnused);
+        }
+      }
+    }
+
+    return assignedByScene.filter((p): p is string => Boolean(p));
   } catch {
     return [];
   }
@@ -292,7 +485,8 @@ export async function analyzeSceneClips(
   options: AnalyzeSceneOptions = {}
 ): Promise<DirectorCutReport> {
   const scenes = storyboardPackage.scenes || [];
-  const rawDiscovered = clips.length > 0 ? [...clips] : discoverWatchFolderClips();
+  const rawDiscovered =
+    clips.length > 0 ? [...clips] : discoverWatchFolderClips(storyboardPackage);
 
   const effectivePacingMode = resolveEffectivePacingMode(
     options.pacingMode,
