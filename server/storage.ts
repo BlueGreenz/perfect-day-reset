@@ -4,9 +4,9 @@ import {
   type MarketingEmail, type InsertMarketingEmail, type EmailLog, type InsertEmailLog,
   type ResetRun, type InsertResetRun, type ResetItem, type InsertResetItem,
   type ResetEntry, type InsertResetEntry, resetEntries,
-  agentLeads, agentInteractions, agentVideos,
+  agentLeads, agentInteractions, agentVideos, agentTrendBlueprints,
   type AgentLead, type InsertAgentLead, type AgentInteraction, type InsertAgentInteraction,
-  type AgentVideo, type InsertAgentVideo
+  type AgentVideo, type InsertAgentVideo, type AgentTrendBlueprint, type InsertAgentTrendBlueprint
 } from "@shared/schema";
 import session from "express-session";
 import { db, pool, ensureProductionTables } from "./db";
@@ -105,6 +105,12 @@ export interface IStorage {
   getAgentVideoById(id: number): Promise<AgentVideo | undefined>;
   createAgentVideo(data: InsertAgentVideo): Promise<AgentVideo>;
   updateAgentVideo(id: number, data: Partial<InsertAgentVideo>): Promise<AgentVideo | undefined>;
+
+  // Agent Trend Blueprints (4-Pillar Trend Radar, Newsjacker & Prompt Architect)
+  getAgentTrendBlueprints(): Promise<AgentTrendBlueprint[]>;
+  getAgentTrendBlueprintById(id: number): Promise<AgentTrendBlueprint | undefined>;
+  createAgentTrendBlueprint(data: InsertAgentTrendBlueprint): Promise<AgentTrendBlueprint>;
+  updateAgentTrendBlueprint(id: number, data: Partial<InsertAgentTrendBlueprint>): Promise<AgentTrendBlueprint | undefined>;
 
   sessionStore: session.Store;
 }
@@ -1022,6 +1028,61 @@ export class DatabaseStorage implements IStorage {
       return this.fallbackMem.updateAgentVideo(id, data);
     }
   }
+
+  async getAgentTrendBlueprints(): Promise<AgentTrendBlueprint[]> {
+    try {
+      const rows = await db
+        .select()
+        .from(agentTrendBlueprints)
+        .orderBy(desc(agentTrendBlueprints.createdAt), desc(agentTrendBlueprints.id));
+      if (rows.length > 0) return rows;
+      return this.fallbackMem.getAgentTrendBlueprints();
+    } catch {
+      return this.fallbackMem.getAgentTrendBlueprints();
+    }
+  }
+
+  async getAgentTrendBlueprintById(id: number): Promise<AgentTrendBlueprint | undefined> {
+    try {
+      const [row] = await db
+        .select()
+        .from(agentTrendBlueprints)
+        .where(eq(agentTrendBlueprints.id, id));
+      if (row) return row;
+      return this.fallbackMem.getAgentTrendBlueprintById(id);
+    } catch {
+      return this.fallbackMem.getAgentTrendBlueprintById(id);
+    }
+  }
+
+  async createAgentTrendBlueprint(data: InsertAgentTrendBlueprint): Promise<AgentTrendBlueprint> {
+    try {
+      const [created] = await db
+        .insert(agentTrendBlueprints)
+        .values(data)
+        .returning();
+      return created;
+    } catch {
+      return this.fallbackMem.createAgentTrendBlueprint(data);
+    }
+  }
+
+  async updateAgentTrendBlueprint(
+    id: number,
+    data: Partial<InsertAgentTrendBlueprint>
+  ): Promise<AgentTrendBlueprint | undefined> {
+    try {
+      const [updated] = await db
+        .update(agentTrendBlueprints)
+        .set(data)
+        .where(eq(agentTrendBlueprints.id, id))
+        .returning();
+      if (updated) return updated;
+      return this.fallbackMem.updateAgentTrendBlueprint(id, data);
+    } catch {
+      return this.fallbackMem.updateAgentTrendBlueprint(id, data);
+    }
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -1036,6 +1097,7 @@ export class MemStorage implements IStorage {
   private agentLeadsList: AgentLead[] = [];
   private agentInteractionsList: AgentInteraction[] = [];
   private agentVideosList: AgentVideo[] = [];
+  private agentTrendBlueprintsList: AgentTrendBlueprint[] = [];
   private nextId = 1;
 
   constructor() {
@@ -1504,6 +1566,66 @@ export class MemStorage implements IStorage {
     if (data.declineReason !== undefined) video.declineReason = data.declineReason ?? null;
     video.updatedAt = new Date();
     return video;
+  }
+
+  async getAgentTrendBlueprints(): Promise<AgentTrendBlueprint[]> {
+    return [...this.agentTrendBlueprintsList].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id
+    );
+  }
+
+  async getAgentTrendBlueprintById(id: number): Promise<AgentTrendBlueprint | undefined> {
+    return this.agentTrendBlueprintsList.find((b) => b.id === id);
+  }
+
+  async createAgentTrendBlueprint(data: InsertAgentTrendBlueprint): Promise<AgentTrendBlueprint> {
+    const created: AgentTrendBlueprint = {
+      id: this.nextId++,
+      trendCategory: data.trendCategory ?? "newsjack_cultural",
+      trendTopicOrHook: data.trendTopicOrHook,
+      sourcePlatform: data.sourcePlatform ?? "tiktok",
+      sourceUrl: data.sourceUrl ?? "",
+      sourceAuthor: data.sourceAuthor ?? "",
+      sourceViews: data.sourceViews ?? 0,
+      sourceShares: data.sourceShares ?? 0,
+      sourceComments: data.sourceComments ?? 0,
+      viralVelocityScore: data.viralVelocityScore ?? 92,
+      trendingSoundTitle: data.trendingSoundTitle ?? "Original Sound - Viral Executive POV",
+      trendingSoundAuthor: data.trendingSoundAuthor ?? "@viral_sound",
+      trendingSoundUrl: data.trendingSoundUrl ?? "",
+      beatDropSec: data.beatDropSec ?? "2.4",
+      editingTrick: data.editingTrick ?? "beat_drop_match_cut",
+      deconstructionJson: data.deconstructionJson,
+      generatedPackageJson: data.generatedPackageJson,
+      createdAt: new Date(),
+    };
+    this.agentTrendBlueprintsList.unshift(created);
+    return created;
+  }
+
+  async updateAgentTrendBlueprint(
+    id: number,
+    data: Partial<InsertAgentTrendBlueprint>
+  ): Promise<AgentTrendBlueprint | undefined> {
+    const bp = this.agentTrendBlueprintsList.find((b) => b.id === id);
+    if (!bp) return undefined;
+    if (data.trendCategory !== undefined) bp.trendCategory = data.trendCategory;
+    if (data.trendTopicOrHook !== undefined) bp.trendTopicOrHook = data.trendTopicOrHook;
+    if (data.sourcePlatform !== undefined) bp.sourcePlatform = data.sourcePlatform;
+    if (data.sourceUrl !== undefined) bp.sourceUrl = data.sourceUrl;
+    if (data.sourceAuthor !== undefined) bp.sourceAuthor = data.sourceAuthor;
+    if (data.sourceViews !== undefined) bp.sourceViews = data.sourceViews;
+    if (data.sourceShares !== undefined) bp.sourceShares = data.sourceShares;
+    if (data.sourceComments !== undefined) bp.sourceComments = data.sourceComments;
+    if (data.viralVelocityScore !== undefined) bp.viralVelocityScore = data.viralVelocityScore;
+    if (data.trendingSoundTitle !== undefined) bp.trendingSoundTitle = data.trendingSoundTitle;
+    if (data.trendingSoundAuthor !== undefined) bp.trendingSoundAuthor = data.trendingSoundAuthor;
+    if (data.trendingSoundUrl !== undefined) bp.trendingSoundUrl = data.trendingSoundUrl;
+    if (data.beatDropSec !== undefined) bp.beatDropSec = data.beatDropSec;
+    if (data.editingTrick !== undefined) bp.editingTrick = data.editingTrick;
+    if (data.deconstructionJson !== undefined) bp.deconstructionJson = data.deconstructionJson;
+    if (data.generatedPackageJson !== undefined) bp.generatedPackageJson = data.generatedPackageJson;
+    return bp;
   }
 }
 

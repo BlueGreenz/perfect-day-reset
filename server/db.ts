@@ -177,6 +177,27 @@ export async function ensureProductionTables(): Promise<void> {
           "created_at" timestamp DEFAULT now() NOT NULL,
           "updated_at" timestamp DEFAULT now() NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS "agent_trend_blueprints" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "trend_category" text DEFAULT 'newsjack_cultural' NOT NULL,
+          "trend_topic_or_hook" text NOT NULL,
+          "source_platform" text DEFAULT 'tiktok' NOT NULL,
+          "source_url" text DEFAULT '' NOT NULL,
+          "source_author" text DEFAULT '' NOT NULL,
+          "source_views" integer DEFAULT 0 NOT NULL,
+          "source_shares" integer DEFAULT 0 NOT NULL,
+          "source_comments" integer DEFAULT 0 NOT NULL,
+          "viral_velocity_score" integer DEFAULT 92 NOT NULL,
+          "trending_sound_title" text DEFAULT 'Original Sound - Viral Executive POV' NOT NULL,
+          "trending_sound_author" text DEFAULT '@viral_sound' NOT NULL,
+          "trending_sound_url" text DEFAULT '' NOT NULL,
+          "beat_drop_sec" text DEFAULT '2.4' NOT NULL,
+          "editing_trick" text DEFAULT 'beat_drop_match_cut' NOT NULL,
+          "deconstruction_json" text NOT NULL,
+          "generated_package_json" text NOT NULL,
+          "created_at" timestamp DEFAULT now() NOT NULL
+        );
       `);
     } catch (err: any) {
       console.warn("Non-fatal ensureProductionTables warning:", err?.message || err);

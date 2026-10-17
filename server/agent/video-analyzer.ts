@@ -51,6 +51,8 @@ export interface DirectorCutReport {
   viralFormat: string;
   pacingMode: PacingMode;
   textStyle: VideoTextStyle;
+  editingTrick?: string;
+  beatDropSec?: string;
   analysisEngine: "gemini-2.5-flash-vision" | "deterministic-motion-heuristics-v2";
   analyzedAt: string;
   overallQualityScore: number;
@@ -68,6 +70,8 @@ export interface DirectorCutReport {
 export interface AnalyzeSceneOptions {
   pacingMode?: PacingMode;
   textStyle?: VideoTextStyle;
+  editingTrick?: string;
+  beatDropSec?: string;
   cleanNoText?: boolean;
   swapSceneOrder?: boolean;
   feedbackDirective?: string;
@@ -650,19 +654,26 @@ Return ONLY valid JSON array with ${scenes.length} objects containing:
       ? "Clean Video Master (No Text)"
       : "Clean Entertainment Text (No Boxes/No Ads)";
 
+  const effectiveEditingTrick =
+    options.editingTrick || storyboardPackage.editingTrick || "beat_drop_match_cut";
+  const effectiveBeatDropSec =
+    options.beatDropSec || storyboardPackage.beatDropSec || "2.4";
+
   return {
     packageId: storyboardPackage.id,
     packageTitle: storyboardPackage.angleTitle,
     viralFormat: storyboardPackage.viralFormat,
     pacingMode: effectivePacingMode,
     textStyle: effectiveTextStyle,
+    editingTrick: effectiveEditingTrick,
+    beatDropSec: effectiveBeatDropSec,
     analysisEngine,
     analyzedAt: new Date().toISOString(),
     overallQualityScore,
     totalOutputDurationSec,
     pacingSummary: `${sceneCuts.length} scenes • Avg ${(
       totalOutputDurationSec / Math.max(1, sceneCuts.length)
-    ).toFixed(1)}s per cut • Total ${totalOutputDurationSec}s (${pacingLabel} • ${textLabel})`,
+    ).toFixed(1)}s per cut • Total ${totalOutputDurationSec}s (${pacingLabel} • ${textLabel} • Trick: ${effectiveEditingTrick} @ ${effectiveBeatDropSec}s)`,
     appliedDirective: options.feedbackDirective || null,
     watchFolderStatus: {
       folderPath: "attached_assets/flow_ultra_drop/",

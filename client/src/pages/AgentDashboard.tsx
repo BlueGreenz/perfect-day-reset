@@ -200,6 +200,35 @@ interface AgentInteractionRecord {
   createdAt: string;
 }
 
+interface TrendDeconstruction {
+  visualHookMechanic: string;
+  editingTrickBreakdown: string;
+  audioSyncRule: string;
+  humorContrastFormula: string;
+  shareTrigger: string;
+}
+
+interface TrendBlueprintRecord {
+  id: number;
+  trendCategory: string;
+  trendTopicOrHook: string;
+  sourcePlatform: string;
+  sourceUrl: string;
+  sourceAuthor: string;
+  sourceViews: number;
+  sourceShares: number;
+  sourceComments: number;
+  viralVelocityScore: number;
+  trendingSoundTitle: string;
+  trendingSoundAuthor: string;
+  trendingSoundUrl: string;
+  beatDropSec: string;
+  editingTrick: string;
+  createdAt: string;
+  deconstruction: TrendDeconstruction;
+  generatedPackage: FlowUltraPackage;
+}
+
 interface AgentOverviewResponse {
   stats: {
     totalLeads: number;
@@ -225,6 +254,27 @@ export default function AgentDashboard() {
     "flow-ultra" | "video-queue" | "simulator" | "nurture" | "webhooks"
   >("flow-ultra");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Tab 1 Trend Radar & Newsjacking Engine state
+  const [trendMode, setTrendMode] = useState<"newsjack" | "tiktok_keyword" | "tiktok_url">(
+    "newsjack"
+  );
+  const [newsjackTopicInput, setNewsjackTopicInput] = useState<string>(
+    "Tesla Roadster flying demo"
+  );
+  const [tiktokQueryInput, setTiktokQueryInput] = useState<string>(
+    "corporate dark humor pov"
+  );
+  const [tiktokUrlInput, setTiktokUrlInput] = useState<string>("");
+  const [selectedEditingTrick, setSelectedEditingTrick] = useState<
+    | "beat_drop_match_cut"
+    | "freeze_frame_hook"
+    | "infinite_loop_cut"
+    | "zoom_punch_contrast"
+    | "deadpan_single_take"
+  >("beat_drop_match_cut");
+  const [selectedTrendArchetype, setSelectedTrendArchetype] =
+    useState<string>("metabolic_crasher");
 
   // Tab 1 & Tab 2 AI Director Pacing & Text Style state
   const [archetypeFilter, setArchetypeFilter] = useState<string>("all");
@@ -341,8 +391,21 @@ export default function AgentDashboard() {
     });
   };
 
-  const { data: flowBatch, isLoading: loadingFlow } = useQuery<FlowUltraBatchResponse>({
+  const {
+    data: flowBatch,
+    isLoading: loadingFlow,
+    refetch: refetchFlowBatch,
+  } = useQuery<FlowUltraBatchResponse>({
     queryKey: ["/api/agent/flow-ultra-batch"],
+    enabled: isAdminAuthenticated,
+  });
+
+  const {
+    data: trendsData,
+    isLoading: loadingTrends,
+    refetch: refetchTrends,
+  } = useQuery<{ blueprints: TrendBlueprintRecord[] }>({
+    queryKey: ["/api/agent/trends"],
     enabled: isAdminAuthenticated,
   });
 
@@ -386,11 +449,70 @@ export default function AgentDashboard() {
     }
   };
 
+  const scrapeTrendMutation = useMutation({
+    mutationFn: async (payload: {
+      mode: "newsjack" | "tiktok_keyword" | "tiktok_url";
+      query?: string;
+      tiktokUrl?: string;
+      customTopic?: string;
+      editingTrick?: string;
+      archetypeId?: string;
+    }) => {
+      const res = await apiRequest("POST", "/api/agent/trends/scrape", payload);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/trends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/flow-ultra-batch"] });
+      refetchTrends();
+      refetchFlowBatch();
+      toast({
+        title: "⚡ Viral Trend Deconstructed & Veo 3.1 Prompts Built!",
+        description: `Created "${data.blueprint?.generatedPackage?.angleTitle || data.blueprint?.trendTopicOrHook}" with ${data.blueprint?.editingTrick} @ ${data.blueprint?.beatDropSec}s.`,
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Trend Radar Error",
+        description: err?.message || "Could not scrape or synthesize trend.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const remixTrendMutation = useMutation({
+    mutationFn: async (payload: {
+      id: number;
+      directive?: string;
+      editingTrick?: string;
+      beatDropSec?: string;
+    }) => {
+      const res = await apiRequest(
+        "POST",
+        `/api/agent/trends/${payload.id}/remix`,
+        payload
+      );
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/trends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agent/flow-ultra-batch"] });
+      refetchTrends();
+      refetchFlowBatch();
+      toast({
+        title: "✨ Trend Blueprint Remixed",
+        description: `Updated "${data.blueprint?.trendTopicOrHook}" with ${data.blueprint?.editingTrick}.`,
+      });
+    },
+  });
+
   const generateVideoMutation = useMutation({
     mutationFn: async (payload: {
       packageId: string;
       pacingMode?: "natural_cinema" | "balanced_story" | "fast_cut";
       textStyle?: "floating_tiktok" | "clean_no_text" | "none";
+      editingTrick?: string;
+      beatDropSec?: string;
       cleanNoText?: boolean;
       swapSceneOrder?: boolean;
       feedbackDirective?: string;
@@ -401,6 +523,8 @@ export default function AgentDashboard() {
         packageId: payload.packageId,
         pacingMode: payload.pacingMode ?? pacingMode,
         textStyle: effectiveStyle,
+        editingTrick: payload.editingTrick,
+        beatDropSec: payload.beatDropSec,
         cleanNoText:
           payload.cleanNoText ??
           (effectiveStyle === "none" || effectiveStyle === "clean_no_text"),
@@ -834,6 +958,520 @@ export default function AgentDashboard() {
         ============================================================ */}
         {activeTab === "flow-ultra" && (
           <div className="space-y-6">
+            {/* ============================================================
+                4-PILLAR VIRAL TREND RADAR, NEWSJACKING ENGINE & PROMPT ARCHITECT
+            ============================================================ */}
+            <div className="bg-gradient-to-br from-amber-950/50 via-slate-900 to-emerald-950/40 border border-amber-500/40 rounded-2xl p-6 space-y-5 shadow-xl">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      4-Pillar Autonomous Trend Intelligence
+                    </span>
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Pillar 1: Newsjacking • Pillar 2: Editing Tricks • Pillar 3: Audio Beat Sync • Pillar 4: Niche Outliers
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white">
+                    ⚡ Viral Trend Radar, Newsjacker &amp; Editing-Trick Cloner
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-4xl">
+                    Don&apos;t guess prompts in a vacuum. Scrape breaking cultural/tech news (e.g. <em>Tesla Roadster flying demo</em>), high-velocity TikTok outliers, or paste any TikTok URL—Gemini Vision deconstructs the <strong>Editing Trick + Audio Beat Drop</strong> and writes a complete <strong>6-Block Veo 3.1 Storyboard</strong> automatically.
+                  </p>
+                </div>
+
+                {/* Mode Switcher Pills */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {[
+                    { id: "newsjack" as const, label: "🌍 1. Newsjack Breaking Topic" },
+                    { id: "tiktok_keyword" as const, label: "🎵 2. Scrape TikTok Outliers & Sounds" },
+                    { id: "tiktok_url" as const, label: "🔗 3. Clone Any TikTok URL" },
+                  ].map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setTrendMode(m.id)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition ${
+                        trendMode === m.id
+                          ? "bg-amber-400 text-slate-950 shadow-lg"
+                          : "bg-slate-800/90 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Editing Trick + Target Archetype Selector Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-3 border-t border-slate-800/80">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300 mr-1">
+                    Editing Trick:
+                  </span>
+                  {[
+                    { id: "beat_drop_match_cut" as const, label: "✂️ Beat-Drop Match Cut (2.4s)" },
+                    { id: "freeze_frame_hook" as const, label: "🧊 Freeze-Frame Hook (2.1s)" },
+                    { id: "zoom_punch_contrast" as const, label: "🔍 Deadpan Zoom-Punch (1.9s)" },
+                    { id: "infinite_loop_cut" as const, label: "♾️ Infinite Loop Cut" },
+                  ].map((tr) => (
+                    <button
+                      key={tr.id}
+                      type="button"
+                      onClick={() => setSelectedEditingTrick(tr.id)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                        selectedEditingTrick === tr.id
+                          ? "bg-amber-400 text-slate-950"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}
+                    >
+                      {tr.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mr-1">
+                    Bridge to Archetype:
+                  </span>
+                  {[
+                    { id: "metabolic_crasher", label: "2:30 PM Crash" },
+                    { id: "cortisol_spiked", label: "3 AM Cortisol Spike" },
+                    { id: "dopamine_depleted", label: "Dopamine / Notification" },
+                    { id: "systemic_burnout", label: "Founder Burnout" },
+                  ].map((ar) => (
+                    <button
+                      key={ar.id}
+                      type="button"
+                      onClick={() => setSelectedTrendArchetype(ar.id)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                        selectedTrendArchetype === ar.id
+                          ? "bg-emerald-500 text-slate-950"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}
+                    >
+                      {ar.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Active Mode Control Box */}
+              {trendMode === "newsjack" && (
+                <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-4 space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Quick Viral Topics:
+                    </span>
+                    {[
+                      "Tesla Roadster flying demo",
+                      "Apple launch event vs my 2:30 PM brain",
+                      "Fortune 500 5-day return to office mandate",
+                      "AI agents doing 10 jobs while I forget why I walked into the kitchen",
+                    ].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setNewsjackTopicInput(preset)}
+                        className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-medium border border-slate-700 transition"
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2.5">
+                    <input
+                      type="text"
+                      value={newsjackTopicInput}
+                      onChange={(e) => setNewsjackTopicInput(e.target.value)}
+                      placeholder="Type any breaking news or cultural spectacle (e.g., Tesla Roadster flying demo)..."
+                      aria-label="Newsjacking topic input"
+                      className="flex-1 rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={scrapeTrendMutation.isPending}
+                      onClick={() =>
+                        scrapeTrendMutation.mutate({
+                          mode: "newsjack",
+                          customTopic: newsjackTopicInput,
+                          editingTrick: selectedEditingTrick,
+                          archetypeId: selectedTrendArchetype,
+                        })
+                      }
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-lg transition disabled:opacity-50"
+                    >
+                      {scrapeTrendMutation.isPending ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          Synthesizing Veo 3.1 Newsjack...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4" />
+                          Build Newsjack Contrast Storyboard
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={scrapeTrendMutation.isPending}
+                      onClick={() =>
+                        scrapeTrendMutation.mutate({
+                          mode: "newsjack",
+                          customTopic: "",
+                          editingTrick: selectedEditingTrick,
+                          archetypeId: selectedTrendArchetype,
+                        })
+                      }
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 font-semibold text-xs border border-emerald-500/40 transition disabled:opacity-50"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Scrape Live Google Trends RSS
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {trendMode === "tiktok_keyword" && (
+                <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-4 space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      1-Click Outlier Niches:
+                    </span>
+                    {[
+                      { label: "💼 Corporate Dark Humor", q: "corporate dark humor pov" },
+                      { label: "🌙 3AM Sleep Math", q: "3am cant sleep math pov" },
+                      { label: "🚗 Parked Car Driveway POV", q: "sitting in parked car after work" },
+                      { label: "☕ Caffeine Crash", q: "3rd coffee still tired work" },
+                    ].map((pill) => (
+                      <button
+                        key={pill.q}
+                        type="button"
+                        onClick={() => {
+                          setTiktokQueryInput(pill.q);
+                          scrapeTrendMutation.mutate({
+                            mode: "tiktok_keyword",
+                            query: pill.q,
+                            editingTrick: selectedEditingTrick,
+                            archetypeId: selectedTrendArchetype,
+                          });
+                        }}
+                        className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-semibold border border-slate-700 transition"
+                      >
+                        {pill.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2.5">
+                    <input
+                      type="text"
+                      value={tiktokQueryInput}
+                      onChange={(e) => setTiktokQueryInput(e.target.value)}
+                      placeholder="Search live TikTok viral outliers (e.g., founder burnout, sales director life)..."
+                      aria-label="TikTok keyword search input"
+                      className="flex-1 rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={scrapeTrendMutation.isPending}
+                      onClick={() =>
+                        scrapeTrendMutation.mutate({
+                          mode: "tiktok_keyword",
+                          query: tiktokQueryInput,
+                          editingTrick: selectedEditingTrick,
+                          archetypeId: selectedTrendArchetype,
+                        })
+                      }
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg transition disabled:opacity-50"
+                    >
+                      {scrapeTrendMutation.isPending ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          Scraping TikTok Outliers &amp; Audio...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          Scrape TikTok Outliers &amp; Build Veo 3.1 Prompts
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {trendMode === "tiktok_url" && (
+                <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-4 space-y-3">
+                  <p className="text-xs text-slate-300">
+                    Paste any viral TikTok video URL below—Gemini Vision extracts keyframes, detects the audio beat drop &amp; editing trick, and clones its exact viral hook structure into a 6-Block Veo 3.1 storyboard.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2.5">
+                    <input
+                      type="url"
+                      value={tiktokUrlInput}
+                      onChange={(e) => setTiktokUrlInput(e.target.value)}
+                      placeholder="https://www.tiktok.com/@creator/video/742..."
+                      aria-label="TikTok video URL to clone"
+                      className="flex-1 rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={scrapeTrendMutation.isPending}
+                      onClick={() =>
+                        scrapeTrendMutation.mutate({
+                          mode: "tiktok_url",
+                          tiktokUrl:
+                            tiktokUrlInput || "https://www.tiktok.com/@exec_pov/video/741892341",
+                          editingTrick: selectedEditingTrick,
+                          archetypeId: selectedTrendArchetype,
+                        })
+                      }
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-lg transition disabled:opacity-50"
+                    >
+                      {scrapeTrendMutation.isPending ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          Deconstructing TikTok Frames &amp; Audio...
+                        </>
+                      ) : (
+                        <>
+                          <Film className="w-4 h-4" />
+                          Clone TikTok Structure into Veo 3.1
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Live Deconstructed Trend Blueprints Grid */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                    🔥 Deconstructed Trend Blueprints ({trendsData?.blueprints?.length || 0} Ready-to-Shoot Veo 3.1 Packs)
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    Includes Trending Sound Links, Beat-Drop Timestamps &amp; 1-Click AI Director Execution
+                  </span>
+                </div>
+
+                {loadingTrends ? (
+                  <div className="text-xs text-slate-400 py-6 text-center">
+                    Loading live Trend Radar blueprints...
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    {(trendsData?.blueprints || []).slice(0, 6).map((bp) => {
+                      const pkg = bp.generatedPackage;
+                      return (
+                        <div
+                          key={bp.id}
+                          className="bg-slate-950/95 border border-slate-800 hover:border-amber-500/40 rounded-xl p-4 flex flex-col justify-between space-y-3.5 transition"
+                        >
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold uppercase">
+                                  {bp.trendCategory.replace(/_/g, " ")}
+                                </span>
+                                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                                  ⚡ {bp.viralVelocityScore}/100 Velocity • {(bp.sourceViews / 1000).toFixed(0)}K Views • {(bp.sourceShares / 1000).toFixed(1)}K Shares
+                                </span>
+                                <span className="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 text-[10px] font-bold">
+                                  ✂️ {bp.editingTrick.replace(/_/g, " ")} @ {bp.beatDropSec}s
+                                </span>
+                              </div>
+                            </div>
+
+                            <h3 className="text-sm sm:text-base font-bold text-white">
+                              {pkg?.angleTitle || bp.trendTopicOrHook}
+                            </h3>
+
+                            {/* Trending Sound Bar */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/90 border border-slate-800 rounded-lg px-3 py-2 text-xs">
+                              <div className="truncate">
+                                <span className="text-amber-300 font-semibold">
+                                  🎵 Sound:
+                                </span>{" "}
+                                <span className="text-slate-200 font-medium">
+                                  {bp.trendingSoundTitle}
+                                </span>{" "}
+                                <span className="text-slate-400">
+                                  ({bp.trendingSoundAuthor})
+                                </span>
+                              </div>
+                              {bp.trendingSoundUrl && (
+                                <a
+                                  href={bp.trendingSoundUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 hover:underline shrink-0"
+                                >
+                                  Open Trending Sound
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+
+                            {/* Multimodal Deconstruction Summary */}
+                            {bp.deconstruction && (
+                              <div className="bg-slate-900/60 border border-slate-800/80 rounded-lg p-2.5 space-y-1 text-[11px] text-slate-300">
+                                <p>
+                                  <strong className="text-amber-300">Hook Mechanic:</strong>{" "}
+                                  {bp.deconstruction.visualHookMechanic}
+                                </p>
+                                <p>
+                                  <strong className="text-sky-300">Editing Trick Rule:</strong>{" "}
+                                  {bp.deconstruction.editingTrickBreakdown}
+                                </p>
+                                <p>
+                                  <strong className="text-emerald-300">Share Trigger:</strong>{" "}
+                                  {bp.deconstruction.shareTrigger}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Scene 1 & 2 On-Screen Text Preview */}
+                            {pkg?.scenes && pkg.scenes.length > 0 && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {pkg.scenes.slice(0, 2).map((sc) => (
+                                  <div
+                                    key={sc.sceneNumber}
+                                    className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 space-y-1.5"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] font-bold uppercase text-emerald-400">
+                                        Scene {sc.sceneNumber} ({sc.timeRange})
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          copyToClipboard(
+                                            sc.flowUltraPrompt,
+                                            `trend-${bp.id}-s-${sc.sceneNumber}`,
+                                            `Trend Scene ${sc.sceneNumber} Veo 3.1 Prompt`
+                                          )
+                                        }
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-semibold text-slate-200"
+                                      >
+                                        {copiedKey === `trend-${bp.id}-s-${sc.sceneNumber}` ? (
+                                          <Check className="w-2.5 h-2.5 text-emerald-400" />
+                                        ) : (
+                                          <Copy className="w-2.5 h-2.5" />
+                                        )}
+                                        Copy Veo 3.1
+                                      </button>
+                                    </div>
+                                    <p className="text-xs font-bold text-white leading-snug">
+                                      &ldquo;{sc.onScreenText}&rdquo;
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {pkg && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      copyToClipboard(
+                                        (pkg.scenes || [])
+                                          .map(
+                                            (s) =>
+                                              `SCENE ${s.sceneNumber} (${s.timeRange}):\n${s.flowUltraPrompt}\nOn-Screen Text: ${s.onScreenText}`
+                                          )
+                                          .join("\n\n"),
+                                        `trend-both-${bp.id}`,
+                                        "Scene 1 & 2 Veo 3.1 Prompts"
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold border border-slate-700 transition"
+                                  >
+                                    {copiedKey === `trend-both-${bp.id}` ? (
+                                      <Check className="w-3 h-3 text-emerald-400" />
+                                    ) : (
+                                      <Copy className="w-3 h-3" />
+                                    )}
+                                    Copy Scene 1 &amp; 2 Veo 3.1 Prompts
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      copyToClipboard(
+                                        pkg.flowAgentPrompt,
+                                        `trend-master-${bp.id}`,
+                                        "Flow Agent Master Prompt"
+                                      )
+                                    }
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[11px] font-bold border border-amber-500/40 transition"
+                                  >
+                                    {copiedKey === `trend-master-${bp.id}` ? (
+                                      <Check className="w-3 h-3 text-emerald-400" />
+                                    ) : (
+                                      <Copy className="w-3 h-3" />
+                                    )}
+                                    Copy Flow Agent Master Prompt
+                                  </button>
+                                </>
+                              )}
+
+                              <button
+                                type="button"
+                                disabled={remixTrendMutation.isPending}
+                                onClick={() =>
+                                  remixTrendMutation.mutate({
+                                    id: bp.id,
+                                    editingTrick: selectedEditingTrick,
+                                    directive:
+                                      "Make the contrast hook even funnier and sharper while keeping Scene Bible continuity",
+                                  })
+                                }
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 text-[11px] font-semibold border border-slate-700 transition"
+                              >
+                                <RefreshCw className="w-3 h-3" />
+                                Remix Trick
+                              </button>
+                            </div>
+
+                            {pkg && (
+                              <button
+                                type="button"
+                                disabled={
+                                  generateVideoMutation.isPending &&
+                                  renderingPackageId === pkg.id
+                                }
+                                onClick={() =>
+                                  generateVideoMutation.mutate({
+                                    packageId: pkg.id,
+                                    editingTrick: bp.editingTrick,
+                                    beatDropSec: bp.beatDropSec,
+                                  })
+                                }
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-[11px] shadow transition disabled:opacity-50"
+                              >
+                                <Scissors className="w-3 h-3" />
+                                Render with Editing Trick in AI Director
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-2xl p-6 space-y-5">
               {/* 3-Layer Viral Funnel Badge */}
               <div className="flex flex-wrap items-center gap-2">

@@ -29,6 +29,13 @@ export interface CaptionThreeLayerBreakdown {
   committedCta: string;
 }
 
+export type EditingTrickType =
+  | "beat_drop_match_cut"
+  | "freeze_frame_hook"
+  | "infinite_loop_cut"
+  | "zoom_punch_contrast"
+  | "deadpan_single_take";
+
 export interface FlowUltraVideoPackage {
   id: string;
   archetypeId:
@@ -59,6 +66,13 @@ export interface FlowUltraVideoPackage {
   caption: string;
   commentAutoReply: string;
   dmOpeningMessage: string;
+  editingTrick?: EditingTrickType;
+  beatDropSec?: string;
+  trendingSoundTitle?: string;
+  trendingSoundAuthor?: string;
+  trendingSoundUrl?: string;
+  trendCategory?: string;
+  viralVelocityScore?: number;
 }
 
 /**
@@ -83,13 +97,13 @@ End every prompt with explicit SFX: (1–2 tactile sounds) and Ambient noise: (r
 RULE 5 — TARGETED VEO 3.1 GUARDRAILS (NO QUOTATION MARKS):
 Never use quotation marks "" inside prompts. End every prompt with: Keep the same face, outfit, and lighting throughout the shot. Keep hands natural and motion physically plausible. Keep all surfaces clean with no readable text, subtitles, UI labels, or logos.`;
 
-const STANDARD_NEGATIVE_PROMPT =
+export const STANDARD_NEGATIVE_PROMPT =
   "No jump cuts, no scene changes, no camera angle switches, no split screen, no on-screen text, no subtitles, no UI labels, no logos, no distorted hands, no extra fingers, no morphing objects.";
 
-const VEO_BLOCK_6_GUARDRAILS =
+export const VEO_BLOCK_6_GUARDRAILS =
   "One continuous shot, no jump cuts, no camera angle switches, no sudden zooms. Keep the same face, outfit, and lighting throughout the shot. Keep hands natural and motion physically plausible. Keep all surfaces clean with no readable text, subtitles, UI labels, or logos.";
 
-function buildSixBlockVeoPrompt(params: {
+export function buildSixBlockVeoPrompt(params: {
   shotSizeAndMove: string;
   sceneBible: SceneBibleSpec;
   singlePhysicalAction: string;
@@ -106,7 +120,7 @@ function buildSixBlockVeoPrompt(params: {
   return `${block1} ${block2} ${block3} ${block4} ${block5} ${block6}`;
 }
 
-function buildFlowAgentMasterBrief(
+export function buildFlowAgentMasterBrief(
   title: string,
   sceneBible: SceneBibleSpec,
   scenes: FlowUltraScene[]
@@ -129,7 +143,7 @@ Follow this shared Scene Bible verbatim across all shots so cuts match seamlessl
 ${shotCards}`;
 }
 
-function assembleThreeLayerCaption(parts: CaptionThreeLayerBreakdown): string {
+export function assembleThreeLayerCaption(parts: CaptionThreeLayerBreakdown): string {
   return `${parts.hookContinuation}\n\n${parts.educationalBridge}\n\n${parts.committedCta}`;
 }
 
@@ -1086,10 +1100,21 @@ export const FLOW_ULTRA_PACKAGES: FlowUltraVideoPackage[] = RAW_SEEDS.map((seed)
   };
 });
 
+const DYNAMIC_TREND_PACKAGES = new Map<string, FlowUltraVideoPackage>();
+
+export function registerDynamicFlowUltraPackage(pkg: FlowUltraVideoPackage): void {
+  if (pkg && pkg.id) {
+    DYNAMIC_TREND_PACKAGES.set(pkg.id, pkg);
+  }
+}
+
 export function getFlowUltraPackageById(
   packageId: string
 ): FlowUltraVideoPackage | undefined {
-  return FLOW_ULTRA_PACKAGES.find((p) => p.id === packageId);
+  return (
+    DYNAMIC_TREND_PACKAGES.get(packageId) ||
+    FLOW_ULTRA_PACKAGES.find((p) => p.id === packageId)
+  );
 }
 
 export const MANYCHAT_AUTOMATION_CONFIG = {
@@ -1124,7 +1149,12 @@ export function getFlowUltraBatch(
   archetypeFilter?: string,
   viralFormatFilter?: string
 ) {
-  let packages = FLOW_ULTRA_PACKAGES;
+  const dynamicList = Array.from(DYNAMIC_TREND_PACKAGES.values());
+  const staticIds = new Set(dynamicList.map((d) => d.id));
+  let packages = [
+    ...dynamicList,
+    ...FLOW_ULTRA_PACKAGES.filter((p) => !staticIds.has(p.id)),
+  ];
 
   if (archetypeFilter && archetypeFilter !== "all") {
     packages = packages.filter((p) => p.archetypeId === archetypeFilter);

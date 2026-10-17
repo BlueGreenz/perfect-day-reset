@@ -37,6 +37,11 @@ import {
   ensureSampleAgentVideosSeeded,
   renderStoryVideoWithDirector,
 } from "./agent/video-renderer";
+import {
+  ensureTrendBlueprintsSeeded,
+  scrapeAndSynthesizeTrendBlueprint,
+  remixTrendBlueprintById,
+} from "./agent/trend-intelligence";
 
 if (!process.env.STRIPE_SECRET_KEY && process.env.NODE_ENV === "production") {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -1621,11 +1626,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Google Flow Ultra 9:16 Viral Video Prompt & Hook Batch Endpoint (Admin Protected)
-  app.get("/api/agent/flow-ultra-batch", requireAdminPasscode, (req, res) => {
+  app.get("/api/agent/flow-ultra-batch", requireAdminPasscode, async (req, res) => {
+    try {
+      await ensureTrendBlueprintsSeeded();
+    } catch {
+      // Non-fatal
+    }
     const archetype = req.query.archetype ? String(req.query.archetype) : undefined;
     const viralFormat = req.query.viralFormat ? String(req.query.viralFormat) : undefined;
     const batch = getFlowUltraBatch(archetype, viralFormat);
     return res.status(200).json(batch);
+  });
+
+  // 4-Pillar Trend Radar, Newsjacking Engine & Dynamic Prompt Architect Endpoints (Admin Protected)
+  app.get("/api/agent/trends", requireAdminPasscode, async (_req, res) => {
+    try {
+      const blueprints = await ensureTrendBlueprintsSeeded();
+      return res.status(200).json({ blueprints });
+    } catch (error: any) {
+      console.error("Error in GET /api/agent/trends:", error);
+      return res.status(500).json({
+        message: "Failed to load trend blueprints",
+        error: error?.message,
+      });
+    }
+  });
+
+  app.post("/api/agent/trends/scrape", requireAdminPasscode, async (req, res) => {
+    try {
+      const rawMode = String(req.body?.mode || "newsjack");
+      const mode: "newsjack" | "tiktok_keyword" | "tiktok_url" =
+        rawMode === "tiktok_url"
+          ? "tiktok_url"
+          : rawMode === "tiktok_keyword"
+          ? "tiktok_keyword"
+          : "newsjack";
+
+      const query = req.body?.query ? String(req.body.query) : undefined;
+      const tiktokUrl = req.body?.tiktokUrl ? String(req.body.tiktokUrl) : undefined;
+      const customTopic = req.body?.customTopic ? String(req.body.customTopic) : undefined;
+      const editingTrick = req.body?.editingTrick ? (String(req.body.editingTrick) as any) : undefined;
+      const archetypeId = req.body?.archetypeId ? (String(req.body.archetypeId) as any) : undefined;
+
+      const blueprint = await scrapeAndSynthesizeTrendBlueprint({
+        mode,
+        query,
+        tiktokUrl,
+        customTopic,
+        editingTrick,
+        archetypeId,
+      });
+
+      return res.status(201).json({
+        success: true,
+        blueprint,
+      });
+    } catch (error: any) {
+      console.error("Error in POST /api/agent/trends/scrape:", error);
+      return res.status(500).json({
+        message: "Failed to scrape and synthesize trend blueprint",
+        error: error?.message,
+      });
+    }
+  });
+
+  app.post("/api/agent/trends/:id/remix", requireAdminPasscode, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid trend blueprint ID" });
+      }
+      const directive = req.body?.directive ? String(req.body.directive) : undefined;
+      const editingTrick = req.body?.editingTrick ? (String(req.body.editingTrick) as any) : undefined;
+      const beatDropSec = req.body?.beatDropSec ? String(req.body.beatDropSec) : undefined;
+
+      const updated = await remixTrendBlueprintById(id, {
+        directive,
+        editingTrick,
+        beatDropSec,
+      });
+
+      if (!updated) {
+        return res.status(404).json({ message: "Trend blueprint not found" });
+      }
+
+      return res.status(200).json({
+        success: true,
+        blueprint: updated,
+      });
+    } catch (error: any) {
+      console.error("Error in POST /api/agent/trends/:id/remix:", error);
+      return res.status(500).json({
+        message: "Failed to remix trend blueprint",
+        error: error?.message,
+      });
+    }
   });
 
   // AI Video Director & Approval Queue Endpoints (Admin Protected)
@@ -1641,12 +1736,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/agent/videos/generate", requireAdminPasscode, async (req, res) => {
     try {
+      await ensureTrendBlueprintsSeeded().catch(() => {});
       const packageId = String(req.body?.packageId || FLOW_ULTRA_PACKAGES[0].id);
       const feedbackDirective = req.body?.feedbackDirective
         ? String(req.body.feedbackDirective)
         : undefined;
       const pacingMode = req.body?.pacingMode ? String(req.body.pacingMode) as any : undefined;
       const textStyle = req.body?.textStyle ? String(req.body.textStyle) as any : undefined;
+      const editingTrick = req.body?.editingTrick ? String(req.body.editingTrick) : undefined;
+      const beatDropSec = req.body?.beatDropSec ? String(req.body.beatDropSec) : undefined;
       const cleanNoText = Boolean(req.body?.cleanNoText);
       const swapSceneOrder = Boolean(req.body?.swapSceneOrder);
 
@@ -1655,6 +1753,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         packageId: pkg.id,
         pacingMode,
         textStyle,
+        editingTrick,
+        beatDropSec,
         cleanNoText,
         swapSceneOrder,
         feedbackDirective,
@@ -1689,6 +1789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/agent/videos/:id/review", requireAdminPasscode, async (req, res) => {
     try {
+      await ensureTrendBlueprintsSeeded().catch(() => {});
       const id = parseInt(req.params.id, 10);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid video ID" });
@@ -1704,6 +1805,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const regenerate = Boolean(req.body?.regenerate);
       const pacingMode = req.body?.pacingMode ? String(req.body.pacingMode) as any : undefined;
       const textStyle = req.body?.textStyle ? String(req.body.textStyle) as any : undefined;
+      const editingTrick = req.body?.editingTrick ? String(req.body.editingTrick) : undefined;
+      const beatDropSec = req.body?.beatDropSec ? String(req.body.beatDropSec) : undefined;
       const cleanNoText = Boolean(req.body?.cleanNoText);
       const swapSceneOrder = Boolean(req.body?.swapSceneOrder);
 
@@ -1726,6 +1829,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           packageId: pkg.id,
           pacingMode,
           textStyle,
+          editingTrick,
+          beatDropSec,
           cleanNoText,
           swapSceneOrder,
           feedbackDirective: declineReason || "Keep Full Clip Length (Don't Cut Early)",

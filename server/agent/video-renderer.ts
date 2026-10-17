@@ -122,6 +122,8 @@ export interface RenderAgentVideoOptions {
   outputFileName?: string;
   pacingMode?: PacingMode;
   textStyle?: VideoTextStyle;
+  editingTrick?: string;
+  beatDropSec?: string;
   cleanNoText?: boolean;
   swapSceneOrder?: boolean;
   feedbackDirective?: string;
@@ -162,7 +164,7 @@ function syncToDistPublicIfPresent(sourceFile: string, fileName: string): void {
  * guided by the Multimodal AI Video Director's SceneCutPlan.
  * - Zero rectangular boxes, zero green footer bars, zero internal "SCENE X" labels, zero sales CTAs.
  * - Preserves full natural clip durations in "natural_cinema" mode (e.g. full 10s clips).
- * - Preserves and crossfades native 48kHz stereo audio from dropped Flow Ultra clips.
+ * - Executes viral editing tricks (beat_drop_match_cut, freeze_frame_hook, zoom_punch_contrast, infinite_loop_cut).
  */
 export async function renderStoryVideoWithDirector(
   options: RenderAgentVideoOptions
@@ -182,6 +184,11 @@ export async function renderStoryVideoWithDirector(
   const isCleanNoText =
     effectiveTextStyle === "none" || effectiveTextStyle === "clean_no_text";
 
+  const effectiveEditingTrick =
+    options.editingTrick || pkg.editingTrick || "beat_drop_match_cut";
+  const effectiveBeatDropSec =
+    options.beatDropSec || pkg.beatDropSec || "2.4";
+
   const shouldSwapOrder =
     Boolean(options.swapSceneOrder) ||
     (options.feedbackDirective || "").toLowerCase().includes("swap scene");
@@ -193,6 +200,8 @@ export async function renderStoryVideoWithDirector(
   const directorReport = await analyzeSceneClips(rawDropClips, pkg, {
     pacingMode: effectivePacingMode,
     textStyle: effectiveTextStyle,
+    editingTrick: effectiveEditingTrick,
+    beatDropSec: effectiveBeatDropSec,
     cleanNoText: isCleanNoText,
     swapSceneOrder: shouldSwapOrder,
     feedbackDirective: options.feedbackDirective,
@@ -242,12 +251,31 @@ export async function renderStoryVideoWithDirector(
       const baseVfSteps: string[] = [];
 
       if (hasRawClip) {
-        // Real 9:16 video clip from Google Flow Ultra (native 720x1280): keep native 720x1280 for fast, low-memory encoding
-        baseVfSteps.push(
-          "scale=720:1280:force_original_aspect_ratio=increase",
-          "crop=720:1280",
-          "setsar=1"
-        );
+        // Apply editing trick camera dynamics on real 9:16 Flow Ultra clips
+        if (effectiveEditingTrick === "beat_drop_match_cut" && i === 1) {
+          // 1.10x dynamic zoom-punch on Scene 2 right at the beat drop cut
+          baseVfSteps.push(
+            "scale=792:1408:force_original_aspect_ratio=increase",
+            "crop=720:1280",
+            "setsar=1"
+          );
+        } else if (effectiveEditingTrick === "zoom_punch_contrast") {
+          // Crisp 1.12x deadpan zoom-punch
+          baseVfSteps.push(
+            "scale=806:1434:force_original_aspect_ratio=increase",
+            "crop=720:1280",
+            "setsar=1"
+          );
+        } else {
+          baseVfSteps.push(
+            "scale=720:1280:force_original_aspect_ratio=increase",
+            "crop=720:1280",
+            "setsar=1"
+          );
+        }
+        if (effectiveEditingTrick === "freeze_frame_hook" && i === 0) {
+          baseVfSteps.push("eq=contrast=1.07:saturation=1.05");
+        }
       } else {
         // Static brand asset fallback: gentle cinematic pan at 720x1280
         const cropOffsetExpr =
@@ -261,13 +289,19 @@ export async function renderStoryVideoWithDirector(
         );
       }
 
-      // Smooth transition fades between scenes
-      if (i > 0) {
-        baseVfSteps.push("fade=t=in:st=0:d=0.18");
+      // Smooth transition fades between scenes (unless infinite_loop_cut, which keeps start/end seamless)
+      const isInfiniteLoop = effectiveEditingTrick === "infinite_loop_cut";
+      if (i > 0 && effectiveEditingTrick !== "beat_drop_match_cut") {
+        baseVfSteps.push("fade=t=in:st=0:d=0.16");
       }
-      if (i < scenesToRender.length - 1 && cut.keptDurationSec > 1.0) {
-        const fadeOutStart = Math.max(0, cut.keptDurationSec - 0.18).toFixed(2);
-        baseVfSteps.push(`fade=t=out:st=${fadeOutStart}:d=0.18`);
+      if (
+        !isInfiniteLoop &&
+        i < scenesToRender.length - 1 &&
+        effectiveEditingTrick !== "beat_drop_match_cut" &&
+        cut.keptDurationSec > 1.0
+      ) {
+        const fadeOutStart = Math.max(0, cut.keptDurationSec - 0.16).toFixed(2);
+        baseVfSteps.push(`fade=t=out:st=${fadeOutStart}:d=0.16`);
       }
 
       const vfStepsWithText = [...baseVfSteps];

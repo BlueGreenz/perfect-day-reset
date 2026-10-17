@@ -139,6 +139,27 @@ export const agentVideos = pgTable("agent_videos", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const agentTrendBlueprints = pgTable("agent_trend_blueprints", {
+  id: serial("id").primaryKey(),
+  trendCategory: text("trend_category").default("newsjack_cultural").notNull(), // 'newsjack_cultural' | 'editing_trick_trend' | 'trending_audio_sync' | 'niche_viral_outlier' | 'url_clone'
+  trendTopicOrHook: text("trend_topic_or_hook").notNull(),
+  sourcePlatform: text("source_platform").default("tiktok").notNull(), // 'tiktok' | 'google_trends_news' | 'url_clone'
+  sourceUrl: text("source_url").default("").notNull(),
+  sourceAuthor: text("source_author").default("").notNull(),
+  sourceViews: integer("source_views").default(0).notNull(),
+  sourceShares: integer("source_shares").default(0).notNull(),
+  sourceComments: integer("source_comments").default(0).notNull(),
+  viralVelocityScore: integer("viral_velocity_score").default(92).notNull(),
+  trendingSoundTitle: text("trending_sound_title").default("Original Sound - Viral Executive POV").notNull(),
+  trendingSoundAuthor: text("trending_sound_author").default("@viral_sound").notNull(),
+  trendingSoundUrl: text("trending_sound_url").default("").notNull(),
+  beatDropSec: text("beat_drop_sec").default("2.4").notNull(),
+  editingTrick: text("editing_trick").default("beat_drop_match_cut").notNull(), // 'beat_drop_match_cut' | 'freeze_frame_hook' | 'infinite_loop_cut' | 'zoom_punch_contrast' | 'deadpan_single_take'
+  deconstructionJson: text("deconstruction_json").notNull(),
+  generatedPackageJson: text("generated_package_json").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertSubscriberSchema = createInsertSchema(subscribers).pick({
   email: true,
 });
@@ -198,6 +219,10 @@ export const insertAgentVideoSchema = createInsertSchema(agentVideos).omit({
   createdAt: true,
   updatedAt: true,
 });
+export const insertAgentTrendBlueprintSchema = createInsertSchema(agentTrendBlueprints).omit({
+  id: true,
+  createdAt: true,
+});
 
 export type InsertAgentLead = z.infer<typeof insertAgentLeadSchema>;
 export type AgentLead = typeof agentLeads.$inferSelect;
@@ -205,5 +230,8 @@ export type InsertAgentInteraction = z.infer<typeof insertAgentInteractionSchema
 export type AgentInteraction = typeof agentInteractions.$inferSelect;
 export type InsertAgentVideo = z.infer<typeof insertAgentVideoSchema>;
 export type AgentVideo = typeof agentVideos.$inferSelect;
+export type InsertAgentTrendBlueprint = z.infer<typeof insertAgentTrendBlueprintSchema>;
+export type AgentTrendBlueprint = typeof agentTrendBlueprints.$inferSelect;
+
 
 
