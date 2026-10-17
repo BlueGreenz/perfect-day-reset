@@ -73,6 +73,8 @@ interface FlowUltraPackage {
   angleTitle: string;
   viralFormat: string;
   viralFormatLabel: string;
+  energyVibe?: string;
+  chaosTwistMode?: string;
   targetLengthSeconds: number;
   durationSeconds: number;
   pacingRule: string;
@@ -227,6 +229,8 @@ interface TrendBlueprintRecord {
   createdAt: string;
   deconstruction: TrendDeconstruction;
   generatedPackage: FlowUltraPackage;
+  energyVibe?: string;
+  chaosTwistMode?: string;
 }
 
 interface AgentOverviewResponse {
@@ -260,12 +264,18 @@ export default function AgentDashboard() {
     "newsjack"
   );
   const [newsjackTopicInput, setNewsjackTopicInput] = useState<string>(
-    "Tesla Roadster flying demo"
+    "How 8:45 AM feels when your cortisol curve is dialed in"
   );
   const [tiktokQueryInput, setTiktokQueryInput] = useState<string>(
-    "corporate dark humor pov"
+    "high performance flow state pov"
   );
   const [tiktokUrlInput, setTiktokUrlInput] = useState<string>("");
+  const [selectedEnergyVibe, setSelectedEnergyVibe] = useState<
+    "high_performance_positive" | "dark_humor_contrast" | "uplifting_comeback_story"
+  >("high_performance_positive");
+  const [selectedChaosTwist, setSelectedChaosTwist] = useState<
+    "absurd_giraffe_twist" | "hypercar_spectacle" | "kinetic_boss_exit"
+  >("absurd_giraffe_twist");
   const [selectedEditingTrick, setSelectedEditingTrick] = useState<
     | "beat_drop_match_cut"
     | "freeze_frame_hook"
@@ -274,14 +284,14 @@ export default function AgentDashboard() {
     | "deadpan_single_take"
   >("beat_drop_match_cut");
   const [selectedTrendArchetype, setSelectedTrendArchetype] =
-    useState<string>("metabolic_crasher");
+    useState<string>("cortisol_spiked");
 
-  // Tab 1 & Tab 2 AI Director Pacing & Text Style state
+  // Tab 1 & Tab 2 AI Director Pacing & Text Style state (Default: 6.0s viral_punch)
   const [archetypeFilter, setArchetypeFilter] = useState<string>("all");
   const [viralFormatFilter, setViralFormatFilter] = useState<string>("all");
   const [pacingMode, setPacingMode] = useState<
-    "natural_cinema" | "balanced_story" | "fast_cut"
-  >("natural_cinema");
+    "viral_punch" | "balanced_story" | "natural_cinema" | "fast_cut"
+  >("viral_punch");
   const [textStyle, setTextStyle] = useState<"floating_tiktok" | "clean_no_text" | "none">(
     "floating_tiktok"
   );
@@ -457,8 +467,14 @@ export default function AgentDashboard() {
       customTopic?: string;
       editingTrick?: string;
       archetypeId?: string;
+      energyVibe?: string;
+      chaosTwistMode?: string;
     }) => {
-      const res = await apiRequest("POST", "/api/agent/trends/scrape", payload);
+      const res = await apiRequest("POST", "/api/agent/trends/scrape", {
+        ...payload,
+        energyVibe: payload.energyVibe ?? selectedEnergyVibe,
+        chaosTwistMode: payload.chaosTwistMode ?? selectedChaosTwist,
+      });
       return res.json();
     },
     onSuccess: (data) => {
@@ -467,7 +483,7 @@ export default function AgentDashboard() {
       refetchTrends();
       refetchFlowBatch();
       toast({
-        title: "⚡ Viral Trend Deconstructed & Veo 3.1 Prompts Built!",
+        title: "⚡ 3-Beat Kinetic Storyboard & Veo 3.1 Prompts Built!",
         description: `Created "${data.blueprint?.generatedPackage?.angleTitle || data.blueprint?.trendTopicOrHook}" with ${data.blueprint?.editingTrick} @ ${data.blueprint?.beatDropSec}s.`,
       });
     },
@@ -486,11 +502,17 @@ export default function AgentDashboard() {
       directive?: string;
       editingTrick?: string;
       beatDropSec?: string;
+      energyVibe?: string;
+      chaosTwistMode?: string;
     }) => {
       const res = await apiRequest(
         "POST",
         `/api/agent/trends/${payload.id}/remix`,
-        payload
+        {
+          ...payload,
+          energyVibe: payload.energyVibe ?? selectedEnergyVibe,
+          chaosTwistMode: payload.chaosTwistMode ?? selectedChaosTwist,
+        }
       );
       return res.json();
     },
@@ -501,7 +523,7 @@ export default function AgentDashboard() {
       refetchFlowBatch();
       toast({
         title: "✨ Trend Blueprint Remixed",
-        description: `Updated "${data.blueprint?.trendTopicOrHook}" with ${data.blueprint?.editingTrick}.`,
+        description: `Updated "${data.blueprint?.trendTopicOrHook}" with ${data.blueprint?.energyVibe || selectedEnergyVibe} & ${data.blueprint?.chaosTwistMode || selectedChaosTwist}.`,
       });
     },
   });
@@ -509,7 +531,7 @@ export default function AgentDashboard() {
   const generateVideoMutation = useMutation({
     mutationFn: async (payload: {
       packageId: string;
-      pacingMode?: "natural_cinema" | "balanced_story" | "fast_cut";
+      pacingMode?: "viral_punch" | "balanced_story" | "natural_cinema" | "fast_cut";
       textStyle?: "floating_tiktok" | "clean_no_text" | "none";
       editingTrick?: string;
       beatDropSec?: string;
@@ -559,7 +581,7 @@ export default function AgentDashboard() {
       action: "approve" | "decline";
       declineReason?: string;
       regenerate?: boolean;
-      pacingMode?: "natural_cinema" | "balanced_story" | "fast_cut";
+      pacingMode?: "viral_punch" | "balanced_story" | "natural_cinema" | "fast_cut";
       textStyle?: "floating_tiktok" | "clean_no_text" | "none";
       cleanNoText?: boolean;
       swapSceneOrder?: boolean;
@@ -1004,6 +1026,75 @@ export default function AgentDashboard() {
                 </div>
               </div>
 
+              {/* Energy Vibe + Spectacle Twist Selector Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-3 border-t border-slate-800/80">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mr-1">
+                    Energy Vibe:
+                  </span>
+                  {[
+                    {
+                      id: "high_performance_positive" as const,
+                      label: "⚡ Crazy Positive High-Performance",
+                    },
+                    {
+                      id: "dark_humor_contrast" as const,
+                      label: "🎭 Dark Humor Contrast",
+                    },
+                    {
+                      id: "uplifting_comeback_story" as const,
+                      label: "🏆 Uplifting Story",
+                    },
+                  ].map((vb) => (
+                    <button
+                      key={vb.id}
+                      type="button"
+                      onClick={() => setSelectedEnergyVibe(vb.id)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                        selectedEnergyVibe === vb.id
+                          ? "bg-emerald-500 text-slate-950 shadow"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}
+                    >
+                      {vb.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300 mr-1">
+                    Spectacle Twist:
+                  </span>
+                  {[
+                    {
+                      id: "absurd_giraffe_twist" as const,
+                      label: "🐪 Giraffe / Absurd Background Twist",
+                    },
+                    {
+                      id: "hypercar_spectacle" as const,
+                      label: "🚀 Hypercar / High-Tech Spectacle",
+                    },
+                    {
+                      id: "kinetic_boss_exit" as const,
+                      label: "🎬 Kinetic Boss Move",
+                    },
+                  ].map((tw) => (
+                    <button
+                      key={tw.id}
+                      type="button"
+                      onClick={() => setSelectedChaosTwist(tw.id)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                        selectedChaosTwist === tw.id
+                          ? "bg-amber-400 text-slate-950 shadow"
+                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}
+                    >
+                      {tw.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Editing Trick + Target Archetype Selector Row */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-3 border-t border-slate-800/80">
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -1011,7 +1102,7 @@ export default function AgentDashboard() {
                     Editing Trick:
                   </span>
                   {[
-                    { id: "beat_drop_match_cut" as const, label: "✂️ Beat-Drop Match Cut (2.4s)" },
+                    { id: "beat_drop_match_cut" as const, label: "✂️ Beat-Drop Match Cut (2.5s)" },
                     { id: "freeze_frame_hook" as const, label: "🧊 Freeze-Frame Hook (2.1s)" },
                     { id: "zoom_punch_contrast" as const, label: "🔍 Deadpan Zoom-Punch (1.9s)" },
                     { id: "infinite_loop_cut" as const, label: "♾️ Infinite Loop Cut" },
@@ -1037,8 +1128,8 @@ export default function AgentDashboard() {
                   </span>
                   {[
                     { id: "metabolic_crasher", label: "2:30 PM Crash" },
-                    { id: "cortisol_spiked", label: "3 AM Cortisol Spike" },
-                    { id: "dopamine_depleted", label: "Dopamine / Notification" },
+                    { id: "cortisol_spiked", label: "8:45 AM / 3 AM Cortisol" },
+                    { id: "dopamine_depleted", label: "Dopamine / Deep Work" },
                     { id: "systemic_burnout", label: "Founder Burnout" },
                   ].map((ar) => (
                     <button
@@ -1065,10 +1156,10 @@ export default function AgentDashboard() {
                       Quick Viral Topics:
                     </span>
                     {[
+                      "How 8:45 AM Feels When Your Cortisol Curve Is Actually Dialed In",
+                      "Finishing a Full Week of Deep Work by Tuesday at 11:30 AM",
                       "Tesla Roadster flying demo",
                       "Apple launch event vs my 2:30 PM brain",
-                      "Fortune 500 5-day return to office mandate",
-                      "AI agents doing 10 jobs while I forget why I walked into the kitchen",
                     ].map((preset) => (
                       <button
                         key={preset}
@@ -1086,7 +1177,7 @@ export default function AgentDashboard() {
                       type="text"
                       value={newsjackTopicInput}
                       onChange={(e) => setNewsjackTopicInput(e.target.value)}
-                      placeholder="Type any breaking news or cultural spectacle (e.g., Tesla Roadster flying demo)..."
+                      placeholder="Type any high-performance win or breaking news spectacle (e.g., Tesla Roadster flying demo)..."
                       aria-label="Newsjacking topic input"
                       className="flex-1 rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
                     />
@@ -1099,6 +1190,8 @@ export default function AgentDashboard() {
                           customTopic: newsjackTopicInput,
                           editingTrick: selectedEditingTrick,
                           archetypeId: selectedTrendArchetype,
+                          energyVibe: selectedEnergyVibe,
+                          chaosTwistMode: selectedChaosTwist,
                         })
                       }
                       className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-lg transition disabled:opacity-50"
@@ -1106,12 +1199,12 @@ export default function AgentDashboard() {
                       {scrapeTrendMutation.isPending ? (
                         <>
                           <RefreshCw className="w-4 h-4 animate-spin" />
-                          Synthesizing Veo 3.1 Newsjack...
+                          Synthesizing Veo 3.1 Storyboard...
                         </>
                       ) : (
                         <>
                           <Zap className="w-4 h-4" />
-                          Build Newsjack Contrast Storyboard
+                          Build 3-Beat Kinetic Storyboard
                         </>
                       )}
                     </button>
@@ -1124,6 +1217,8 @@ export default function AgentDashboard() {
                           customTopic: "",
                           editingTrick: selectedEditingTrick,
                           archetypeId: selectedTrendArchetype,
+                          energyVibe: selectedEnergyVibe,
+                          chaosTwistMode: selectedChaosTwist,
                         })
                       }
                       className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 font-semibold text-xs border border-emerald-500/40 transition disabled:opacity-50"
@@ -1142,10 +1237,10 @@ export default function AgentDashboard() {
                       1-Click Outlier Niches:
                     </span>
                     {[
+                      { label: "⚡ Limitless Morning Flow", q: "morning flow state productivity pov" },
                       { label: "💼 Corporate Dark Humor", q: "corporate dark humor pov" },
                       { label: "🌙 3AM Sleep Math", q: "3am cant sleep math pov" },
                       { label: "🚗 Parked Car Driveway POV", q: "sitting in parked car after work" },
-                      { label: "☕ Caffeine Crash", q: "3rd coffee still tired work" },
                     ].map((pill) => (
                       <button
                         key={pill.q}
@@ -1157,6 +1252,8 @@ export default function AgentDashboard() {
                             query: pill.q,
                             editingTrick: selectedEditingTrick,
                             archetypeId: selectedTrendArchetype,
+                            energyVibe: selectedEnergyVibe,
+                            chaosTwistMode: selectedChaosTwist,
                           });
                         }}
                         className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-semibold border border-slate-700 transition"
@@ -1171,7 +1268,7 @@ export default function AgentDashboard() {
                       type="text"
                       value={tiktokQueryInput}
                       onChange={(e) => setTiktokQueryInput(e.target.value)}
-                      placeholder="Search live TikTok viral outliers (e.g., founder burnout, sales director life)..."
+                      placeholder="Search live TikTok viral outliers (e.g., founder flow state, corporate humor)..."
                       aria-label="TikTok keyword search input"
                       className="flex-1 rounded-xl bg-slate-900 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400"
                     />
@@ -1184,6 +1281,8 @@ export default function AgentDashboard() {
                           query: tiktokQueryInput,
                           editingTrick: selectedEditingTrick,
                           archetypeId: selectedTrendArchetype,
+                          energyVibe: selectedEnergyVibe,
+                          chaosTwistMode: selectedChaosTwist,
                         })
                       }
                       className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg transition disabled:opacity-50"
@@ -1228,6 +1327,8 @@ export default function AgentDashboard() {
                             tiktokUrlInput || "https://www.tiktok.com/@exec_pov/video/741892341",
                           editingTrick: selectedEditingTrick,
                           archetypeId: selectedTrendArchetype,
+                          energyVibe: selectedEnergyVibe,
+                          chaosTwistMode: selectedChaosTwist,
                         })
                       }
                       className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-lg transition disabled:opacity-50"
@@ -1255,7 +1356,7 @@ export default function AgentDashboard() {
                     🔥 Deconstructed Trend Blueprints ({trendsData?.blueprints?.length || 0} Ready-to-Shoot Veo 3.1 Packs)
                   </span>
                   <span className="text-[11px] text-slate-400">
-                    Includes Trending Sound Links, Beat-Drop Timestamps &amp; 1-Click AI Director Execution
+                    Includes 3-Beat Kinetic Choreography, Giraffe/Spectacle Twist &amp; 6.0s Viral Cut Execution
                   </span>
                 </div>
 
@@ -1267,6 +1368,21 @@ export default function AgentDashboard() {
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     {(trendsData?.blueprints || []).slice(0, 6).map((bp) => {
                       const pkg = bp.generatedPackage;
+                      const vibeBadge =
+                        pkg?.energyVibe === "high_performance_positive"
+                          ? "⚡ Crazy Positive High-Performance"
+                          : pkg?.energyVibe === "uplifting_comeback_story"
+                          ? "🏆 Uplifting Comeback"
+                          : "🎭 Dark Humor Contrast";
+                      const twistBadge =
+                        pkg?.chaosTwistMode === "absurd_giraffe_twist"
+                          ? "🐪 Giraffe Twist"
+                          : pkg?.chaosTwistMode === "hypercar_spectacle"
+                          ? "🚀 Hypercar Spectacle"
+                          : pkg?.chaosTwistMode === "kinetic_boss_exit"
+                          ? "🎬 Kinetic Boss Move"
+                          : null;
+
                       return (
                         <div
                           key={bp.id}
@@ -1275,11 +1391,16 @@ export default function AgentDashboard() {
                           <div className="space-y-2">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold uppercase">
-                                  {bp.trendCategory.replace(/_/g, " ")}
+                                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                                  {vibeBadge}
                                 </span>
-                                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
-                                  ⚡ {bp.viralVelocityScore}/100 Velocity • {(bp.sourceViews / 1000).toFixed(0)}K Views • {(bp.sourceShares / 1000).toFixed(1)}K Shares
+                                {twistBadge && (
+                                  <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold">
+                                    {twistBadge}
+                                  </span>
+                                )}
+                                <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[10px] font-bold">
+                                  ⚡ {bp.viralVelocityScore}/100 • {(bp.sourceViews / 1000).toFixed(0)}K Views
                                 </span>
                                 <span className="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 text-[10px] font-bold">
                                   ✂️ {bp.editingTrick.replace(/_/g, " ")} @ {bp.beatDropSec}s
@@ -1432,14 +1553,16 @@ export default function AgentDashboard() {
                                   remixTrendMutation.mutate({
                                     id: bp.id,
                                     editingTrick: selectedEditingTrick,
+                                    energyVibe: selectedEnergyVibe,
+                                    chaosTwistMode: selectedChaosTwist,
                                     directive:
-                                      "Make the contrast hook even funnier and sharper while keeping Scene Bible continuity",
+                                      "Apply 3-Beat Kinetic Choreography and selected Energy Vibe & Spectacle Twist while keeping Scene Bible continuity",
                                   })
                                 }
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 text-[11px] font-semibold border border-slate-700 transition"
                               >
                                 <RefreshCw className="w-3 h-3" />
-                                Remix Trick
+                                Remix Vibe &amp; Twist
                               </button>
                             </div>
 
@@ -1453,6 +1576,7 @@ export default function AgentDashboard() {
                                 onClick={() =>
                                   generateVideoMutation.mutate({
                                     packageId: pkg.id,
+                                    pacingMode: "viral_punch",
                                     editingTrick: bp.editingTrick,
                                     beatDropSec: bp.beatDropSec,
                                   })
@@ -1460,7 +1584,7 @@ export default function AgentDashboard() {
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-[11px] shadow transition disabled:opacity-50"
                               >
                                 <Scissors className="w-3 h-3" />
-                                Render with Editing Trick in AI Director
+                                ⚡ Render 6.0s Viral Cut in AI Director
                               </button>
                             )}
                           </div>
@@ -1662,16 +1786,16 @@ export default function AgentDashboard() {
                   </span>
                   {[
                     {
-                      id: "natural_cinema" as const,
-                      label: "Natural Full Clips [Default] (Full 6–8s Arcs)",
+                      id: "viral_punch" as const,
+                      label: "⚡ Viral Punch 6.0s [Default] (2.5s Hook + 3.5s Peak)",
                     },
                     {
                       id: "balanced_story" as const,
-                      label: "Balanced (4.5–6s/clip)",
+                      label: "Balanced (9.0s)",
                     },
                     {
-                      id: "fast_cut" as const,
-                      label: "Fast Cut (2.5–3.5s/clip)",
+                      id: "natural_cinema" as const,
+                      label: "Natural Full Clips (Full Raw Arcs)",
                     },
                   ].map((pm) => (
                     <button
@@ -2057,7 +2181,7 @@ export default function AgentDashboard() {
                     Human-in-the-Loop Video Approval Queue ({pendingVideos.length} Pending Review • {approvedVideos.length} Approved)
                   </h2>
                   <p className="text-sm text-slate-300 mt-1 max-w-3xl">
-                    Preserves full natural 6–8s Google Flow Ultra clip arcs (<code>pacingMode: &quot;natural_cinema&quot;</code>), native 48kHz stereo audio with smooth crossfades, and 100% entertainment-only floating typography in the upper safe zone with zero ads or boxes.
+                    Defaults to <strong>Viral Punch 6.0s</strong> (<code>pacingMode: &quot;viral_punch&quot;</code> — <code>2.5s</code> Scene 1 Hook + <code>3.5s</code> Scene 2 Peak Action from <code>1.2s–4.7s</code>, stripping dead standing pauses), with 1.08x dynamic push-in and 100% entertainment-only floating typography.
                   </p>
                 </div>
 
@@ -2067,7 +2191,7 @@ export default function AgentDashboard() {
                     disabled={generateVideoMutation.isPending}
                     onClick={() =>
                       generateVideoMutation.mutate({
-                        packageId: "cortisol-1-ocean-desk-purple-cow",
+                        packageId: "trend-1-tesla-roadster-newsjack-drop",
                         pacingMode,
                         textStyle,
                         cleanNoText:
@@ -2084,7 +2208,7 @@ export default function AgentDashboard() {
                     ) : (
                       <>
                         <Play className="w-4 h-4" />
-                        Render New Cut from Watch Folder / Storyboard
+                        Render 6.0s Viral Cut from Watch Folder
                       </>
                     )}
                   </button>
@@ -2099,16 +2223,16 @@ export default function AgentDashboard() {
                   </span>
                   {[
                     {
-                      id: "natural_cinema" as const,
-                      label: "Natural Full Clips [Default] (Full 6–8s Arcs)",
+                      id: "viral_punch" as const,
+                      label: "⚡ Viral Punch 6.0s [Default] (2.5s Hook + 3.5s Peak)",
                     },
                     {
                       id: "balanced_story" as const,
-                      label: "Balanced (4.5–6s/clip)",
+                      label: "Balanced (9.0s)",
                     },
                     {
-                      id: "fast_cut" as const,
-                      label: "Fast Cut (2.5–3.5s/clip)",
+                      id: "natural_cinema" as const,
+                      label: "Natural Full Clips (Full Raw Arcs)",
                     },
                   ].map((pm) => (
                     <button
@@ -2257,7 +2381,7 @@ export default function AgentDashboard() {
                                   )}
                                 </div>
 
-                                {/* Big 1-Click Approve & Decline Buttons */}
+                                {/* Big 1-Click Approve, Re-Cut to 6.0s Viral Tempo & Decline Buttons */}
                                 <div className="flex flex-wrap items-center gap-2.5">
                                   <button
                                     type="button"
@@ -2281,7 +2405,28 @@ export default function AgentDashboard() {
                                       reviewVideoMutation.mutate({
                                         id: video.id,
                                         action: "decline",
-                                        declineReason: "Keep Full Clip Length (Don't Cut Early)",
+                                        declineReason:
+                                          "Re-Cut to 6.0s Viral Tempo (2.5s Hook + 3.5s Peak Action)",
+                                        pacingMode: "viral_punch",
+                                        textStyle,
+                                        cleanNoText: textStyle === "none",
+                                        regenerate: true,
+                                      })
+                                    }
+                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-lg transition disabled:opacity-50"
+                                  >
+                                    <Zap className="w-4 h-4" />
+                                    ⚡ Re-Cut to 6.0s Viral Tempo
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={reviewVideoMutation.isPending}
+                                    onClick={() =>
+                                      reviewVideoMutation.mutate({
+                                        id: video.id,
+                                        action: "decline",
+                                        declineReason: "Re-Cut with Selected Pacing Mode",
                                         pacingMode,
                                         textStyle,
                                         cleanNoText: textStyle === "none",
@@ -2304,6 +2449,20 @@ export default function AgentDashboard() {
                                 <div className="flex flex-wrap gap-2">
                                   {[
                                     {
+                                      label: "⚡ Re-Cut to 6.0s Viral Tempo (2.5s Hook + 3.5s Peak)",
+                                      pacingMode: "viral_punch" as const,
+                                      textStyle: "floating_tiktok" as const,
+                                      cleanNoText: false,
+                                      swapSceneOrder: false,
+                                    },
+                                    {
+                                      label: "Balanced Story Cut (9.0s)",
+                                      pacingMode: "balanced_story" as const,
+                                      textStyle: "floating_tiktok" as const,
+                                      cleanNoText: false,
+                                      swapSceneOrder: false,
+                                    },
+                                    {
                                       label: "Keep Full Clip Length (Don't Cut Early)",
                                       pacingMode: "natural_cinema" as const,
                                       textStyle: "floating_tiktok" as const,
@@ -2312,31 +2471,17 @@ export default function AgentDashboard() {
                                     },
                                     {
                                       label: "Render Clean Video (No Text)",
-                                      pacingMode: "natural_cinema" as const,
+                                      pacingMode: "viral_punch" as const,
                                       textStyle: "none" as const,
                                       cleanNoText: true,
                                       swapSceneOrder: false,
                                     },
                                     {
                                       label: "Swap Scene Order",
-                                      pacingMode: "natural_cinema" as const,
+                                      pacingMode: "viral_punch" as const,
                                       textStyle,
                                       cleanNoText: textStyle === "none",
                                       swapSceneOrder: true,
-                                    },
-                                    {
-                                      label: "Cut Faster (2.5s/clip)",
-                                      pacingMode: "fast_cut" as const,
-                                      textStyle,
-                                      cleanNoText: textStyle === "none",
-                                      swapSceneOrder: false,
-                                    },
-                                    {
-                                      label: "Move Text Position Safe Zone",
-                                      pacingMode,
-                                      textStyle: "floating_tiktok" as const,
-                                      cleanNoText: false,
-                                      swapSceneOrder: false,
                                     },
                                   ].map((btn) => (
                                     <button

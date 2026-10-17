@@ -251,18 +251,33 @@ export async function renderStoryVideoWithDirector(
       const baseVfSteps: string[] = [];
 
       if (hasRawClip) {
-        // Apply editing trick camera dynamics on real 9:16 Flow Ultra clips
-        if (effectiveEditingTrick === "beat_drop_match_cut" && i === 1) {
-          // 1.10x dynamic zoom-punch on Scene 2 right at the beat drop cut
+        // Apply editing trick & viral_punch camera dynamics on real 9:16 Flow Ultra clips
+        if (effectiveEditingTrick === "zoom_punch_contrast") {
+          // Crisp 1.12x deadpan zoom-punch
+          baseVfSteps.push(
+            "scale=806:1434:force_original_aspect_ratio=increase",
+            "crop=720:1280",
+            "setsar=1"
+          );
+        } else if (
+          (effectiveEditingTrick === "beat_drop_match_cut" ||
+            effectivePacingMode === "viral_punch" ||
+            effectivePacingMode === "fast_cut") &&
+          i === 1
+        ) {
+          // 1.10x dynamic zoom-punch on Scene 2 right at the 2.5s beat drop cut
           baseVfSteps.push(
             "scale=792:1408:force_original_aspect_ratio=increase",
             "crop=720:1280",
             "setsar=1"
           );
-        } else if (effectiveEditingTrick === "zoom_punch_contrast") {
-          // Crisp 1.12x deadpan zoom-punch
+        } else if (
+          (effectivePacingMode === "viral_punch" || effectivePacingMode === "fast_cut") &&
+          i === 0
+        ) {
+          // 1.08x smooth dynamic push-in on Scene 1 (0.0s–2.5s setup beat)
           baseVfSteps.push(
-            "scale=806:1434:force_original_aspect_ratio=increase",
+            "scale=778:1382:force_original_aspect_ratio=increase",
             "crop=720:1280",
             "setsar=1"
           );

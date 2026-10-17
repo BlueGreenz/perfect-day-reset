@@ -36,6 +36,16 @@ export type EditingTrickType =
   | "zoom_punch_contrast"
   | "deadpan_single_take";
 
+export type EnergyVibeType =
+  | "high_performance_positive"
+  | "dark_humor_contrast"
+  | "uplifting_comeback_story";
+
+export type ChaosTwistMode =
+  | "absurd_giraffe_twist"
+  | "hypercar_spectacle"
+  | "kinetic_boss_exit";
+
 export interface FlowUltraVideoPackage {
   id: string;
   archetypeId:
@@ -73,35 +83,44 @@ export interface FlowUltraVideoPackage {
   trendingSoundUrl?: string;
   trendCategory?: string;
   viralVelocityScore?: number;
+  energyVibe?: EnergyVibeType;
+  chaosTwistMode?: ChaosTwistMode;
 }
 
 /**
  * Hardcoded Google Flow Built-In Agent Constitution enforcing Veo 3.1 single-shot syntax,
- * Scene Bible continuity, upper-third caption safe zone, and 100% Entertain-First visuals.
+ * Scene Bible continuity, 3-Beat Kinetic Choreography + Giraffe/Spectacle Twist, upper-third caption safe zone,
+ * and 100% Entertain-First visuals.
  */
 export const FLOW_AGENT_CONSTITUTION = `ROLE & GOAL:
-Act as a viral short-form cinematographer generating 9:16 vertical clips (1080p, 6–8s) that 100% ENTERTAIN first (dark corporate humor, surreal visual metaphors, high-stakes executive storytelling) with ZERO advertising look.
+Act as a viral short-form cinematographer generating 9:16 vertical clips (1080p, 6–8s) that 100% ENTERTAIN first (electric Limitless/God-Mode high-performance energy, absurd background spectacle twists, dark corporate humor, and gripping BMW stories) with ZERO advertising look.
 
 RULE 1 — SCENE BIBLE CONTINUITY:
 Across all clips in a storyboard, repeat the exact same Cast descriptor (age, hair, facial features), Wardrobe (exact colors and fabrics), Lens (35mm lens, shallow depth of field), and Light Direction verbatim so every cut matches seamlessly.
 
-RULE 2 — SINGLE ACTION PER CLIP:
-Never combine two locations or two separate actions in one prompt. Front-load every prompt with: One continuous unbroken 9:16 vertical shot, no cuts.
+RULE 2 — SINGLE ACTION ARC PER CLIP:
+Never combine two separate locations or camera cuts in one prompt. Front-load every prompt with: One continuous unbroken 9:16 vertical shot, no cuts.
 
-RULE 3 — UPPER-THIRD CAPTION SAFE ZONE:
+RULE 3 — 3-BEAT KINETIC CHOREOGRAPHY + GIRAFFE/SPECTACLE TWIST (BAN STATIC STANDING):
+Never let the subject stand motionless with hands in pockets or stare blankly for more than 1.5 seconds. Every 6s clip must execute a continuous 3-Beat Kinetic Arc:
+- Beat 1 (0.0s–2.0s Kinetic Entry): Immediate motion at frame 0 (sliding into frame on a leather office chair, brisk tracking walk, sliding a laptop across an oak desk).
+- Beat 2 (2.0s–4.2s Prop Mastery): Fluid physical action (catching or lifting an espresso cup mid-glide, closing a laptop lid with one finger, catching car keys mid-air).
+- Beat 3 (4.2s–6.5s The Giraffe / Spectacle Climax): Instead of pausing at the end, trigger an unforgettable background twist or kinetic exit (e.g., a real giraffe sprinting past the glass hangar window in the background, a hovering silver Roadster spinning 360 degrees with cold thruster fog, or walking past camera as background papers float in slow motion).
+
+RULE 4 — UPPER-THIRD CAPTION SAFE ZONE:
 Frame the subject in the center/lower-middle so the top 25% of the 9:16 frame remains clean, softly blurred negative space for editing captions.
 
-RULE 4 — OFFICIAL VEO 3.1 SOUNDSTAGE SYNTAX:
+RULE 5 — OFFICIAL VEO 3.1 SOUNDSTAGE SYNTAX:
 End every prompt with explicit SFX: (1–2 tactile sounds) and Ambient noise: (room/environment tone), followed by No spoken dialogue, no singing, and no background music.
 
-RULE 5 — TARGETED VEO 3.1 GUARDRAILS (NO QUOTATION MARKS):
-Never use quotation marks "" inside prompts. End every prompt with: Keep the same face, outfit, and lighting throughout the shot. Keep hands natural and motion physically plausible. Keep all surfaces clean with no readable text, subtitles, UI labels, or logos.`;
+RULE 6 — TARGETED VEO 3.1 GUARDRAILS (NO QUOTATION MARKS):
+Never use quotation marks "" inside prompts. End every prompt with: Keep the same face, outfit, and lighting throughout the shot. Keep hands natural and motion continuous with no static standing or frozen pauses. Keep all surfaces clean with no readable text, subtitles, UI labels, or logos.`;
 
 export const STANDARD_NEGATIVE_PROMPT =
-  "No jump cuts, no scene changes, no camera angle switches, no split screen, no on-screen text, no subtitles, no UI labels, no logos, no distorted hands, no extra fingers, no morphing objects.";
+  "No static standing still, no hands in pockets, no dead staring pauses, no jump cuts, no scene changes, no camera angle switches, no split screen, no on-screen text, no subtitles, no UI labels, no logos, no distorted hands, no extra fingers, no morphing objects.";
 
 export const VEO_BLOCK_6_GUARDRAILS =
-  "One continuous shot, no jump cuts, no camera angle switches, no sudden zooms. Keep the same face, outfit, and lighting throughout the shot. Keep hands natural and motion physically plausible. Keep all surfaces clean with no readable text, subtitles, UI labels, or logos.";
+  "One continuous shot, no jump cuts, no camera angle switches, no sudden zooms, no static standing still, no hands in pockets, no frozen staring pauses. Keep the same face, outfit, and lighting throughout the shot. Keep hands natural and motion physically plausible. Keep all surfaces clean with no readable text, subtitles, UI labels, or logos.";
 
 export function buildSixBlockVeoPrompt(params: {
   shotSizeAndMove: string;

@@ -1667,6 +1667,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const customTopic = req.body?.customTopic ? String(req.body.customTopic) : undefined;
       const editingTrick = req.body?.editingTrick ? (String(req.body.editingTrick) as any) : undefined;
       const archetypeId = req.body?.archetypeId ? (String(req.body.archetypeId) as any) : undefined;
+      const energyVibe = req.body?.energyVibe ? (String(req.body.energyVibe) as any) : undefined;
+      const chaosTwistMode = req.body?.chaosTwistMode ? (String(req.body.chaosTwistMode) as any) : undefined;
 
       const blueprint = await scrapeAndSynthesizeTrendBlueprint({
         mode,
@@ -1675,6 +1677,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customTopic,
         editingTrick,
         archetypeId,
+        energyVibe,
+        chaosTwistMode,
       });
 
       return res.status(201).json({
@@ -1699,11 +1703,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const directive = req.body?.directive ? String(req.body.directive) : undefined;
       const editingTrick = req.body?.editingTrick ? (String(req.body.editingTrick) as any) : undefined;
       const beatDropSec = req.body?.beatDropSec ? String(req.body.beatDropSec) : undefined;
+      const energyVibe = req.body?.energyVibe ? (String(req.body.energyVibe) as any) : undefined;
+      const chaosTwistMode = req.body?.chaosTwistMode ? (String(req.body.chaosTwistMode) as any) : undefined;
 
       const updated = await remixTrendBlueprintById(id, {
         directive,
         editingTrick,
         beatDropSec,
+        energyVibe,
+        chaosTwistMode,
       });
 
       if (!updated) {

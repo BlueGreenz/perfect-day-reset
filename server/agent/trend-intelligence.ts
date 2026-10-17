@@ -13,7 +13,9 @@ import {
   registerDynamicFlowUltraPackage,
   STANDARD_NEGATIVE_PROMPT,
   type CaptionThreeLayerBreakdown,
+  type ChaosTwistMode,
   type EditingTrickType,
+  type EnergyVibeType,
   type FlowUltraScene,
   type FlowUltraVideoPackage,
   type SceneBibleSpec,
@@ -65,6 +67,8 @@ export interface ScrapedTikTokOutlier {
 export interface HydratedTrendBlueprint extends AgentTrendBlueprint {
   deconstruction: TrendDeconstruction;
   generatedPackage: FlowUltraVideoPackage;
+  energyVibe?: EnergyVibeType;
+  chaosTwistMode?: ChaosTwistMode;
 }
 
 const ARCHETYPE_LABELS: Record<FlowUltraVideoPackage["archetypeId"], string> = {
@@ -80,6 +84,18 @@ const EDITING_TRICK_LABELS: Record<EditingTrickType, string> = {
   infinite_loop_cut: "Seamless Infinite Loop Cut",
   zoom_punch_contrast: "Deadpan 1.12x Zoom-Punch",
   deadpan_single_take: "Unbroken Deadpan Single-Take",
+};
+
+export const ENERGY_VIBE_LABELS: Record<EnergyVibeType, string> = {
+  high_performance_positive: "⚡ Crazy Positive / Unstoppable Flow State",
+  dark_humor_contrast: "🎭 Relatable Corporate Comedy",
+  uplifting_comeback_story: "🏆 High-Status Inspiration",
+};
+
+export const CHAOS_TWIST_LABELS: Record<ChaosTwistMode, string> = {
+  absurd_giraffe_twist: "🐪 Giraffe / Absurd Background Twist",
+  hypercar_spectacle: "🚀 Hypercar / High-Tech Spectacle",
+  kinetic_boss_exit: "🎬 Kinetic Boss Move",
 };
 
 function sanitizeNoQuotes(str: string): string {
@@ -99,6 +115,8 @@ function buildDynamicPackageFromSeed(params: {
   trendingSoundUrl: string;
   trendCategory: TrendCategoryType;
   viralVelocityScore: number;
+  energyVibe?: EnergyVibeType;
+  chaosTwistMode?: ChaosTwistMode;
   psychologicalAngle: string;
   sceneBible: SceneBibleSpec;
   rawScenes: Array<{
@@ -139,7 +157,7 @@ function buildDynamicPackageFromSeed(params: {
       shotType: s.shotType,
       whatWeWant: s.whatWeWant,
       whatWeDontWant:
-        "No internal cuts, no camera angle changes, no gibberish text or UI on screens, no distorted fingers, no sales pitch on screen.",
+        "No static standing still, no hands in pockets, no dead staring pauses, no internal cuts, no camera angle changes, no gibberish text or UI on screens, no distorted fingers, no sales pitch on screen.",
       negativePrompt: STANDARD_NEGATIVE_PROMPT,
       flowUltraPrompt,
       onScreenText: s.onScreenText,
@@ -147,7 +165,7 @@ function buildDynamicPackageFromSeed(params: {
     };
   });
 
-  const targetLengthSeconds = builtScenes.length * 6;
+  const targetLengthSeconds = 6;
   const flowAgentPrompt = buildFlowAgentMasterBrief(
     params.angleTitle,
     params.sceneBible,
@@ -155,6 +173,7 @@ function buildDynamicPackageFromSeed(params: {
   );
   const caption = assembleThreeLayerCaption(params.captionParts);
   const trickLabel = EDITING_TRICK_LABELS[params.editingTrick] || "Beat-Drop Match Cut";
+  const vibeLabel = params.energyVibe ? ENERGY_VIBE_LABELS[params.energyVibe] : "";
 
   const pkg: FlowUltraVideoPackage = {
     id: params.id,
@@ -162,13 +181,13 @@ function buildDynamicPackageFromSeed(params: {
     archetypeName: ARCHETYPE_LABELS[params.archetypeId] || "Cortisol-Spiked High Performer",
     angleTitle: params.angleTitle,
     viralFormat: params.viralFormat,
-    viralFormatLabel: `${params.viralFormatLabel} • ${trickLabel}`,
+    viralFormatLabel: `${params.viralFormatLabel} • ${trickLabel}${vibeLabel ? ` • ${vibeLabel}` : ""}`,
     targetLengthSeconds,
     durationSeconds: targetLengthSeconds,
-    pacingRule: `${trickLabel} synced @ ${params.beatDropSec}s (${builtScenes.length} continuous 6–8s Veo 3.1 shots)`,
+    pacingRule: `6.0s Viral Punch (2.5s Scene 1 Hook + 3.5s Scene 2 Peak • ${trickLabel} @ ${params.beatDropSec}s)`,
     psychologicalAngle: params.psychologicalAngle,
     aspectRatio: "9:16",
-    cameraSpec: `${params.sceneBible.lens}, upper-third negative space lock, ${trickLabel}`,
+    cameraSpec: `${params.sceneBible.lens}, 3-Beat Kinetic Choreography, upper-third negative space lock`,
     sceneBible: params.sceneBible,
     flowUltraPrompt: builtScenes[0]?.flowUltraPrompt || "",
     flowAgentPrompt,
@@ -191,6 +210,8 @@ function buildDynamicPackageFromSeed(params: {
     trendingSoundUrl: params.trendingSoundUrl,
     trendCategory: params.trendCategory,
     viralVelocityScore: params.viralVelocityScore,
+    energyVibe: params.energyVibe || "high_performance_positive",
+    chaosTwistMode: params.chaosTwistMode || "absurd_giraffe_twist",
   };
 
   registerDynamicFlowUltraPackage(pkg);
@@ -198,7 +219,7 @@ function buildDynamicPackageFromSeed(params: {
 }
 
 /**
- * 4 Pre-Seeded High-Velocity Trend Blueprints (Newsjacking, Editing Tricks, Audio Sync & Niche Outliers)
+ * Pre-Seeded High-Velocity Trend Blueprints (Starting with the 2 Brand-New Crazy Positive + Spectacle Blueprints)
  */
 const INITIAL_TREND_BLUEPRINT_SEEDS: Array<{
   trendCategory: TrendCategoryType;
@@ -220,6 +241,198 @@ const INITIAL_TREND_BLUEPRINT_SEEDS: Array<{
 }> = [
   {
     trendCategory: "newsjack_cultural",
+    trendTopicOrHook:
+      "How 8:45 AM Feels When Your Cortisol Curve Is Actually Dialed In",
+    sourcePlatform: "tiktok",
+    sourceUrl: "https://www.tiktok.com/tag/highperformance",
+    sourceAuthor: "@godmode_founder_vibes",
+    sourceViews: 2680000,
+    sourceShares: 214000,
+    sourceComments: 14900,
+    viralVelocityScore: 100,
+    trendingSoundTitle: "Electric Synth Drive - High-Energy Flow State Edit",
+    trendingSoundAuthor: "@apex_cinema_audio",
+    trendingSoundUrl: "https://www.tiktok.com/music/Electric-Synth-Drive",
+    beatDropSec: "2.5",
+    editingTrick: "beat_drop_match_cut",
+    deconstruction: {
+      visualHookMechanic:
+        "100% electric, Crazy Positive Limitless/God-Mode energy: opens at frame 0 with the executive sliding into a glass showroom on a leather chair in front of a spinning hovering silver Roadster, catching a fresh espresso mid-glide, and nodding as a real giraffe sprints past the glass window behind him.",
+      editingTrickBreakdown:
+        "3-Beat Kinetic Choreography + 2.5s Viral Punch Match Cut: zero static standing—every second has fluid motion, prop mastery, and an absurd background giraffe twist that forces 3+ rewatches.",
+      audioSyncRule:
+        "High-energy synth drive builds from 0.0s to 2.5s during the leather chair glide, punching into Scene 2 right as he clicks the espresso cup down and closes his laptop with one finger.",
+      humorContrastFormula:
+        "Infectious winning energy + unexpected background giraffe spectacle ('Wait—did a giraffe just sprint past the window?!') drives massive comment threads and shares.",
+      shareTrigger:
+        "Viewers share for both the electric morning hype vibe AND the hilarious background giraffe Easter egg.",
+    },
+    packageSeed: {
+      id: "trend-godmode-845am-giraffe-roadster",
+      archetypeId: "cortisol_spiked",
+      angleTitle:
+        "⚡ Crazy Positive God-Mode: How 8:45 AM Feels When Your Cortisol Curve Is Actually Dialed In (🐪 Giraffe Twist)",
+      viralFormat: "purple_cow_loop",
+      viralFormatLabel: "⚡ Crazy Positive + 🐪 Giraffe Twist",
+      editingTrick: "beat_drop_match_cut",
+      beatDropSec: "2.5",
+      trendingSoundTitle: "Electric Synth Drive - High-Energy Flow State Edit",
+      trendingSoundAuthor: "@apex_cinema_audio",
+      trendingSoundUrl: "https://www.tiktok.com/music/Electric-Synth-Drive",
+      trendCategory: "newsjack_cultural",
+      viralVelocityScore: 100,
+      energyVibe: "high_performance_positive",
+      chaosTwistMode: "absurd_giraffe_twist",
+      psychologicalAngle:
+        "Pure infectious high-performance flow state combined with a 3-Beat Kinetic Chair Glide and a surreal sprinting giraffe background twist that makes viewers feel energized and unstoppable.",
+      sceneBible: {
+        cast: "A charismatic 40-year-old European executive with short salt-and-pepper hair, light stubble, and an electric confident grin",
+        wardrobe: "a tailored charcoal wool blazer over a crisp open-collar white dress shirt",
+        lens: "35mm lens, shallow depth of field",
+        lightDirection: "vibrant golden morning sunlight streaming through architectural glass",
+      },
+      rawScenes: [
+        {
+          sceneNumber: 1,
+          timeRange: "0.0s – 2.5s",
+          shotType: "3-Beat Kinetic Leather Chair Glide + Hovering Roadster + Giraffe Window Twist",
+          shotSizeAndMove: "Medium-wide dynamic tracking shot moving with the rolling chair",
+          whatWeWant:
+            "Single unbroken kinetic shot: Beat 1 (0–2s) executive slides into a sunlit glass showroom on a leather office chair in front of a spinning hovering silver Roadster; Beat 2 (2–4s) grabs a fresh espresso mid-glide; Beat 3 (4–6s) nods confidently as a real giraffe sprints full-speed past the glass hangar window behind him.",
+          singlePhysicalAction:
+            "Beat 1 from 0 to 2 seconds he glides briskly into frame on a black leather rolling office chair with an electric confident grin in front of a hovering silver electric Roadster spinning in cold thruster mist, Beat 2 from 2 to 4 seconds he smoothly grabs a fresh double espresso glass off the oak table mid-glide, Beat 3 from 4 to 6 seconds he gives a sharp confident nod to the camera while a real towering giraffe sprints full-speed past the floor-to-ceiling glass window in the background",
+          environmentAndLighting:
+            "Sunlit minimalist architectural glass showroom with clean softly blurred negative space in the upper third",
+          sfx: "Smooth leather chair wheels gliding on polished concrete, espresso glass catch, and futuristic hover turbine hum",
+          ambient: "Bright energetic morning showroom acoustics",
+          onScreenText:
+            "How 8:45 AM feels when you actually slept 8 unbroken hours and your brain is firing at 100%",
+        },
+        {
+          sceneNumber: 2,
+          timeRange: "2.5s – 6.0s",
+          shotType: "3-Beat Kinetic One-Finger Laptop Close + Giraffe Background Climax",
+          shotSizeAndMove: "Medium dynamic Steadicam push-in",
+          whatWeWant:
+            "Single unbroken kinetic shot: Beat 1 (0–2s) takes a crisp sip of espresso at his sunlit oak desk; Beat 2 (2–4s) closes his brushed aluminum laptop lid with one index finger; Beat 3 (4–6s) strides past the camera with a winning smile as the giraffe sprints past the exterior glass window behind him.",
+          singlePhysicalAction:
+            "Beat 1 from 0 to 2 seconds he sets his espresso cup down on a sunlit solid oak desk with a crisp click, Beat 2 from 2 to 4 seconds he shuts his brushed aluminum laptop lid effortlessly with one index finger and rises in one fluid motion, Beat 3 from 4 to 6 seconds he strides past the camera with an unstoppable grin while a real giraffe sprints past the glass window in the background",
+          environmentAndLighting:
+            "Sun-drenched modern glass executive office with warm golden rim light and clean upper-third headroom",
+          sfx: "Crisp aluminum laptop lid click and confident footsteps",
+          ambient: "Vibrant morning room tone",
+          onScreenText:
+            "Zero brain fog. Zero afternoon crash. Not even the giraffe outside can break my flow state.",
+        },
+      ],
+      captionParts: {
+        hookContinuation:
+          "Wait until you see what sprints past the window at the end—because when your nervous system and sleep architecture are actually dialed in, nothing breaks your morning flow state.",
+        educationalBridge:
+          "When I was Head of Sales at BMW, everyone assumed high performance meant grinding for 14 hours with 4 espressos and a permanent frown. In reality, the highest-performing founders I worked with operated from effortless biological alignment: when your cortisol peaks naturally with morning sunlight and your evening melatonin isn't blocked by 11 PM screen stress, 8:45 AM feels like God-Mode. You can recalibrate that entire circadian rhythm in one structured 24-hour reset.",
+        committedCta:
+          "Comment RESET and I'll DM you the free 60-second Burnout & Nervous System Diagnostic.",
+      },
+    },
+  },
+  {
+    trendCategory: "editing_trick_trend",
+    trendTopicOrHook:
+      "Finishing a Full Week of Deep Work by Tuesday at 11:30 AM",
+    sourcePlatform: "tiktok",
+    sourceUrl: "https://www.tiktok.com/tag/founderflow",
+    sourceAuthor: "@unstoppable_exec",
+    sourceViews: 1940000,
+    sourceShares: 158000,
+    sourceComments: 9420,
+    viralVelocityScore: 99,
+    trendingSoundTitle: "Limitless Brass & Sub-Bass Drop (2.5s Cut)",
+    trendingSoundAuthor: "@kinetic_edits",
+    trendingSoundUrl: "https://www.tiktok.com/music/Limitless-Brass-Drop",
+    beatDropSec: "2.5",
+    editingTrick: "beat_drop_match_cut",
+    deconstruction: {
+      visualHookMechanic:
+        "Pure aspirational high-velocity flow: fast tracking shot of an executive shutting his MacBook with one finger, catching his car keys in mid-air, and walking out with an electric grin while everyone in the background moves in 0.2x slow motion.",
+      editingTrickBreakdown:
+        "6.0s Viral Punch (2.5s Scene 1 Setup + 3.5s Scene 2 Hypercar Spectacle Payoff) with 1.08x dynamic push-in and zero dead frames.",
+      audioSyncRule:
+        "Sync the one-finger MacBook lid click and mid-air key catch to the 2.5s beat drop.",
+      humorContrastFormula:
+        "Everyone else scheduling their 4th alignment meeting vs. finishing the entire week's deep work by Tuesday at 11:30 AM.",
+      shareTrigger:
+        "Founders and high-performers repost to their stories as the ultimate Tuesday productivity flex.",
+    },
+    packageSeed: {
+      id: "trend-godmode-tuesday-deepwork-hypercar",
+      archetypeId: "dopamine_depleted",
+      angleTitle:
+        "⚡ Unstoppable Flow State: Finishing a Full Week of Deep Work by Tuesday at 11:30 AM (🚀 Hypercar Spectacle)",
+      viralFormat: "two_timelines_experiment",
+      viralFormatLabel: "⚡ Crazy Positive + 🚀 Hypercar Spectacle",
+      editingTrick: "beat_drop_match_cut",
+      beatDropSec: "2.5",
+      trendingSoundTitle: "Limitless Brass & Sub-Bass Drop (2.5s Cut)",
+      trendingSoundAuthor: "@kinetic_edits",
+      trendingSoundUrl: "https://www.tiktok.com/music/Limitless-Brass-Drop",
+      trendCategory: "editing_trick_trend",
+      viralVelocityScore: 99,
+      energyVibe: "high_performance_positive",
+      chaosTwistMode: "hypercar_spectacle",
+      psychologicalAngle:
+        "Celebrates the electric feeling of deep dopamine focus—knocking out 40 hours of cognitive output by Tuesday at 11:30 AM and walking out in pure flow.",
+      sceneBible: {
+        cast: "A charismatic 40-year-old European executive with short salt-and-pepper hair, light stubble, and an electric confident grin",
+        wardrobe: "a tailored charcoal wool blazer over a crisp open-collar white dress shirt",
+        lens: "35mm lens, shallow depth of field",
+        lightDirection: "bright golden late-morning sunlight with crisp glass reflections",
+      },
+      rawScenes: [
+        {
+          sceneNumber: 1,
+          timeRange: "0.0s – 2.5s",
+          shotType: "3-Beat Kinetic One-Finger MacBook Close + Mid-Air Key Catch + 0.2x Slow-Mo Office",
+          shotSizeAndMove: "Fast Steadicam backward tracking shot leading the walking executive",
+          whatWeWant:
+            "Single unbroken kinetic shot: Beat 1 (0–2s) executive shuts his MacBook with one finger at an oak desk and steps into a brisk stride; Beat 2 (2–4s) tosses and catches his car keys in mid-air with an electric grin; Beat 3 (4–6s) walks toward camera while everyone in the background moves in 0.2x slow motion.",
+          singlePhysicalAction:
+            "Beat 1 from 0 to 2 seconds he shuts his brushed aluminum laptop lid with one finger at a sunlit oak desk and immediately strides forward, Beat 2 from 2 to 4 seconds he tosses his metallic car keys up and catches them cleanly in mid-air with an electric confident grin, Beat 3 from 4 to 6 seconds he walks briskly toward the camera while coworkers in the glass office behind him move in 0.2x ultra-slow motion",
+          environmentAndLighting:
+            "Sunlit modern glass executive floor with clean blurred upper-third negative space",
+          sfx: "Crisp laptop lid click, metallic car keys catch in palm, and confident stride",
+          ambient: "Subtle cinematic low-end whoosh",
+          onScreenText:
+            "Finishing a full week of deep work by Tuesday at 11:30 AM",
+        },
+        {
+          sceneNumber: 2,
+          timeRange: "2.5s – 6.0s",
+          shotType: "3-Beat Kinetic Hangar Walkout + Spinning Hovering Roadster Spectacle",
+          shotSizeAndMove: "Low-angle tracking shot following his stride across polished concrete",
+          whatWeWant:
+            "Single unbroken kinetic shot: Beat 1 (0–2s) strides into the sunlit glass hangar buttoning his blazer; Beat 2 (2–4s) puts on dark sunglasses mid-stride; Beat 3 (4–6s) behind him a silver hovering electric Roadster spins 360 degrees with cold thruster fog.",
+          singlePhysicalAction:
+            "Beat 1 from 0 to 2 seconds he strides briskly across polished concrete in a sunlit glass hangar buttoning his charcoal blazer, Beat 2 from 2 to 4 seconds he slips on dark sunglasses in one fluid hand motion with a confident grin, Beat 3 from 4 to 6 seconds a sleek silver electric Roadster behind him hovers two inches above the floor and spins 360 degrees in swirling cold white thruster fog",
+          environmentAndLighting:
+            "Sunlit architectural glass hangar with clean upper-third headroom",
+          sfx: "Futuristic electric turbine spin, pressurized thruster whoosh, and crisp footsteps",
+          ambient: "Resonant showroom acoustics",
+          onScreenText:
+            "Everyone else is scheduling a 4th alignment call. I am already out the door.",
+        },
+      ],
+      captionParts: {
+        hookContinuation:
+          "There is no better feeling on earth than closing your laptop with one finger on Tuesday at 11:30 AM knowing your entire week's deep work is already done.",
+        educationalBridge:
+          "Most professionals don't have a time problem—they have a fragmented dopamine problem. When you start your morning scrolling notifications and drinking caffeine on a stressed nervous system, your attention fractures into 40-second micro-bursts. When I was Head of Sales at BMW, I learned that 3 hours of unbroken, biologically aligned morning flow outperforms 50 hours of scattered busywork. One 24-hour reset clears the receptor fatigue so your focus locks in effortlessly.",
+        committedCta:
+          "Comment RESET and I'll DM you the free 60-second Burnout & Nervous System Diagnostic.",
+      },
+    },
+  },
+  {
+    trendCategory: "newsjack_cultural",
     trendTopicOrHook: "The Flying Tesla Roadster Demo vs. 2:30 PM Executive Brain",
     sourcePlatform: "google_trends_news",
     sourceUrl: "https://trends.google.com/trending?geo=US",
@@ -231,15 +444,15 @@ const INITIAL_TREND_BLUEPRINT_SEEDS: Array<{
     trendingSoundTitle: "Synthwave Bass Drop - Slowed & Reverb Edit",
     trendingSoundAuthor: "@cinema_drop_audio",
     trendingSoundUrl: "https://www.tiktok.com/music/Synthwave-Bass-Drop",
-    beatDropSec: "2.4",
+    beatDropSec: "2.5",
     editingTrick: "beat_drop_match_cut",
     deconstruction: {
       visualHookMechanic:
-        "Juxtaposes an ultra-futuristic aerospace-grade hypercar spectacle in Scene 1 with the deadpan reality of an executive staring blankly at a spreadsheet at 2:30 PM in Scene 2.",
+        "Juxtaposes an ultra-futuristic aerospace-grade hypercar spectacle in Scene 1 (0.0s–2.5s) with the immediate 3.5s espresso sigh payoff at 2:30 PM in Scene 2 (total 6.0s viral punch).",
       editingTrickBreakdown:
-        "Beat-Drop Match Cut at 2.4s with a 1.10x zoom-punch on Scene 2 as the bass drops, turning futuristic tech hype into relatable corporate comedy.",
+        "6.0s Viral Punch (2.5s Scene 1 Setup with 1.08x zoom push-in + 3.5s Scene 2 Peak Action window from 1.2s–4.7s) eliminating all dead staring pauses.",
       audioSyncRule:
-        "Build tension for 0.0s–2.4s during the sleek silver hypercar hover shot, then hard-cut on the 2.4s sub-bass drop to silent office room tone and slow blinking.",
+        "Build tension for 0.0s–2.5s during the sleek silver hypercar hover shot, then hard-cut on the 2.5s beat drop right into the peak espresso cup sigh.",
       humorContrastFormula:
         "Humanity in 2026 building flying electric hypercars vs. my brain trying to write one polite email after 2:15 PM.",
       shareTrigger:
@@ -252,50 +465,52 @@ const INITIAL_TREND_BLUEPRINT_SEEDS: Array<{
       viralFormat: "purple_cow_loop",
       viralFormatLabel: "Newsjack Contrast Loop",
       editingTrick: "beat_drop_match_cut",
-      beatDropSec: "2.4",
+      beatDropSec: "2.5",
       trendingSoundTitle: "Synthwave Bass Drop - Slowed & Reverb Edit",
       trendingSoundAuthor: "@cinema_drop_audio",
       trendingSoundUrl: "https://www.tiktok.com/music/Synthwave-Bass-Drop",
       trendCategory: "newsjack_cultural",
       viralVelocityScore: 98,
+      energyVibe: "dark_humor_contrast",
+      chaosTwistMode: "hypercar_spectacle",
       psychologicalAngle:
-        "Newsjacking a massive tech/automotive spectacle and flipping it on the beat drop into the universal 2:30 PM afternoon brain crash.",
+        "Newsjacking a massive tech/automotive spectacle and flipping it at the 2.5s beat drop into the universal 2:30 PM afternoon brain crash.",
       sceneBible: {
-        cast: "A 40-year-old European executive with short salt-and-pepper hair, light stubble, and tired eyes",
+        cast: "A 40-year-old European executive with short salt-and-pepper hair, light stubble, and expressive eyes",
         wardrobe: "a tailored charcoal wool blazer over a crisp white open-collar dress shirt",
         lens: "35mm lens, shallow depth of field",
-        lightDirection: "cool twilight glass reflections contrasting with flat afternoon office daylight",
+        lightDirection: "cool twilight glass reflections contrasting with warm afternoon office daylight",
       },
       rawScenes: [
         {
           sceneNumber: 1,
-          timeRange: "0.0s – 6.0s",
-          shotType: "Low-Angle Futuristic Silver Electric Hypercar Levitation Hook",
-          shotSizeAndMove: "Medium-wide low-angle shot with a slow steady push-in",
+          timeRange: "0.0s – 2.5s",
+          shotType: "3-Beat Kinetic Silver Electric Hypercar Levitation + 360 Spin Hook",
+          shotSizeAndMove: "Medium-wide low-angle tracking shot with a 1.08x push-in",
           whatWeWant:
-            "Single unbroken shot of the executive standing in a minimalist glass test hangar watching a sleek silver aerodynamic electric sports car hovering two inches above polished concrete with cold thruster mist.",
+            "Single unbroken kinetic shot of the executive rolling into a minimalist glass test hangar on a leather chair as a sleek silver aerodynamic electric sports car hovers and spins two inches above polished concrete with cold thruster mist.",
           singlePhysicalAction:
-            "He stands calmly with hands in his pockets watching a sleek silver electric sports car hover two inches above wet concrete as cool white air-thruster mist swirls around the tires.",
+            "Beat 1 from 0 to 2 seconds he glides into the glass hangar on a black leather chair holding an aluminum laptop, Beat 2 from 2 to 4 seconds he lowers his sunglasses to watch a sleek silver electric sports car hover two inches above wet concrete, Beat 3 from 4 to 6 seconds the hovering silver hypercar spins 360 degrees in swirling white air-thruster mist",
           environmentAndLighting:
             "Minimalist architectural glass hangar at twilight with clean dark ceiling space in the upper third",
-          sfx: "Deep futuristic electric turbine hum and pressurized air hiss",
+          sfx: "Deep futuristic electric turbine hum and pressurized air thruster whoosh",
           ambient: "Vast echoing concrete hangar room tone",
           onScreenText:
             "Engineers in 2026: making electric sports cars literally hover off the ground",
         },
         {
           sceneNumber: 2,
-          timeRange: "6.0s – 12.0s",
-          shotType: "Medium Deadpan Office Desk 2:30 PM Blank Stare Payoff",
-          shotSizeAndMove: "Medium shot with a subtle 1.10x zoom-in push",
+          timeRange: "2.5s – 6.0s",
+          shotType: "Medium Office Desk 2:30 PM Espresso Sigh Peak Payoff",
+          shotSizeAndMove: "Medium shot with a crisp 1.10x beat-drop zoom-punch",
           whatWeWant:
-            "Single unbroken shot on the beat drop of the same executive sitting frozen at an oak office desk holding a cold half-empty espresso cup while staring blankly ahead.",
+            "Exact 3.5s peak action cut (1.2s–4.7s) on the beat drop showing the executive holding a half-empty espresso cup at his oak desk and letting out a visible afternoon sigh beside his open laptop.",
           singlePhysicalAction:
-            "He sits completely motionless at a sunlit oak desk holding a half-empty glass espresso cup mid-air, blinking slowly in a deadpan afternoon daze beside an open aluminum laptop.",
+            "Beat 1 from 0 to 2 seconds he lifts a half-empty glass espresso cup at a sunlit oak desk and lets out a visible shoulder-dropping sigh, Beat 2 from 2 to 4 seconds he sets the espresso cup down and rubs his temple with one hand beside an open aluminum laptop, Beat 3 from 4 to 6 seconds a giraffe casually walks past the exterior office window behind him",
           environmentAndLighting:
             "Quiet modern glass office in late afternoon with clean blurred wall space in the upper third",
-          sfx: "Single quiet ceramic cup clink and a slow tired sigh",
-          ambient: "Dead-silent office air conditioning hum",
+          sfx: "Single ceramic cup click and a clear human sigh",
+          ambient: "Quiet office air conditioning hum",
           onScreenText:
             "Me at 2:30 PM trying to remember how to spell the word 'Wednesday' in an email",
         },
@@ -591,8 +806,8 @@ const INITIAL_TREND_BLUEPRINT_SEEDS: Array<{
 let trendSeedPromise: Promise<void> | null = null;
 
 /**
- * Ensures the 4 high-velocity Trend Blueprints are seeded in storage and registered
- * in the dynamic FlowUltraPackage registry.
+ * Ensures the 6 high-velocity Trend Blueprints (including the 2 Crazy Positive High-Performance + Spectacle blueprints)
+ * are seeded in storage and registered in the dynamic FlowUltraPackage registry.
  */
 export async function ensureTrendBlueprintsSeeded(): Promise<HydratedTrendBlueprint[]> {
   if (trendSeedPromise) {
@@ -602,11 +817,18 @@ export async function ensureTrendBlueprintsSeeded(): Promise<HydratedTrendBluepr
 
   trendSeedPromise = (async () => {
     const existing = await storage.getAgentTrendBlueprints();
-    const existingTopics = new Set(existing.map((e) => e.trendTopicOrHook));
+    const existingByTopic = new Map(existing.map((e) => [e.trendTopicOrHook, e]));
 
     for (const seed of INITIAL_TREND_BLUEPRINT_SEEDS) {
       const pkg = buildDynamicPackageFromSeed(seed.packageSeed);
-      if (existingTopics.has(seed.trendTopicOrHook)) {
+      const found = existingByTopic.get(seed.trendTopicOrHook);
+      if (found) {
+        await storage.updateAgentTrendBlueprint(found.id, {
+          beatDropSec: seed.beatDropSec,
+          editingTrick: seed.editingTrick,
+          deconstructionJson: JSON.stringify(seed.deconstruction),
+          generatedPackageJson: JSON.stringify(pkg),
+        });
         continue;
       }
       await storage.createAgentTrendBlueprint({
@@ -636,6 +858,12 @@ export async function ensureTrendBlueprintsSeeded(): Promise<HydratedTrendBluepr
   return getHydratedTrendBlueprints();
 }
 
+const TOP_PRIORITY_PACKAGE_IDS: Record<string, number> = {
+  "trend-godmode-845am-giraffe-roadster": 1000,
+  "trend-godmode-tuesday-deepwork-hypercar": 990,
+  "trend-1-tesla-roadster-newsjack-drop": 980,
+};
+
 export async function getHydratedTrendBlueprints(): Promise<HydratedTrendBlueprint[]> {
   const rows = await storage.getAgentTrendBlueprints();
   const hydrated: HydratedTrendBlueprint[] = [];
@@ -649,11 +877,21 @@ export async function getHydratedTrendBlueprints(): Promise<HydratedTrendBluepri
         ...row,
         deconstruction,
         generatedPackage,
+        energyVibe: generatedPackage.energyVibe || "high_performance_positive",
+        chaosTwistMode: generatedPackage.chaosTwistMode || "absurd_giraffe_twist",
       });
     } catch {
       // Skip malformed row
     }
   }
+
+  hydrated.sort((a, b) => {
+    const prioA = TOP_PRIORITY_PACKAGE_IDS[a.generatedPackage?.id || ""] || 0;
+    const prioB = TOP_PRIORITY_PACKAGE_IDS[b.generatedPackage?.id || ""] || 0;
+    if (prioA !== prioB) return prioB - prioA;
+    return b.id - a.id;
+  });
+
   return hydrated;
 }
 
@@ -770,7 +1008,7 @@ export async function scrapeViralTikToks(params: {
               trendingSoundTitle: String(d.music_info?.title || "Original Sound - Trending TikTok Cut"),
               trendingSoundAuthor: `@${d.music_info?.author || "tiktok_audio"}`,
               trendingSoundUrl: String(d.music_info?.play || cleanUrl),
-              detectedBeatDropSec: Number(d.duration || 10) <= 8 ? "2.1" : "2.4",
+              detectedBeatDropSec: Number(d.duration || 10) <= 8 ? "2.1" : "2.5",
               inferredEditingTrick: "beat_drop_match_cut",
             },
           ];
@@ -794,7 +1032,7 @@ export async function scrapeViralTikToks(params: {
         trendingSoundTitle: "Original Sound - High-Retention Beat Drop",
         trendingSoundAuthor: "@tiktok_viral_outlier",
         trendingSoundUrl: cleanUrl,
-        detectedBeatDropSec: "2.4",
+        detectedBeatDropSec: "2.5",
         inferredEditingTrick: "beat_drop_match_cut",
       },
     ];
@@ -850,7 +1088,7 @@ export async function scrapeViralTikToks(params: {
             trendingSoundUrl: String(
               v.music_info?.play || `https://www.tiktok.com/tag/${encodeURIComponent(searchQuery)}`
             ),
-            detectedBeatDropSec: dur <= 7 ? "2.0" : "2.4",
+            detectedBeatDropSec: dur <= 7 ? "2.0" : "2.5",
             inferredEditingTrick: trick,
           };
         });
@@ -877,7 +1115,7 @@ export async function scrapeViralTikToks(params: {
       trendingSoundTitle: "Ambient Synth Beat Drop (Viral Edit)",
       trendingSoundAuthor: "@corporate_pov_daily",
       trendingSoundUrl: `https://www.tiktok.com/search?q=${encodeURIComponent(searchQuery)}`,
-      detectedBeatDropSec: "2.4",
+      detectedBeatDropSec: "2.5",
       inferredEditingTrick: "beat_drop_match_cut",
     },
   ];
@@ -926,8 +1164,21 @@ async function extractKeyframesBase64FromVideoUrl(videoUrl: string): Promise<str
   }
 }
 
+function buildBeat3ClimaxDescription(chaosTwistMode: ChaosTwistMode): string {
+  switch (chaosTwistMode) {
+    case "absurd_giraffe_twist":
+      return "Beat 3 from 4 to 6 seconds he gives a sharp confident nod toward the camera while a real towering giraffe sprints full-speed past the floor-to-ceiling glass window in the background";
+    case "hypercar_spectacle":
+      return "Beat 3 from 4 to 6 seconds a sleek silver electric Roadster behind him levitates two inches off the polished floor and spins 360 degrees in swirling cold white thruster fog while background figures move in 0.2x slow motion";
+    case "kinetic_boss_exit":
+    default:
+      return "Beat 3 from 4 to 6 seconds he shuts the aluminum laptop lid with one index finger, catches his car keys mid-air, and strides past the camera with an electric grin as loose office papers float in slow motion behind him";
+  }
+}
+
 /**
  * Pillar 4: Multimodal Gemini Deconstructor & Dynamic 6-Block Veo 3.1 Prompt Architect
+ * Enforces 3-Beat Kinetic Choreography + Giraffe/Spectacle Twist and Energy Vibe (Crazy Positive | Dark Humor | Uplifting Story)
  */
 export async function deconstructAndSynthesizeTrend(params: {
   trendCategory: TrendCategoryType;
@@ -945,78 +1196,94 @@ export async function deconstructAndSynthesizeTrend(params: {
   beatDropSec: string;
   editingTrick: EditingTrickType;
   archetypeId?: FlowUltraVideoPackage["archetypeId"];
+  energyVibe?: EnergyVibeType;
+  chaosTwistMode?: ChaosTwistMode;
   videoDownloadUrl?: string;
   remixDirective?: string;
 }): Promise<HydratedTrendBlueprint> {
   const archetypeId: FlowUltraVideoPackage["archetypeId"] =
     params.archetypeId || "cortisol_spiked";
   const editingTrick: EditingTrickType = params.editingTrick || "beat_drop_match_cut";
-  const beatDropSec = params.beatDropSec || "2.4";
+  const beatDropSec = params.beatDropSec || "2.5";
+  const energyVibe: EnergyVibeType = params.energyVibe || "high_performance_positive";
+  const chaosTwistMode: ChaosTwistMode = params.chaosTwistMode || "absurd_giraffe_twist";
   const cleanTopic = sanitizeNoQuotes(params.topicOrHook);
+  const beat3Climax = buildBeat3ClimaxDescription(chaosTwistMode);
+
+  const isPositiveVibe = energyVibe === "high_performance_positive";
+  const isStoryVibe = energyVibe === "uplifting_comeback_story";
 
   // Default deterministic synthesis (used immediately if Gemini API is unavailable or rate-limited)
   let deconstruction: TrendDeconstruction = {
-    visualHookMechanic: `Opens with a high-contrast visual hook built around '${cleanTopic}' that stops the scroll in 1.2s without looking like a wellness ad.`,
-    editingTrickBreakdown: `${EDITING_TRICK_LABELS[editingTrick]} synced at ${beatDropSec}s: Scene 1 sets up the spectacle or corporate tension, and Scene 2 delivers the deadpan human payoff.`,
-    audioSyncRule: `Pair with '${params.trendingSoundTitle}' (${params.trendingSoundAuthor}) and align the Scene 1 -> Scene 2 transition or zoom-punch to the ${beatDropSec}s beat drop.`,
-    humorContrastFormula: `100% Entertain-First dark humor on screen -> Founder BMW Head of Sales physiological insight in the caption -> 'Comment RESET' only at the bottom of the caption.`,
-    shareTrigger: `High-performing professionals recognize themselves immediately and forward the reel to coworkers or founder group chats.`,
+    visualHookMechanic: `Opens at frame 0 with 3-Beat Kinetic Choreography (${ENERGY_VIBE_LABELS[energyVibe]}) built around '${cleanTopic}' plus '${CHAOS_TWIST_LABELS[chaosTwistMode]}'—zero static standing.`,
+    editingTrickBreakdown: `6.0s Viral Punch (${EDITING_TRICK_LABELS[editingTrick]} @ ${beatDropSec}s): 2.5s Scene 1 Kinetic Hook with 1.08x push-in + 3.5s Scene 2 Peak Action Climax.`,
+    audioSyncRule: `Pair with '${params.trendingSoundTitle}' (${params.trendingSoundAuthor}) and align the Scene 1 -> Scene 2 cut to the ${beatDropSec}s beat drop.`,
+    humorContrastFormula: isPositiveVibe
+      ? `100% Electric Limitless/God-Mode Flow State on screen + ${CHAOS_TWIST_LABELS[chaosTwistMode]} -> BMW Head of Sales biological alignment insight in caption -> 'Comment RESET' at bottom.`
+      : isStoryVibe
+      ? `High-Status BMW Executive Transformation Story on screen + ${CHAOS_TWIST_LABELS[chaosTwistMode]} -> 24-Hour Reset physiology in caption -> 'Comment RESET' at bottom.`
+      : `100% Entertain-First Corporate Comedy Contrast + ${CHAOS_TWIST_LABELS[chaosTwistMode]} -> BMW Head of Sales physiological insight in caption -> 'Comment RESET' at bottom.`,
+    shareTrigger: `Viewers rewatch for the 3-beat kinetic motion and '${CHAOS_TWIST_LABELS[chaosTwistMode]}' Easter egg, sharing it immediately to founder and coworker group chats.`,
   };
 
-  let angleTitle =
-    params.trendCategory === "newsjack_cultural"
-      ? `Newsjack Contrast: ${cleanTopic} vs. My Brain at 2:30 PM`
-      : `Viral Outlier Clone: ${cleanTopic}`;
+  let angleTitle = isPositiveVibe
+    ? `⚡ Crazy Positive Flow State: ${cleanTopic} (${CHAOS_TWIST_LABELS[chaosTwistMode]})`
+    : isStoryVibe
+    ? `🏆 Executive Comeback: ${cleanTopic} (${CHAOS_TWIST_LABELS[chaosTwistMode]})`
+    : `🎭 Newsjack Contrast: ${cleanTopic} vs. 2:30 PM Brain`;
 
   let sceneBible: SceneBibleSpec = {
-    cast: "A 40-year-old European executive with short salt-and-pepper hair, light stubble, and tired focused eyes",
+    cast: isPositiveVibe
+      ? "A charismatic 40-year-old European executive with short salt-and-pepper hair, light stubble, and an electric confident grin"
+      : "A 40-year-old European executive with short salt-and-pepper hair, light stubble, and expressive eyes",
     wardrobe: "a tailored charcoal wool suit blazer over a crisp open-collar white dress shirt",
     lens: "35mm lens, shallow depth of field",
-    lightDirection: "cinematic twilight glass sidelight contrasting with warm morning sunlight",
+    lightDirection: "vibrant golden morning sunlight streaming through architectural glass",
   };
 
   let rawScenes = [
     {
       sceneNumber: 1,
-      timeRange: "0.0s – 6.0s",
-      shotType: "Medium-Wide High-Contrast Spectacle / Tension Hook Shot",
-      shotSizeAndMove: "Medium-wide shot with a slow steady push-in",
-      whatWeWant: `Single unbroken 6s shot capturing the visual premise of ${cleanTopic} with the executive in the center-lower frame and clean negative space in the upper third.`,
-      singlePhysicalAction:
-        "He sits at a sleek oak desk in a glass-walled office staring in deadpan disbelief at his open laptop while rubbing his tired eyes with one hand.",
+      timeRange: "0.0s – 2.5s",
+      shotType: "3-Beat Kinetic Entry + Prop Mastery + Spectacle Hook",
+      shotSizeAndMove: "Medium-wide dynamic tracking shot moving with the subject",
+      whatWeWant: `Single unbroken 6s kinetic shot (trimmed to 0.0s–2.5s in Viral Punch) capturing ${cleanTopic} with 3-Beat Kinetic Choreography and ${CHAOS_TWIST_LABELS[chaosTwistMode]}.`,
+      singlePhysicalAction: `Beat 1 from 0 to 2 seconds he glides briskly into the sunlit glass showroom on a black leather rolling office chair with an electric confident grin, Beat 2 from 2 to 4 seconds he smoothly catches a fresh double espresso glass mid-glide, ${beat3Climax}`,
       environmentAndLighting:
-        "Modern architectural glass office at twilight with softly blurred city lights in the upper third",
-      sfx: "Crisp mechanical keyboard click and a quiet tired sigh",
-      ambient: "Low insulated office room tone",
-      onScreenText:
-        params.trendCategory === "newsjack_cultural"
-          ? `The world in 2026: ${cleanTopic}`
-          : `${cleanTopic}`,
+        "Sunlit minimalist architectural glass showroom with softly blurred negative space in the upper third",
+      sfx: "Smooth leather chair wheels gliding on polished concrete and crisp espresso glass catch",
+      ambient: "Vibrant energetic showroom acoustics",
+      onScreenText: isPositiveVibe
+        ? `How 8:45 AM feels when your sleep and focus are firing at 100%: ${cleanTopic}`
+        : isStoryVibe
+        ? `What I learned watching top founders operate in pure flow: ${cleanTopic}`
+        : `The world in 2026: ${cleanTopic}`,
     },
     {
       sceneNumber: 2,
-      timeRange: "6.0s – 12.0s",
-      shotType: "Medium Deadpan Reaction & Sunlit Exhale Payoff Shot",
-      shotSizeAndMove: "Medium shot with a subtle 1.10x zoom-in push",
-      whatWeWant:
-        "Single unbroken 6s shot on the beat drop showing the same executive closing his laptop, setting down a glass of mineral water, and letting out a slow relieved exhale.",
-      singlePhysicalAction:
-        "He calmly closes the brushed aluminum laptop, sets a frosted glass of mineral water on the oak table, and leans back with a visible shoulder-dropping exhale.",
+      timeRange: "2.5s – 6.0s",
+      shotType: "3-Beat Kinetic One-Finger Laptop Close + Spectacle Payoff",
+      shotSizeAndMove: "Medium dynamic Steadicam push-in with 1.10x beat-drop punch",
+      whatWeWant: `Single unbroken kinetic shot (3.5s peak window) showing the executive closing his laptop with one finger, catching his keys, and triggering ${CHAOS_TWIST_LABELS[chaosTwistMode]}.`,
+      singlePhysicalAction: `Beat 1 from 0 to 2 seconds he sets his espresso cup on a sunlit solid oak desk with a crisp click, Beat 2 from 2 to 4 seconds he shuts his brushed aluminum laptop lid with one index finger and catches his car keys mid-air, ${beat3Climax}`,
       environmentAndLighting:
-        "Warm golden morning sunlight streaming through floor-to-ceiling windows with clean upper-third wall space",
-      sfx: "Soft laptop lid close and a deep human exhale",
-      ambient: "Peaceful morning air and distant birdsong",
-      onScreenText:
-        params.trendCategory === "newsjack_cultural"
-          ? "Meanwhile me at 2:30 PM staring at my screen trying to form one coherent sentence"
-          : "Me 14 seconds after finally turning my phone off for 24 hours",
+        "Warm golden morning sunlight streaming through floor-to-ceiling glass windows with clean upper-third wall space",
+      sfx: "Crisp aluminum laptop lid click, metallic key catch, and confident footsteps",
+      ambient: "Bright morning air and subtle room tone",
+      onScreenText: isPositiveVibe
+        ? "Zero brain fog. Zero afternoon crash. Unstoppable all day."
+        : isStoryVibe
+        ? "One 24-hour biological reset changed how every single morning feels."
+        : "Meanwhile me at 2:30 PM trying to form one coherent sentence before my next call",
     },
   ];
 
   let captionParts: CaptionThreeLayerBreakdown = {
-    hookContinuation: `Everyone is talking about ${cleanTopic}, meanwhile most high performers are just trying to survive their 2:30 PM afternoon crash on 5 hours of sleep and 3 espressos.`,
+    hookContinuation: isPositiveVibe
+      ? `Wait until you spot the background twist—because when your nervous system and sleep architecture are actually dialed in around ${cleanTopic}, your morning energy feels like pure God-Mode.`
+      : `Everyone is talking about ${cleanTopic}, meanwhile most high performers are trying to brute-force their workday on 5 hours of fragmented sleep and 3 espressos.`,
     educationalBridge:
-      "When I was Head of Sales at Inchcape BMW, I saw this exact pattern every single week: outwardly successful founders and executives operating with an inverted cortisol curve and depleted afternoon dopamine. You don't fix chronic nervous system overload with another rigid 30-day habit tracker that you quit by Day 4—you recalibrate your circadian, hydration, and cognitive unload windows in one structured 24-hour reset.",
+      "When I was Head of Sales at Inchcape BMW, I saw both sides of high performance: executives running on an inverted cortisol curve who crashed at 2:30 PM, and the top 1% who operated with effortless biological clarity. You don't unlock peak focus with a rigid 30-day bootcamp—you recalibrate your circadian light, caffeine timing, and evening decompression windows in one structured 24-hour reset.",
     committedCta:
       "Comment RESET and I'll DM you the free 60-second Burnout & Nervous System Diagnostic.",
   };
@@ -1031,20 +1298,26 @@ export async function deconstructAndSynthesizeTrend(params: {
 
       const promptText = `You are an elite Viral Short-Form Creative Director and Google Flow Ultra (Veo 3.1) Prompt Architect for "Perfect Day Reset" (founded by Reiko Kevvai, Ex Head of Sales at BMW).
 We follow the strict 3-Layer Viral Funnel:
-- LAYER 1 (VIDEO & ON-SCREEN TEXT = 100% ENTERTAINMENT): Dark corporate humor, newsjacking contrast, or relatable founder POV. NEVER put "Perfect Day Reset", "cortisol", "protocol", or "Comment RESET" in onScreenText!
-- LAYER 2 (CAPTION BODY = EDUCATION): Connect the humor from Scene 1 & 2 to Reiko's experience as Head of Sales at BMW and the physiology of executive burnout.
+- LAYER 1 (VIDEO & ON-SCREEN TEXT = 100% ENTERTAINMENT): Must match Energy Vibe "${energyVibe}" (${ENERGY_VIBE_LABELS[energyVibe]}) and Spectacle Twist "${chaosTwistMode}" (${CHAOS_TWIST_LABELS[chaosTwistMode]}). NEVER put "Perfect Day Reset", "protocol", or "Comment RESET" in onScreenText!
+- LAYER 2 (CAPTION BODY = EDUCATION): Connect Scene 1 & 2 to Reiko's experience as Head of Sales at BMW and the physiology of peak circadian flow vs. executive burnout.
 - LAYER 3 (CAPTION BOTTOM = CTA): End caption with "Comment RESET and I'll DM you the free 60-second Burnout & Nervous System Diagnostic."
 
 Input Trend / Topic: "${cleanTopic}"
 Trend Category: "${params.trendCategory}"
+Energy Vibe Mode: "${energyVibe}" (${ENERGY_VIBE_LABELS[energyVibe]})
+Spectacle / Chaos Twist Mode: "${chaosTwistMode}" (${CHAOS_TWIST_LABELS[chaosTwistMode]})
 Target Editing Trick: "${editingTrick}" (Beat Drop @ ${beatDropSec}s)
 Trending Sound: "${params.trendingSoundTitle}" by ${params.trendingSoundAuthor}
 Target Archetype: "${ARCHETYPE_LABELS[archetypeId]}"
 ${params.remixDirective ? `Producer Remix Directive: "${params.remixDirective}"` : ""}
 
-CRITICAL VEO 3.1 RULES FOR SCENES:
-- Each scene must be ONE continuous unbroken 9:16 single shot (no internal cuts, no quotation marks inside physical descriptions).
-- Both scenes must share the exact same Scene Bible (cast, wardrobe, lens, lightDirection).
+MANDATORY 3-BEAT KINETIC CHOREOGRAPHY (BAN STATIC STANDING):
+- NEVER let the subject stand still with hands in pockets or stare blankly!
+- Every scene's "singlePhysicalAction" MUST explicitly describe:
+  * Beat 1 (0 to 2 seconds — Kinetic Entry): rolling into frame on a leather chair, brisk walking tracking shot, or sliding a laptop across an oak desk.
+  * Beat 2 (2 to 4 seconds — Prop Mastery): catching/lifting an espresso cup mid-glide, closing a laptop lid with one finger, or catching car keys mid-air.
+  * Beat 3 (4 to 6 seconds — Spectacle Climax): ${beat3Climax}.
+- No quotation marks inside physical descriptions.
 
 Return ONLY valid JSON with this exact structure:
 {
@@ -1067,21 +1340,21 @@ Return ONLY valid JSON with this exact structure:
       "shotType": "string",
       "shotSizeAndMove": "string",
       "whatWeWant": "string",
-      "singlePhysicalAction": "string (1 physical action, no quotation marks)",
+      "singlePhysicalAction": "string (Must include Beat 1 0-2s kinetic entry, Beat 2 2-4s prop mastery, Beat 3 4-6s spectacle twist, no quotation marks)",
       "environmentAndLighting": "string (no quotation marks)",
       "sfx": "string (1-2 crisp sound effects)",
       "ambient": "string (ambient room/environment tone)",
-      "onScreenText": "string (100% witty entertainment POV/contrast, ZERO sales/CTA)"
+      "onScreenText": "string (100% electric entertainment hook, ZERO sales/CTA)"
     },
     {
       "shotType": "string",
       "shotSizeAndMove": "string",
       "whatWeWant": "string",
-      "singlePhysicalAction": "string (1 physical action, no quotation marks)",
+      "singlePhysicalAction": "string (Must include Beat 1 0-2s kinetic entry, Beat 2 2-4s prop mastery, Beat 3 4-6s spectacle twist, no quotation marks)",
       "environmentAndLighting": "string (no quotation marks)",
       "sfx": "string (1-2 crisp sound effects)",
       "ambient": "string (ambient room/environment tone)",
-      "onScreenText": "string (100% witty entertainment payoff, ZERO sales/CTA)"
+      "onScreenText": "string (100% electric entertainment payoff, ZERO sales/CTA)"
     }
   ],
   "captionParts": {
@@ -1161,12 +1434,12 @@ Return ONLY valid JSON with this exact structure:
                 };
               }
               if (Array.isArray(parsed.scenes) && parsed.scenes.length >= 2) {
-                rawScenes = parsed.scenes.slice(0, 3).map((sc: any, idx: number) => ({
+                rawScenes = parsed.scenes.slice(0, 2).map((sc: any, idx: number) => ({
                   sceneNumber: idx + 1,
-                  timeRange: `${idx * 6}.0s – ${(idx + 1) * 6}.0s`,
-                  shotType: String(sc.shotType || `Scene ${idx + 1} Shot`),
+                  timeRange: idx === 0 ? "0.0s – 2.5s" : "2.5s – 6.0s",
+                  shotType: String(sc.shotType || `Scene ${idx + 1} Kinetic Shot`),
                   shotSizeAndMove: String(
-                    sc.shotSizeAndMove || "Medium shot with a slow steady push-in"
+                    sc.shotSizeAndMove || "Medium dynamic tracking shot"
                   ),
                   whatWeWant: String(sc.whatWeWant || rawScenes[idx]?.whatWeWant || ""),
                   singlePhysicalAction: sanitizeNoQuotes(
@@ -1181,8 +1454,8 @@ Return ONLY valid JSON with this exact structure:
                         ""
                     )
                   ),
-                  sfx: sanitizeNoQuotes(String(sc.sfx || "Subtle room sound")),
-                  ambient: sanitizeNoQuotes(String(sc.ambient || "Quiet room tone")),
+                  sfx: sanitizeNoQuotes(String(sc.sfx || "Crisp movement sound")),
+                  ambient: sanitizeNoQuotes(String(sc.ambient || "Vibrant room tone")),
                   onScreenText: String(
                     sc.onScreenText || rawScenes[idx]?.onScreenText || ""
                   ),
@@ -1228,11 +1501,11 @@ Return ONLY valid JSON with this exact structure:
         ? "trojan_horse_story"
         : "forensic_curiosity_hook",
     viralFormatLabel:
-      params.trendCategory === "newsjack_cultural"
-        ? "Newsjack Contrast"
-        : params.trendCategory === "url_clone"
-        ? "Cloned Viral Structure"
-        : "Trend Outlier Hook",
+      energyVibe === "high_performance_positive"
+        ? "⚡ Crazy Positive Flow"
+        : energyVibe === "uplifting_comeback_story"
+        ? "🏆 High-Status Story"
+        : "🎭 Dark Humor Contrast",
     editingTrick,
     beatDropSec,
     trendingSoundTitle: params.trendingSoundTitle,
@@ -1240,6 +1513,8 @@ Return ONLY valid JSON with this exact structure:
     trendingSoundUrl: params.trendingSoundUrl,
     trendCategory: params.trendCategory,
     viralVelocityScore: params.viralVelocityScore,
+    energyVibe,
+    chaosTwistMode,
     psychologicalAngle: deconstruction.humorContrastFormula,
     sceneBible,
     rawScenes,
@@ -1270,6 +1545,8 @@ Return ONLY valid JSON with this exact structure:
     ...created,
     deconstruction,
     generatedPackage,
+    energyVibe,
+    chaosTwistMode,
   };
 }
 
@@ -1283,6 +1560,8 @@ export async function scrapeAndSynthesizeTrendBlueprint(options: {
   customTopic?: string;
   editingTrick?: EditingTrickType;
   archetypeId?: FlowUltraVideoPackage["archetypeId"];
+  energyVibe?: EnergyVibeType;
+  chaosTwistMode?: ChaosTwistMode;
 }): Promise<HydratedTrendBlueprint> {
   await ensureTrendBlueprintsSeeded();
 
@@ -1300,12 +1579,17 @@ export async function scrapeAndSynthesizeTrendBlueprint(options: {
       sourceShares: 72000,
       sourceComments: 4900,
       viralVelocityScore: 97,
-      trendingSoundTitle: "Synthwave Bass Drop - Slowed & Reverb Edit",
+      trendingSoundTitle:
+        options.energyVibe === "high_performance_positive"
+          ? "Electric Synth Drive - High-Energy Flow State Edit"
+          : "Synthwave Bass Drop - Slowed & Reverb Edit",
       trendingSoundAuthor: "@cinema_drop_audio",
       trendingSoundUrl: "https://www.tiktok.com/music/Synthwave-Bass-Drop",
-      beatDropSec: "2.4",
+      beatDropSec: "2.5",
       editingTrick: trick,
-      archetypeId: options.archetypeId || "metabolic_crasher",
+      archetypeId: options.archetypeId || "cortisol_spiked",
+      energyVibe: options.energyVibe || "high_performance_positive",
+      chaosTwistMode: options.chaosTwistMode || "absurd_giraffe_twist",
     });
   }
 
@@ -1328,12 +1612,14 @@ export async function scrapeAndSynthesizeTrendBlueprint(options: {
       beatDropSec: top.detectedBeatDropSec,
       editingTrick: options.editingTrick || top.inferredEditingTrick,
       archetypeId: options.archetypeId || "cortisol_spiked",
+      energyVibe: options.energyVibe || "high_performance_positive",
+      chaosTwistMode: options.chaosTwistMode || "absurd_giraffe_twist",
       videoDownloadUrl: top.videoDownloadUrl,
     });
   }
 
   // Default: mode === "tiktok_keyword"
-  const outliers = await scrapeViralTikToks({ query: options.query || "corporate humor pov" });
+  const outliers = await scrapeViralTikToks({ query: options.query || "high performance flow state" });
   const top = outliers[0];
   return deconstructAndSynthesizeTrend({
     trendCategory: "niche_viral_outlier",
@@ -1351,12 +1637,14 @@ export async function scrapeAndSynthesizeTrendBlueprint(options: {
     beatDropSec: top.detectedBeatDropSec,
     editingTrick: options.editingTrick || top.inferredEditingTrick,
     archetypeId: options.archetypeId || "cortisol_spiked",
+    energyVibe: options.energyVibe || "high_performance_positive",
+    chaosTwistMode: options.chaosTwistMode || "absurd_giraffe_twist",
     videoDownloadUrl: top.videoDownloadUrl,
   });
 }
 
 /**
- * Remixes an existing Trend Blueprint with a custom producer directive or new editing trick
+ * Remixes an existing Trend Blueprint with a custom producer directive, energyVibe, chaosTwistMode, or editingTrick
  */
 export async function remixTrendBlueprintById(
   id: number,
@@ -1364,26 +1652,29 @@ export async function remixTrendBlueprintById(
     directive?: string;
     editingTrick?: EditingTrickType;
     beatDropSec?: string;
+    energyVibe?: EnergyVibeType;
+    chaosTwistMode?: ChaosTwistMode;
   }
 ): Promise<HydratedTrendBlueprint | null> {
   const existing = await storage.getAgentTrendBlueprintById(id);
   if (!existing) return null;
 
   let pkg: FlowUltraVideoPackage;
-  let deconstruction: TrendDeconstruction;
   try {
     pkg = JSON.parse(existing.generatedPackageJson);
-    deconstruction = JSON.parse(existing.deconstructionJson);
   } catch {
     return null;
   }
 
   const nextTrick: EditingTrickType =
     options.editingTrick || (existing.editingTrick as EditingTrickType) || "beat_drop_match_cut";
-  const nextBeatDrop = options.beatDropSec || existing.beatDropSec || "2.4";
+  const nextBeatDrop = options.beatDropSec || existing.beatDropSec || "2.5";
+  const nextVibe: EnergyVibeType =
+    options.energyVibe || pkg.energyVibe || "high_performance_positive";
+  const nextTwist: ChaosTwistMode =
+    options.chaosTwistMode || pkg.chaosTwistMode || "absurd_giraffe_twist";
   const directive = (options.directive || "").trim();
 
-  // Re-synthesize via deconstructAndSynthesizeTrend or deterministic update
   const remixed = await deconstructAndSynthesizeTrend({
     trendCategory: (existing.trendCategory as TrendCategoryType) || "newsjack_cultural",
     topicOrHook: existing.trendTopicOrHook,
@@ -1400,24 +1691,25 @@ export async function remixTrendBlueprintById(
     beatDropSec: nextBeatDrop,
     editingTrick: nextTrick,
     archetypeId: pkg.archetypeId,
-    remixDirective: directive || `Switch editing trick to ${EDITING_TRICK_LABELS[nextTrick]}`,
-  });
-
-  // Update the existing blueprint in-place as well so its ID stays fresh
-  await storage.updateAgentTrendBlueprint(id, {
-    editingTrick: nextTrick,
-    beatDropSec: nextBeatDrop,
-    deconstructionJson: JSON.stringify(remixed.deconstruction),
-    generatedPackageJson: JSON.stringify({
-      ...remixed.generatedPackage,
-      id: pkg.id,
-    }),
+    energyVibe: nextVibe,
+    chaosTwistMode: nextTwist,
+    remixDirective:
+      directive ||
+      `Switch to ${ENERGY_VIBE_LABELS[nextVibe]} + ${CHAOS_TWIST_LABELS[nextTwist]} + ${EDITING_TRICK_LABELS[nextTrick]}`,
   });
 
   const updatedPkg: FlowUltraVideoPackage = {
     ...remixed.generatedPackage,
     id: pkg.id,
   };
+
+  await storage.updateAgentTrendBlueprint(id, {
+    editingTrick: nextTrick,
+    beatDropSec: nextBeatDrop,
+    deconstructionJson: JSON.stringify(remixed.deconstruction),
+    generatedPackageJson: JSON.stringify(updatedPkg),
+  });
+
   registerDynamicFlowUltraPackage(updatedPkg);
 
   return {
@@ -1426,5 +1718,8 @@ export async function remixTrendBlueprintById(
     beatDropSec: nextBeatDrop,
     deconstruction: remixed.deconstruction,
     generatedPackage: updatedPkg,
+    energyVibe: nextVibe,
+    chaosTwistMode: nextTwist,
   };
 }
+
